@@ -31,7 +31,7 @@ url: "https://r3el.osoyalce.com" # the base hostname & protocol for your site e.
 baseurl: "" # the subpath of your site, e.g. "/blog"
 repository: NadimGhaznavi/r3el # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"
 teaser: # path of fallback teaser image, e.g. "/assets/images/500x300.png"
-logo: "/pages/images/r33l.png"
+logo: "/pages/images/r3el.png"
 masthead_title: # overrides the website title displayed in the masthead, use " " for no title
 breadcrumbs: # true, false (default)
 words_per_minute: 200
