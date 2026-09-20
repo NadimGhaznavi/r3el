@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% if refresh %}<meta http-equiv="refresh" content="{{ refresh }}">{% endif %}
+  <title>{% block title %}Event log{% endblock %} · R3el Control</title>
+  {% include 'styles.html' %}
+</head>
+<body>
+  <header class="masthead"><a href="/">R3el <span>Control</span></a><span>Media identification · Event log</span></header>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

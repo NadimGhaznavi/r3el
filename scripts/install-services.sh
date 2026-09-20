@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the minimal R3el service after install.sh provisions its account/DB.
+# Deploy R3el's batch and control services after account/DB provisioning.
 set -euo pipefail
 umask 022
 
@@ -41,9 +41,12 @@ fi
 "$install_dir/.venv/bin/python" -m pip install -r "$checkout_dir/requirements.txt"
 chgrp -R r3el "$install_dir/.venv"
 chmod -R g+rX "$install_dir/.venv"
-# Deploy only the working R3el modules; the checkout also contains legacy code.
+# Deploy the modules and presentation assets used by both R3el services.
 modules=(
     server/R3elServer.py
+    server/ControlServer.py server/EventPages.py
+    server/templates/base.html server/templates/styles.html
+    server/templates/events.html server/templates/event.html server/templates/error.html
     app/Prompt.py
     app/BatchIdentification.py app/ToolConversation.py
     app/SubmissionHandler.py app/ValidateIdentification.py
@@ -59,10 +62,12 @@ modules=(
     interface/DbMgr.py interface/EventLogDb.py interface/FileMgr.py
     activity/EventSchema.py activity/EventReport.py activity/ServerLifecycle.py
 )
-# Stop the previous service before replacing its modules. Batches are started manually.
-if [[ -e /etc/systemd/system/r3el-server.service || -L /etc/systemd/system/r3el-server.service ]]; then
-    systemctl stop r3el-server.service
-fi
+# Stop previous services before replacing their modules. Batches are started manually.
+for unit in r3el-server.service r3el-control.service; do
+    if [[ -e /etc/systemd/system/$unit || -L /etc/systemd/system/$unit ]]; then
+        systemctl stop "$unit"
+    fi
+done
 for module in "${modules[@]}"; do
     install -D -m 644 -- "$checkout_dir/r3el/$module" "$install_dir/r3el/$module"
 done
@@ -85,21 +90,28 @@ PYSCHEMA
 
 unit_dir=$(mktemp -d)
 trap 'rm -rf -- "$unit_dir"' EXIT
-python3 - "$checkout_dir/systemd/r3el-server.service" "$install_dir" "$unit_dir/r3el-server.service" "$checkout_dir" <<'PY'
+python3 - "$checkout_dir" "$install_dir" "$unit_dir" <<'PY'
 from pathlib import Path
 import sys
 
-source, app, target, checkout = sys.argv[1:]
+checkout, app, target = sys.argv[1:]
 sys.path.insert(0, checkout)
 from r3el.constants.DLlama import DLlama
 # Escape paths for systemd's quoted values and specifier expansion.
 app = app.replace('\\', '\\\\').replace('"', '\\"').replace('%', '%%')
-Path(target).write_text(Path(source).read_text().replace('@APP@', app).replace('@LLM_PORT@', str(DLlama.PORT)))
+for unit in ('r3el-server.service', 'r3el-control.service'):
+    source = Path(checkout) / 'systemd' / unit
+    (Path(target) / unit).write_text(source.read_text().replace('@APP@', app).replace('@LLM_PORT@', str(DLlama.PORT)))
 PY
-systemd-analyze verify "$unit_dir/r3el-server.service"
-install -m 644 -- "$unit_dir/r3el-server.service" /etc/systemd/system/r3el-server.service
+systemd-analyze verify "$unit_dir/r3el-server.service" "$unit_dir/r3el-control.service"
+for unit in r3el-server.service r3el-control.service; do
+    install -m 644 -- "$unit_dir/$unit" "/etc/systemd/system/$unit"
+done
 systemctl daemon-reload
 systemctl disable r3el-server.service
+systemctl enable --now r3el-control.service
+control_port=$(cd -- "$checkout_dir" && python3 -B -c 'from r3el.constants.DR3el import DR3el; print(DR3el.PORT)')
+printf 'R3el Control started: http://<server>:%s/\n' "$control_port"
 printf 'Installed one-batch r3el-server.service at %s.\n' "$install_dir"
 printf 'Start qwen-server.service and wait for its /health endpoint to return HTTP 200 before starting r3el-server.service.\n'
 printf 'The local Qwen URL is configured by default; /etc/r3el/server.env can override R3EL_LLM_URL.\n'

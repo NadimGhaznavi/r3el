@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Event #{{ event.event_id }}{% endblock %}
+{% block content %}
+<p><a href="/">Back to event log</a></p>
+<h1>Event #{{ event.event_id }} · {{ event.name }}</h1>
+<dl>
+  <dt>Time (UTC)</dt><dd>{{ event.occurred_at }}</dd>
+  <dt>Level</dt><dd>{{ event.log_level }}</dd>
+  <dt>Category</dt><dd>{{ event.category }} / {{ event.subcategory }}</dd>
+  <dt>Source</dt><dd>{{ event.source_name or '—' }}</dd>
+  <dt>Process ID</dt><dd>{{ event.process_id or '—' }}</dd>
+  <dt>Parent event</dt><dd>{% if event.parent_event_id %}<a href="/events/{{ event.parent_event_id }}">#{{ event.parent_event_id }}</a>{% else %}—{% endif %}</dd>
+  <dt>App version</dt><dd>{{ event.app_version or '—' }}</dd>
+</dl>
+<h2>Message</h2>
+<pre class="message">{{ event.content | message }}</pre>
+{% endblock %}
