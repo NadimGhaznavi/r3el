@@ -26,11 +26,11 @@
       <td>
         <select name="subcategory" id="subcategory" form="event-filters" aria-label="Filter by subcategory">
           <option value="">All subcategories</option>
-          {% if category %}{% for choice in categories[category] %}<option value="{{ choice }}" {% if subcategory == choice %}selected{% endif %}>{{ choice }}</option>{% endfor %}{% endif %}
+          {% for choice in subcategories %}<option value="{{ choice }}" {% if subcategory == choice %}selected{% endif %}>{{ choice }}</option>{% endfor %}
         </select>
       </td>
       <td>
-        <select name="name" form="event-filters" aria-label="Filter by event name">
+        <select name="name" id="event-name" form="event-filters" aria-label="Filter by event name">
           <option value="">All events</option>
           {% for choice in event_names %}<option value="{{ choice }}" {% if name == choice %}selected{% endif %}>{{ choice }}</option>{% endfor %}
         </select>
@@ -55,10 +55,44 @@
 </div>
 <script>
   const categories = {{ categories | tojson }};
-  document.getElementById('category').addEventListener('change', (event) => {
-    const select = document.getElementById('subcategory');
-    select.replaceChildren(new Option('All subcategories', ''));
-    for (const name of categories[event.target.value] || []) select.add(new Option(name, name));
+  const eventParents = {{ event_parents | tojson }};
+  const category = document.getElementById('category');
+  const subcategory = document.getElementById('subcategory');
+  const eventName = document.getElementById('event-name');
+
+  function updateOptions(select, label, choices) {
+    const selected = select.value;
+    select.replaceChildren(new Option(label, ''));
+    for (const name of choices) select.add(new Option(name, name));
+    select.value = choices.includes(selected) ? selected : '';
+  }
+
+  function updateSubcategories() {
+    const choices = category.value ? categories[category.value] : Object.values(categories).flat();
+    updateOptions(subcategory, 'All subcategories', [...new Set(choices)].sort());
+  }
+
+  function updateEvents() {
+    const choices = Object.keys(eventParents).filter(name => {
+      const parent = eventParents[name];
+      return (!category.value || parent.category === category.value)
+        && (!subcategory.value || parent.subcategory === subcategory.value);
+    });
+    updateOptions(eventName, 'All events', choices);
+  }
+
+  category.addEventListener('change', () => {
+    updateSubcategories();
+    updateEvents();
+  });
+  subcategory.addEventListener('change', updateEvents);
+  eventName.addEventListener('change', () => {
+    if (!eventName.value) return;
+    const parent = eventParents[eventName.value];
+    category.value = parent.category;
+    updateSubcategories();
+    subcategory.value = parent.subcategory;
+    updateEvents();
   });
 </script>
 {% endblock %}

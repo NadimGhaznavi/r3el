@@ -29,7 +29,11 @@ attempt identifier to the active server-owned context.
 
 ## Results and logging
 
-Each filename gets one initial attempt and at most `MAX_LLM_RETRIES = 2`
+Hidden filenames (names beginning with `.`) are flagged as
+`unresolved_hidden_file` with zero attempts and are never sent to the LLM.
+They count toward the batch size and remain in the results and event log.
+
+Each other filename gets one initial attempt and at most `MAX_LLM_RETRIES = 2`
 correction attempts. Invalid tool-call structure or rejected form data produces
 a corrective prompt. Exhaustion records `unresolved_llm` and advances to the
 next file. An accepted submission is `identified`, not TMDB-resolved.
