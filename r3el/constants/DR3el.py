@@ -8,6 +8,7 @@ class DR3el:
     VERSION: Final[str] = "0.0.0"
 
     BASE_DIR: Final[str] = "/opt/prod/r3el"
+    FILM_DIR: Final[str] = "/imports/disk1/archive/film"
 
     PORT: Final[int] = 42220
 

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The R3el server sleeps in a loop and exits cleanly on SIGTERM or SIGINT.
 - Added a minimal idle R3el service and simplified its deployment, with Plotly as the initial dependency.
 
 - Created Git branch structure to support release management.
