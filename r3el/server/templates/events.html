@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Event log</h1>
+<p class="note">Latest {{ events | length }} matching events, up to 500. Newest first. All times UTC.</p>
+<form method="get" action="/">
+  <label>Category
+    <select name="category" id="category">
+      <option value="">All categories</option>
+      {% for name in categories %}<option value="{{ name }}" {% if category == name %}selected{% endif %}>{{ name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Subcategory
+    <select name="subcategory" id="subcategory">
+      <option value="">All subcategories</option>
+      {% if category %}{% for name in categories[category] %}<option value="{{ name }}" {% if subcategory == name %}selected{% endif %}>{{ name }}</option>{% endfor %}{% endif %}
+    </select>
+  </label>
+  <label>Refresh
+    <select name="refresh">
+      {% for seconds, label in [(0, 'Manual'), (5, '5 seconds'), (30, '30 seconds'), (60, '1 minute')] %}<option value="{{ seconds }}" {% if refresh == seconds %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  <button type="submit">Apply / refresh</button>
+  <a href="/">Reset</a>
+</form>
+<div class="table-wrap">
+<table aria-label="Event log">
+  <thead><tr><th scope="col">Time (UTC)</th><th scope="col">ID</th><th scope="col">Level</th><th scope="col">Category</th><th scope="col">Event / source</th><th scope="col">Message</th></tr></thead>
+  <tbody>
+  {% for event in events %}
+    <tr>
+      <td><time>{{ event.occurred_at }}</time></td>
+      <td><a href="/events/{{ event.event_id }}">#{{ event.event_id }}</a></td>
+      <td class="level level-{{ event.log_level | lower }}">{{ event.log_level }}</td>
+      <td>{{ event.category }}<br><span class="note">{{ event.subcategory }}</span></td>
+      <td>{{ event.name }}<br><span class="note">{{ event.source_name or '—' }}</span></td>
+      <td class="preview"><pre>{{ (event.content | message)[:1200] }}{% if (event.content | message) | length > 1200 %}…{% endif %}</pre><a href="/events/{{ event.event_id }}">Full event</a></td>
+    </tr>
+  {% else %}<tr><td colspan="6">No events match these filters.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<script>
+  const categories = {{ categories | tojson }};
+  document.getElementById('category').addEventListener('change', (event) => {
+    const select = document.getElementById('subcategory');
+    select.replaceChildren(new Option('All subcategories', ''));
+    for (const name of categories[event.target.value] || []) select.add(new Option(name, name));
+  });
+</script>
+{% endblock %}

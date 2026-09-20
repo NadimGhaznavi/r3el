@@ -9,7 +9,7 @@ Usage: sudo scripts/uninstall.sh
 Deletes DR3el.BASE_DIR, /etc/r3el/database.env, the local MariaDB database
 and account r3el, and the Linux service user/group r3el.
 All data in that database and installation directory is deleted.
-Stops, disables, and removes r3el-server.service before deleting resources.
+Stops, disables, and removes r3el-server.service and r3el-control.service.
 Preserves the shared qwen-server.service, its account/configuration, and model assets.
 Run as root with MariaDB administrative socket access.
 HELP
@@ -54,11 +54,12 @@ if [[ -e "$credentials_file" ]]; then
         fail "Credentials do not match the selected environment."
 fi
 
-unit=r3el-server.service
-if [[ -f /etc/systemd/system/$unit || -L /etc/systemd/system/$unit ]]; then
-    systemctl disable --now "$unit"
-    rm -- "/etc/systemd/system/$unit"
-fi
+for unit in r3el-control.service r3el-server.service; do
+    if [[ -f /etc/systemd/system/$unit || -L /etc/systemd/system/$unit ]]; then
+        systemctl disable --now "$unit"
+        rm -- "/etc/systemd/system/$unit"
+    fi
+done
 systemctl daemon-reload
 
 "${admin[@]}" <<SQL
