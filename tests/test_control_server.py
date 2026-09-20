@@ -76,7 +76,8 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('value="Result" selected', body)
 
     def test_bad_filters_are_client_errors(self):
-        for query in ('category=Unknown', 'subcategory=Result', 'category=Server&subcategory=Tool',
+        for query in ('category=Unknown', 'subcategory=Unknown', 'category=Server&subcategory=Tool',
+                      'category=Server&name=tool_received', 'subcategory=Result&name=tool_received',
                       'category=Server&category=Batch', 'refresh=-1', 'other=value',
                       'name=unknown', 'name=tool_started&name=tool_received'):
             with self.subTest(query=query):
@@ -92,6 +93,36 @@ class ControlServerTests(unittest.TestCase):
         self.assertEqual(params, ('Identification', 'Tool', 'tool_received', 500))
         self.assertIn('value="tool_received" selected', body)
         self.assertIn('value="tool_started"', body)
+
+    def test_event_selection_fills_missing_parents(self):
+        for query in ('name=tool_received', 'category=Identification&name=tool_received',
+                      'subcategory=Tool&name=tool_received'):
+            with self.subTest(query=query):
+                status, _, body = self.request('/?' + query)
+                self.assertEqual(status, 200)
+                self.assertEqual(self.db.query.call_args.args[1],
+                                 ('Identification', 'Tool', 'tool_received', 500))
+                for choice in ('Identification', 'Tool', 'tool_received'):
+                    self.assertIn(f'value="{choice}" selected', body)
+
+    def test_dropdowns_follow_selected_branch(self):
+        for query, expected_subcategories, expected_events in (
+            ('category=Batch', {'Lifecycle', 'Discovery'},
+             {'batch_started', 'batch_completed', 'batch_failed', 'batch_cancelled', 'files_retrieved'}),
+            ('category=Identification&subcategory=Result',
+             {'Conversation', 'Tool', 'Validation', 'Result'}, {'item_completed'}),
+            ('subcategory=Lifecycle',
+             {'Lifecycle', 'Discovery', 'Conversation', 'Tool', 'Validation', 'Result'},
+             {'started', 'stopped', 'batch_started', 'batch_completed', 'batch_failed', 'batch_cancelled'}),
+        ):
+            with self.subTest(query=query):
+                status, _, body = self.request('/?' + query)
+                self.assertEqual(status, 200)
+                for select_id, expected in (('subcategory', expected_subcategories),
+                                            ('event-name', expected_events)):
+                    options = re.search(r'<select[^>]*id="' + select_id + r'"[^>]*>(.*?)</select>',
+                                        body, re.S).group(1)
+                    self.assertEqual(set(re.findall(r'<option value="([^\"]+)"', options)), expected)
 
     def test_detail_has_full_content_and_parent_link(self):
         self.event['content'] = 'Long message\n' + 'x' * 2500
