@@ -13,5 +13,5 @@
   <dt>App version</dt><dd>{{ event.app_version or '—' }}</dd>
 </dl>
 <h2>Message</h2>
-<pre class="message">{{ event.content | message }}</pre>
+<pre class="message">{{ message.text }}</pre>
 {% endblock %}
