@@ -52,7 +52,7 @@ class EventPagesTests(unittest.TestCase):
         body = self.render()
         self.assertIn('<p>batch_completed: batch-1 / &lt;done&gt;</p>', body)
         self.assertNotIn('<pre>', body)
-        self.assertIn('Full event</a>', body)
+        self.assertNotIn('Full event</a>', body)
         self.assertEqual(self.event, original)
 
     def test_broken_custom_template_does_not_use_default(self):

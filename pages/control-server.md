@@ -24,9 +24,12 @@ JSON messages are indented; plain text messages are preserved. Times are UTC.
 The Message column uses Jinja templates in `r3el/server/templates/messages/`.
 For each event, `EventPages` selects `<event-name>.html` (for example,
 `batch_completed.html`) when that file exists, otherwise `default.html`.
-Only the default is supplied initially. It shows indented JSON or unchanged
+The default shows indented JSON or unchanged
 plain text, limited to 1,200 characters with an ellipsis for longer messages.
-The table supplies the Full event link after the included template.
+Each template owns the entire Message cell, including its links. The default
+includes a Full event link. The `files_retrieved.html` template shows only a
+linked summary: `Retrieved filenames (XXX): foo.txt, bar.xls, ...`, using the
+total count and first two filenames in stored order, followed by literal `...`.
 
 Each message template receives:
 
