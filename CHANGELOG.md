@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-09-20 @ 17:46
+
 ### Updated
 
 - Display event source and name on one line, source first (for example, `FileMgr - files_retrieved`).
