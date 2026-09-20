@@ -11,8 +11,10 @@ event schema, then enable and start the control service. Open
 `DR3el.PORT`. The separate batch service remains stopped and disabled until
 explicitly started. Uninstall removes both R3el units and preserves Qwen.
 
-The page shows up to 500 matching events, newest first. Category and
-subcategory filters apply to the full database history before the limit.
+The page shows up to 500 matching events, newest first. Category, subcategory,
+and event-name dropdowns sit in the table's second header row and apply to
+the full database history before the limit. The Event / source dropdown
+selects event names such as `tool_received` and `tool_started`.
 Choose manual refresh or a 5, 30, or 60 second page refresh. Event links open
 the complete message, source, process ID, app version, and parent event.
 JSON messages are indented; plain text messages are preserved. Times are UTC.

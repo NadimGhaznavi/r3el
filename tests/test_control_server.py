@@ -77,10 +77,21 @@ class ControlServerTests(unittest.TestCase):
 
     def test_bad_filters_are_client_errors(self):
         for query in ('category=Unknown', 'subcategory=Result', 'category=Server&subcategory=Tool',
-                      'category=Server&category=Batch', 'refresh=-1', 'other=value'):
+                      'category=Server&category=Batch', 'refresh=-1', 'other=value',
+                      'name=unknown', 'name=tool_started&name=tool_received'):
             with self.subTest(query=query):
                 self.assertEqual(self.request('/?' + query)[0], 400)
         self.db.query.assert_not_called()
+
+    def test_event_filter_applies_before_limit_with_other_filters(self):
+        status, _, body = self.request('/?category=Identification&subcategory=Tool&name=tool_received&refresh=30')
+        self.assertEqual(status, 200)
+        sql, params = self.db.query.call_args.args
+        self.assertIn('e.name = %s', sql)
+        self.assertLess(sql.index('e.name = %s'), sql.index('LIMIT %s'))
+        self.assertEqual(params, ('Identification', 'Tool', 'tool_received', 500))
+        self.assertIn('value="tool_received" selected', body)
+        self.assertIn('value="tool_started"', body)
 
     def test_detail_has_full_content_and_parent_link(self):
         self.event['content'] = 'Long message\n' + 'x' * 2500
@@ -144,7 +155,7 @@ class InstalledControlTests(unittest.TestCase):
                                     cwd=stage, capture_output=True, text=True, check=True)
             self.assertIn('--port', result.stdout)
             render = """from r3el.server.EventPages import EventPages
-page = EventPages().render('events.html', events=[], category=None, subcategory=None, refresh=0)
+page = EventPages().render('events.html', events=[], category=None, subcategory=None, name=None, refresh=0)
 assert b'No events match these filters.' in page
 """
             subprocess.run([sys.executable, '-B', '-c', render], cwd=stage, check=True)

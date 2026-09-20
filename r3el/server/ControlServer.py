@@ -44,11 +44,12 @@ def make_server(host: str, port: int) -> ThreadingHTTPServer:
                 self.send_error(404, 'Page not found')
                 return
             try:
-                query = parse_qs(url.query, keep_blank_values=True, max_num_fields=3)
-                if set(query) - {'category', 'subcategory', 'refresh'} or any(len(v) != 1 for v in query.values()):
-                    raise ValueError('Use category, subcategory, and refresh once each.')
+                query = parse_qs(url.query, keep_blank_values=True, max_num_fields=4)
+                if set(query) - {'category', 'subcategory', 'name', 'refresh'} or any(len(v) != 1 for v in query.values()):
+                    raise ValueError('Use category, subcategory, name, and refresh once each.')
                 category = query.get('category', [''])[0] or None
                 subcategory = query.get('subcategory', [''])[0] or None
+                name = query.get('name', [''])[0] or None
                 refresh = query.get('refresh', ['0'])[0]
                 if refresh not in ('0', '5', '30', '60'):
                     raise ValueError('Refresh must be 0, 5, 30, or 60 seconds.')
@@ -59,12 +60,12 @@ def make_server(host: str, port: int) -> ThreadingHTTPServer:
                 with event_log() as events:
                     if url.path in ('/', '/events'):
                         try:
-                            rows = EventReport(events).recent(category, subcategory)
+                            rows = EventReport(events).recent(category, subcategory, name)
                         except ValueError as error:
                             self.send_error(400, str(error))
                             return
                         body = pages.render('events.html', events=rows, category=category,
-                                            subcategory=subcategory, refresh=int(refresh))
+                                            subcategory=subcategory, name=name, refresh=int(refresh))
                     else:
                         event_id = int(url.path.rsplit('/', 1)[1])
                         if not 1 <= event_id <= 18446744073709551615:

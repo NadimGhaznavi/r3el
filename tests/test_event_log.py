@@ -42,7 +42,7 @@ class ReportFilterTests(unittest.TestCase):
         self.assertEqual(DEventCategory.CHILDREN['Server'], ('Lifecycle',))
         events = Mock()
         EventReport(events).recent('Server', 'Lifecycle')
-        events.recent.assert_called_once_with(category='Server', subcategory='Lifecycle')
+        events.recent.assert_called_once_with(category='Server', subcategory='Lifecycle', name=None)
 
 
 @unittest.skipUnless(os.environ.get('R3EL_TEST_DB') == '1', 'requires MariaDB socket administrator')
