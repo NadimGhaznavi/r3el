@@ -5,7 +5,7 @@ from uuid import uuid4
 from r3el.constants.DEventCategory import DEventCategory
 from r3el.constants.DEventName import DEventName
 from r3el.constants.DR3el import DR3el
-from r3el.entities.LogEvent import LogEvent
+from r3el.entity.LogEvent import LogEvent
 from r3el.interface.EventLogDb import EventLogDb
 
 

@@ -43,7 +43,7 @@ chmod -R g+rX "$install_dir/.venv"
 modules=(
     server/R3elServer.py
     constants/DR3el.py constants/DDbMgr.py constants/DEventCategory.py constants/DEventName.py
-    entities/EventCategory.py entities/LogEvent.py
+    entity/EventCategory.py entity/LogEvent.py
     interface/DbMgr.py interface/EventLogDb.py
     activity/EventSchema.py activity/EventReport.py activity/ServerLifecycle.py
 )

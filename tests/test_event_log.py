@@ -19,8 +19,8 @@ import pymysql
 from r3el.activity.EventReport import EventReport
 from r3el.activity.EventSchema import EventSchema
 from r3el.constants.DEventCategory import DEventCategory
-from r3el.entities.EventCategory import EventCategory
-from r3el.entities.LogEvent import LogEvent
+from r3el.entity.EventCategory import EventCategory
+from r3el.entity.LogEvent import LogEvent
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
 

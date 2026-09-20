@@ -1,6 +1,6 @@
 """The shared category hierarchy for event writers and report filters."""
 
-from r3el.entities.EventCategory import EventCategory
+from r3el.entity.EventCategory import EventCategory
 
 
 class DEventCategory:

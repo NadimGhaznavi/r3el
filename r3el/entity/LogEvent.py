@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from r3el.entities.EventCategory import EventCategory
+from r3el.entity.EventCategory import EventCategory
 
 
 @dataclass(frozen=True)

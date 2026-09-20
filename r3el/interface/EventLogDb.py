@@ -1,6 +1,6 @@
 """Persist and query application events through the shared database bridge."""
 
-from r3el.entities.LogEvent import LogEvent
+from r3el.entity.LogEvent import LogEvent
 from r3el.interface.DbMgr import DbMgr
 
 
