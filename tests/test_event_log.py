@@ -4,12 +4,15 @@ Integration checks create and remove their own database and account.
 """
 
 import os
+import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from fake_llm import FakeLLM
 import secrets
-import select
 import signal
 import subprocess
 import sys
-import time
 import unittest
 from unittest.mock import Mock, patch
 from uuid import uuid4
@@ -126,32 +129,97 @@ class EventDatabaseTests(unittest.TestCase):
         self.assertEqual([row['event_id'] for row in rows], [wanted])
         self.assertEqual(self.events.recent(category="Server' OR 1=1 --"), [])
 
-    def test_lifecycle_records_start_and_stop_on_signals(self):
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            process = subprocess.Popen(
-                [sys.executable, '-B', '-u', '-m', 'r3el.server.R3elServer'],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            )
-            try:
-                ready, _, _ = select.select([process.stdout], [], [], 5)
-                self.assertTrue(ready, 'server startup timed out')
-                self.assertEqual(process.stdout.readline().strip(), 'R3el server started (idle).')
-                time.sleep(1.1)
-                self.assertIsNone(process.poll())
-                process.send_signal(sig)
-                output, error = process.communicate(timeout=5)
-                self.assertEqual(process.returncode, 0, error)
-                self.assertIn('R3el server stopped.', output)
-                rows = self.events.recent(limit=2)
-                self.assertEqual([row['name'] for row in rows], ['stopped', 'started'])
-                self.assertEqual(rows[0]['parent_event_id'], rows[1]['event_id'])
-                self.assertEqual(rows[0]['process_id'], rows[1]['process_id'])
-            finally:
-                if process.poll() is None:
+    def run_batch(self, root, url, size=3):
+        return subprocess.Popen([
+            sys.executable, '-B', '-u', '-m', 'r3el.server.R3elServer',
+            '--film-dir', str(root), '--batch-size', str(size), '--llm-url', url,
+            '--zmq-endpoint', 'tcp://127.0.0.1:*',
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    def test_one_batch_real_http_mcp_zmq_and_database(self):
+        good = {'title': 'Example', 'year': 2001, 'confidence': 0.9}
+        # A malformed reply and server correction, an exhausted file, then success.
+        submissions = ['{"choices": []}', {**good, 'title': ''}, good] + [{**good, 'year': 'bad'}] * 3 + [good]
+        with TemporaryDirectory() as directory, FakeLLM(submissions) as llm:
+            root = Path(directory)
+            for name in ('a.mkv', 'b.mkv', 'c.mkv', 'd.mkv'):
+                (root / name).write_text('untouched')
+            (root / 'nested').mkdir()
+            (root / 'nested' / 'hidden.mkv').touch()
+            with self.run_batch(root, llm.url) as process:
+                try:
+                    output, error = process.communicate(timeout=75)
+                except BaseException:
                     process.kill()
                     process.wait()
-                process.stdout.close()
-                process.stderr.close()
+                    raise
+            self.assertEqual(process.returncode, 0, error)
+            self.assertEqual(llm.errors, [])
+            results = json.loads(output.splitlines()[1])
+            self.assertEqual([r['filename'] for r in results], ['a.mkv', 'b.mkv', 'c.mkv'])
+            self.assertEqual([r['status'] for r in results], ['identified', 'unresolved_llm', 'identified'])
+            self.assertEqual([r['attempts'] for r in results], [3, 3, 1])
+            self.assertEqual(len(llm.requests), 7)
+            self.assertTrue(any(m['role'] == 'tool' for m in llm.requests[2]['messages']))
+            schema = llm.requests[0]['tools'][0]['function']['parameters']
+            self.assertEqual(set(schema['required']), {'title', 'year', 'confidence'})
+            self.assertEqual(schema['properties']['year']['type'], 'integer')
+            for name in ('a.mkv', 'b.mkv', 'c.mkv', 'd.mkv'):
+                self.assertEqual((root / name).read_text(), 'untouched')
+        rows = self.events.recent()
+        received = [r for r in rows if r['name'] == 'tool_received']
+        self.assertEqual(len(received), 6)
+        for row in received:
+            context = json.loads(row['content'])['context']
+            self.assertTrue(context['batch_id'])
+            self.assertEqual(row['process_id'], context['item_id'])
+            parent = self.events.get(row['parent_event_id'])
+            self.assertEqual(parent['name'], 'attempt_started')
+            self.assertEqual(json.loads(parent['content'])['context']['attempt_id'], context['attempt_id'])
+        self.assertEqual(rows[0]['name'], 'stopped')
+        self.assertEqual(sum(r['name'] == 'batch_completed' for r in rows), 1)
+
+    def test_empty_batch_stops_without_contacting_llm(self):
+        with TemporaryDirectory() as directory:
+            with self.run_batch(directory, 'http://127.0.0.1:1') as process:
+                output, error = process.communicate(timeout=10)
+            self.assertEqual(process.returncode, 0, error)
+            self.assertEqual(json.loads(output.splitlines()[1]), [])
+
+    def test_operational_error_aborts_without_retry(self):
+        good = {'title': 'Example', 'year': 2001, 'confidence': 0.9}
+        with TemporaryDirectory() as directory, FakeLLM([good], status=503) as llm:
+            Path(directory, 'a.mkv').touch()
+            with self.run_batch(directory, llm.url) as process:
+                output, error = process.communicate(timeout=15)
+            self.assertNotEqual(process.returncode, 0)
+            self.assertEqual(len(llm.requests), 1)
+        names = [row['name'] for row in self.events.recent()]
+        self.assertIn('batch_failed', names)
+        self.assertNotIn('item_completed', names)
+
+    def test_lifecycle_records_start_and_stop_on_signals(self):
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            good = {'title': 'Example', 'year': 2001, 'confidence': 0.9}
+            with TemporaryDirectory() as directory, FakeLLM([good], block=True) as llm:
+                Path(directory, 'a.mkv').touch()
+                process = self.run_batch(directory, llm.url)
+                try:
+                    self.assertTrue(llm.called.wait(10), 'server did not call the model')
+                    process.send_signal(sig)
+                    output, error = process.communicate(timeout=10)
+                    self.assertEqual(process.returncode, 0, error)
+                    self.assertIn('R3el server stopped.', output)
+                    rows = self.events.recent(category='Server', limit=2)
+                    self.assertEqual([row['name'] for row in rows], ['stopped', 'started'])
+                    self.assertEqual(rows[0]['parent_event_id'], rows[1]['event_id'])
+                    self.assertIn('batch_cancelled', [r['name'] for r in self.events.recent()])
+                finally:
+                    if process.poll() is None:
+                        process.kill()
+                        process.wait()
+                    process.stdout.close()
+                    process.stderr.close()
 
 
 if __name__ == '__main__':

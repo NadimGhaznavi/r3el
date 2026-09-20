@@ -11,7 +11,7 @@ class DR3el:
     FILM_DIR: Final[str] = "/imports/disk1/archive/film"
     MEDIA_DIR: Final[str] = "/imports/disk1/archive/media"
     BATCH_SIZE: Final[int] = 10
-    LLM_RETRY: Final[int] = 3
+    MAX_LLM_RETRIES: Final[int] = 2
 
     PORT: Final[int] = 42220
 

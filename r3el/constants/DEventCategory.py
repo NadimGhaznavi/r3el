@@ -8,7 +8,21 @@ class DEventCategory:
         NAME = "Server"
         LIFECYCLE = EventCategory(NAME, "Lifecycle")
 
-    ALL = (Server.LIFECYCLE,)
+    class Batch:
+        NAME = "Batch"
+        LIFECYCLE = EventCategory(NAME, "Lifecycle")
+        DISCOVERY = EventCategory(NAME, "Discovery")
+
+    class Identification:
+        NAME = "Identification"
+        CONVERSATION = EventCategory(NAME, "Conversation")
+        TOOL = EventCategory(NAME, "Tool")
+        VALIDATION = EventCategory(NAME, "Validation")
+        RESULT = EventCategory(NAME, "Result")
+
+    ALL = (Server.LIFECYCLE, Batch.LIFECYCLE, Batch.DISCOVERY,
+           Identification.CONVERSATION, Identification.TOOL,
+           Identification.VALIDATION, Identification.RESULT)
     CHILDREN = {}
     for classification in ALL:
         CHILDREN.setdefault(classification.category, []).append(classification.subcategory)

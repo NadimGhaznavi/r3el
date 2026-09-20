@@ -42,17 +42,31 @@ chmod -R g+rX "$install_dir/.venv"
 # Deploy only the working R3el modules; the checkout also contains legacy code.
 modules=(
     server/R3elServer.py
+    app/Prompt.py
+    app/BatchIdentification.py app/ToolConversation.py
+    app/SubmissionHandler.py app/ValidateIdentification.py
+    app/prompts/FileContext.py app/prompts/SubmitIdentificationPrompt.py
+    app/prompts/InvalidIdentification.py
+    app/tools/__main__.py app/tools/server.py
+    app/tools/SubmitIdentification.py
+    interface/LLM.py interface/IdentificationTools.py
+    entity/Identification.py activity/EventWriter.py constants/DZMQ.py
+    zmq/ZMQClient.py zmq/ZMQServer.py zmq/ZMQMsg.py
     constants/DR3el.py constants/DDbMgr.py constants/DEventCategory.py constants/DEventName.py
     entity/EventCategory.py entity/LogEvent.py
     interface/DbMgr.py interface/EventLogDb.py interface/FileMgr.py
     activity/EventSchema.py activity/EventReport.py activity/ServerLifecycle.py
 )
+# Stop the previous service before replacing its modules. Batches are started manually.
+if [[ -e /etc/systemd/system/r3el-server.service || -L /etc/systemd/system/r3el-server.service ]]; then
+    systemctl stop r3el-server.service
+fi
 for module in "${modules[@]}"; do
     install -D -m 644 -- "$checkout_dir/r3el/$module" "$install_dir/r3el/$module"
 done
 install -m 644 -- "$checkout_dir/requirements.txt" "$install_dir/requirements.txt"
 
-# Read credentials as data and initialize the schema explicitly before restart.
+# Read credentials as data and initialize the schema explicitly before any batch is started.
 "$install_dir/.venv/bin/python" - "$install_dir" <<'PYSCHEMA'
 import os
 from pathlib import Path
@@ -81,7 +95,6 @@ PY
 systemd-analyze verify "$unit_dir/r3el-server.service"
 install -m 644 -- "$unit_dir/r3el-server.service" /etc/systemd/system/r3el-server.service
 systemctl daemon-reload
-systemctl enable r3el-server.service
-systemctl restart r3el-server.service
-systemctl is-active --quiet r3el-server.service
-printf 'Installed and started r3el-server.service at %s.\n' "$install_dir"
+systemctl disable r3el-server.service
+printf 'Installed one-batch r3el-server.service at %s.\n' "$install_dir"
+printf 'Set R3EL_LLM_URL in /etc/r3el/server.env, then run: sudo systemctl start r3el-server.service\n'

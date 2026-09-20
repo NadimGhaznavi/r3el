@@ -5,8 +5,8 @@ from typing import Any
 
 import zmq
 
-from ax3l.constants.DZMQ import DZMQ
-from ax3l.zmq.ZMQMsg import ZMQMsg
+from r3el.constants.DZMQ import DZMQ
+from r3el.zmq.ZMQMsg import ZMQMsg
 
 
 class ZMQClient:
@@ -28,5 +28,5 @@ class ZMQClient:
                 return socket.recv_json()
 
     def request(self, message: ZMQMsg) -> ZMQMsg:
-        """Return Ax3l's envelope, including rejection/error replies, unchanged."""
+        """Return R3el's envelope, including rejection/error replies, unchanged."""
         return ZMQMsg.from_dict(self.request_json(message.to_dict()))

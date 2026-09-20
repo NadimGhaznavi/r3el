@@ -6,8 +6,8 @@ import traceback
 
 import zmq
 
-from ax3l.constants.DZMQ import DZMQ
-from ax3l.zmq.ZMQMsg import ZMQMsg
+from r3el.constants.DZMQ import DZMQ
+from r3el.zmq.ZMQMsg import ZMQMsg
 
 
 class ZMQServer:
@@ -17,7 +17,7 @@ class ZMQServer:
         self._ready = Event()
         self._stop = Event()
         self._error: BaseException | None = None
-        self._thread = Thread(target=self._serve, name="ax3l-zmq", daemon=True)
+        self._thread = Thread(target=self._serve, name="r3el-zmq", daemon=True)
 
     def __enter__(self):
         self._thread.start()
@@ -63,9 +63,9 @@ class ZMQServer:
                                 traceback.print_exc()
                                 payload = {"status": "error", "error": {
                                     "code": "handler_error",
-                                    "message": "Ax3l could not complete the request. Do not automatically retry; submission may have occurred.",
+                                    "message": "R3el could not complete the request. Do not automatically retry; submission may have occurred.",
                                 }}
-                        reply = ZMQMsg(sender="ax3l", target=request.sender if request else None,
+                        reply = ZMQMsg(sender="r3el", target=request.sender if request else None,
                                        method=request.method if request else "error", payload=payload)
                         socket.send(reply.to_json())
         except BaseException as error:

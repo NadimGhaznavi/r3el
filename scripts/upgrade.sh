@@ -7,8 +7,8 @@ usage() {
 Usage: sudo scripts/upgrade.sh
 
 Updates the installation at DR3el.BASE_DIR via the r3el install-services.sh
-helper, which installs the minimal server and its systemd unit and restarts
-r3el-server. Existing database, credentials,
+helper, which installs the one-batch server and its systemd unit.
+Start a batch manually after configuring R3EL_LLM_URL. Existing database, credentials,
 and accounts are preserved; no MariaDB administrative access is needed.
 
 Run install.sh first. This does not pull Git changes.

@@ -16,7 +16,7 @@ class ServerLifecycle:
         self._started_id = None
 
     def started(self) -> None:
-        self._started_id = self._record(DEventName.SERVER_STARTED, "R3el server started (idle).")
+        self._started_id = self._record(DEventName.SERVER_STARTED, "R3el server started (one batch).")
 
     def stopped(self) -> None:
         self._record(DEventName.SERVER_STOPPED, "R3el server stopped.")

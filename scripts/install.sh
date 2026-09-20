@@ -13,7 +13,7 @@ are reused; existing account passwords are not reset.
 
 MariaDB must already be running and root must have administrative socket
 access. The r3el install-services.sh helper must be present to install and
-start the minimal r3el-server service. No release is published.
+prepare the one-batch r3el-server service. No release is published.
 HELP
 }
 

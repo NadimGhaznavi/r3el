@@ -8,9 +8,9 @@ User=r3el
 Group=r3el
 WorkingDirectory=@APP@
 EnvironmentFile=/etc/r3el/database.env
+EnvironmentFile=-/etc/r3el/server.env
 ExecStart="@APP@/.venv/bin/python" -B -u -m r3el.server.R3elServer
-Restart=on-failure
-RestartSec=5
+Restart=no
 
 [Install]
 WantedBy=multi-user.target

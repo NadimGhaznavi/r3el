@@ -1,10 +1,10 @@
-"""Application message envelope shared by Ax3l and domain MCP tools."""
+"""Application message envelope shared by R3el and domain MCP tools."""
 
 from dataclasses import dataclass, field
 import json
 from typing import Any
 
-from ax3l.constants.DZMQ import DZMQ
+from r3el.constants.DZMQ import DZMQ
 
 
 @dataclass
