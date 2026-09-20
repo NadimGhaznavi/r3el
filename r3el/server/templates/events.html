@@ -46,7 +46,7 @@
       <td class="level level-{{ event.log_level | lower }}">{{ event.log_level }}</td>
       <td>{{ event.category }}</td>
       <td>{{ event.subcategory }}</td>
-      <td>{{ event.name }}<br><span class="note">{{ event.source_name or '—' }}</span></td>
+      <td class="event-source">{{ event.source_name or '—' }} - {{ event.name }}</td>
       <td class="preview">{% with message=event.message %}{% include event.message_template %}{% endwith %}</td>
     </tr>
   {% else %}<tr><td colspan="7">No events match these filters.</td></tr>{% endfor %}
