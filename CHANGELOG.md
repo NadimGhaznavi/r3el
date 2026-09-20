@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Updated
 
+- Show `Batch started with size: XXX` for `batch_started`, linking the entire message to the full event.
+
 - Show only the error text for `batch_failed` messages, linking the entire message to the full event.
 
 ## [0.3.3] - 2026-09-20 @ 17:46
