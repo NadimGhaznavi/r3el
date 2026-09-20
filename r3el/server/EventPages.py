@@ -6,6 +6,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
 from r3el.constants.DEventCategory import DEventCategory
+from r3el.constants.DEventName import DEventName
 
 
 class EventPages:
@@ -16,6 +17,7 @@ class EventPages:
         )
         self._templates.filters['message'] = self.message
         self._templates.globals['categories'] = DEventCategory.CHILDREN
+        self._templates.globals['event_names'] = sorted(DEventName.ALL)
 
     @staticmethod
     def message(content: str) -> str:

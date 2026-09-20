@@ -27,7 +27,8 @@ class EventLogDb:
         return event_id
 
     def recent(self, *, category: str | None = None,
-               subcategory: str | None = None, limit: int = 500) -> list[dict]:
+               subcategory: str | None = None, name: str | None = None,
+               limit: int = 500) -> list[dict]:
         """Filter the full history before selecting the newest records."""
         conditions, values = [], []
         if category is not None:
@@ -36,6 +37,9 @@ class EventLogDb:
         if subcategory is not None:
             conditions.append("e.subcategory = %s")
             values.append(subcategory)
+        if name is not None:
+            conditions.append("e.name = %s")
+            values.append(name)
         where = " WHERE " + " AND ".join(conditions) if conditions else ""
         return self._db.query(
             "SELECT e.*, m.content FROM events e "
