@@ -39,8 +39,33 @@ fi
 "$install_dir/.venv/bin/python" -m pip install -r "$checkout_dir/requirements.txt"
 chgrp -R r3el "$install_dir/.venv"
 chmod -R g+rX "$install_dir/.venv"
-install -D -m 644 -- "$checkout_dir/r3el/server/R3elServer.py" "$install_dir/r3el/server/R3elServer.py"
+# Deploy only the working R3el modules; the checkout also contains legacy code.
+modules=(
+    server/R3elServer.py
+    constants/DR3el.py constants/DDbMgr.py constants/DEventCategory.py constants/DEventName.py
+    entities/EventCategory.py entities/LogEvent.py
+    interface/DbMgr.py interface/EventLogDb.py
+    activity/EventSchema.py activity/EventReport.py activity/ServerLifecycle.py
+)
+for module in "${modules[@]}"; do
+    install -D -m 644 -- "$checkout_dir/r3el/$module" "$install_dir/r3el/$module"
+done
 install -m 644 -- "$checkout_dir/requirements.txt" "$install_dir/requirements.txt"
+
+# Read credentials as data and initialize the schema explicitly before restart.
+"$install_dir/.venv/bin/python" - "$install_dir" <<'PYSCHEMA'
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+environment = os.environ.copy()
+for line in Path('/etc/r3el/database.env').read_text().splitlines():
+    key, value = line.split('=', 1)
+    environment[key] = value
+subprocess.run([sys.executable, '-B', '-m', 'r3el.activity.EventSchema'],
+               cwd=sys.argv[1], env=environment, check=True)
+PYSCHEMA
 
 unit_dir=$(mktemp -d)
 trap 'rm -rf -- "$unit_dir"' EXIT

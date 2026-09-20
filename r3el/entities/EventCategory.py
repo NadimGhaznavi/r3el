@@ -1,8 +1,9 @@
-"""A log category's stored name, event names, and presentation labels."""
+"""An event subcategory and its parent category."""
 
-from typing import ClassVar
+from dataclasses import dataclass
 
 
+@dataclass(frozen=True)
 class EventCategory:
-    CATEGORY: ClassVar[str]
-    LABELS: ClassVar[dict[str, str]]
+    category: str
+    subcategory: str

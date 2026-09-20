@@ -11,6 +11,33 @@ should have a clear responsibility, an obvious home, and a defined interface.
 These guidelines describe the design goals; existing modules may still need
 to be brought into this structure.
 
+## Classify classes by responsibility
+
+R3el uses a custom Common Unified Development Process as a development style.
+Categorize each class by its responsibility:
+
+| Category | Responsibility | Examples |
+| --- | --- | --- |
+| Interface | Bridges a technology, API, or protocol and handles the mechanics of communicating with it. | `DbMgr` for MariaDB, `FileMgr` for files, ZeroMQ transport classes |
+| Activity | Performs transformations, calculations, and application operations on data. | A class that normalizes media metadata or matches catalog records |
+| Entity | Stores data, whether persistent or held only in memory. | A media record or an in-memory result |
+
+Keep these responsibilities separate to prevent monolithic classes. An
+activity works on entities and uses interface classes when it needs to read,
+write, or communicate with an external system. An entity representing
+persistent data does not also own the database connection or persistence
+mechanics.
+
+When a class combines technology access, data transformation, and data storage,
+split those responsibilities into focused collaborators. Use composition to
+connect them rather than growing one class to do everything. Classification
+describes a class's role; it does not require a shared base class or an
+inheritance hierarchy.
+
+Here, **interface class** means a technology bridge. Elsewhere in this document,
+an interface can also mean a component's public contract; having public methods
+alone does not make a class an interface class.
+
 ## Organize code by responsibility
 
 Group related components under `r3el/`:
