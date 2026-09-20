@@ -47,6 +47,7 @@ modules=(
     server/ControlServer.py server/EventPages.py
     server/templates/base.html server/templates/styles.html
     server/templates/events.html server/templates/event.html server/templates/error.html
+    server/templates/messages/default.html
     app/Prompt.py
     app/BatchIdentification.py app/ToolConversation.py
     app/SubmissionHandler.py app/ValidateIdentification.py
