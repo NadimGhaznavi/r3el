@@ -19,6 +19,36 @@ Choose manual refresh or a 5, 30, or 60 second page refresh. Event links open
 the complete message, source, process ID, app version, and parent event.
 JSON messages are indented; plain text messages are preserved. Times are UTC.
 
+## Message templates
+
+The Message column uses Jinja templates in `r3el/server/templates/messages/`.
+For each event, `EventPages` selects `<event-name>.html` (for example,
+`batch_completed.html`) when that file exists, otherwise `default.html`.
+The default shows indented JSON or unchanged
+plain text, limited to 1,200 characters with an ellipsis for longer messages.
+Each template owns the entire Message cell, including its links. The default
+includes a Full event link. The `files_retrieved.html` template shows only a
+linked summary: `Retrieved filenames (XXX): foo.txt, bar.xls, ...`, using the
+total count and first two filenames in stored order, followed by literal `...`.
+
+Each message template receives:
+
+- `event`: the event metadata and original `content`.
+- `message.payload`: the decoded JSON value, or the original string for plain
+  text messages. Events written by `EventWriter` have `message.payload.context`
+  and `message.payload.data`.
+- `message.text`: the complete indented JSON or original plain text.
+
+Use simple HTML and Jinja expressions to select fields, labels, and layout.
+Keep calculations in Python. HTML escaping is enabled; missing required
+variables and template errors surface normally. The default is used only
+when the event-specific template is absent, not when it is broken.
+
+To customize an event, add its named template and include its path in the
+`modules` list in `scripts/install-services.sh` so install and upgrade deploy
+it. The Full event page always shows the complete generic message, independent
+of the column's custom presentation.
+
 ## Standalone startup
 
 To start or stop the whole installed stack, use `scripts/services.sh start`

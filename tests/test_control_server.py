@@ -188,5 +188,9 @@ class InstalledControlTests(unittest.TestCase):
             render = """from r3el.server.EventPages import EventPages
 page = EventPages().render('events.html', events=[], category=None, subcategory=None, name=None, refresh=0)
 assert b'No events match these filters.' in page
+event = dict(event_id=1, occurred_at='2026-09-20', log_level='INFO', category='Server',
+             subcategory='Lifecycle', name='started', source_name='R3elServer', content='Started.')
+page = EventPages().render('events.html', events=[event], category=None, subcategory=None, name=None, refresh=0)
+assert b'<pre>Started.</pre>' in page
 """
             subprocess.run([sys.executable, '-B', '-c', render], cwd=stage, check=True)
