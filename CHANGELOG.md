@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Summary
+
+- Completed the removal of unused SnakeLab/Ax3l application code, leaving the R3el identification workflow, event components, and shared Qwen service integration.
+
+### Removed
+
+- The legacy reporting server and its nine SnakeLab report templates; R3el's reporting UI remains unimplemented.
+- SnakeLab query and MCP interfaces, the Ax3l server and tool dispatcher, and unused watchdog and health service helpers.
+- Obsolete SnakeLab, Ax3l, reporting, event display, Phi, and vision-model constants.
+- The unused Plotly dependency.
+
 ## [0.1.0] - 2026-09-20 @ 13:47
 
 ### Summary

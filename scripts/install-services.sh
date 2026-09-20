@@ -41,7 +41,7 @@ fi
 "$install_dir/.venv/bin/python" -m pip install -r "$checkout_dir/requirements.txt"
 chgrp -R r3el "$install_dir/.venv"
 chmod -R g+rX "$install_dir/.venv"
-# Deploy only the working R3el modules; the checkout also contains legacy code.
+# Deploy the modules used by the one-batch R3el service.
 modules=(
     server/R3elServer.py
     app/Prompt.py
