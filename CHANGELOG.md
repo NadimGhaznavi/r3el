@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Established a MariaDB event log with shared category/subcategory definitions,
 filterable history, and server lifecycle events.
 
+- Added a filesystem interface for bounded, nonrecursive filename retrieval, with a fresh scan on each call.
 - Renamed the `r3el.entities` package to `r3el.entity` and updated imports and deployment paths.
 - Added category parent/child constants, event entities, and separate database and reporting components.
 - Install and upgrade initialize the event schema explicitly; the server logs startup and graceful shutdown.

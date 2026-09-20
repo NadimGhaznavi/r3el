@@ -44,7 +44,7 @@ modules=(
     server/R3elServer.py
     constants/DR3el.py constants/DDbMgr.py constants/DEventCategory.py constants/DEventName.py
     entity/EventCategory.py entity/LogEvent.py
-    interface/DbMgr.py interface/EventLogDb.py
+    interface/DbMgr.py interface/EventLogDb.py interface/FileMgr.py
     activity/EventSchema.py activity/EventReport.py activity/ServerLifecycle.py
 )
 for module in "${modules[@]}"; do
