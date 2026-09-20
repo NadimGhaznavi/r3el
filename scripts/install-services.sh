@@ -33,6 +33,8 @@ PY
 getent passwd r3el >/dev/null || fail "Run install.sh first to create the r3el account."
 getent group r3el >/dev/null || fail "Missing r3el group; run install.sh first."
 
+python3 -B "$checkout_dir/scripts/install-qwen.py"
+
 if [[ ! -x $install_dir/.venv/bin/python ]]; then
     python3 -m venv "$install_dir/.venv"
 fi
@@ -83,18 +85,21 @@ PYSCHEMA
 
 unit_dir=$(mktemp -d)
 trap 'rm -rf -- "$unit_dir"' EXIT
-python3 - "$checkout_dir/systemd/r3el-server.service" "$install_dir" "$unit_dir/r3el-server.service" <<'PY'
+python3 - "$checkout_dir/systemd/r3el-server.service" "$install_dir" "$unit_dir/r3el-server.service" "$checkout_dir" <<'PY'
 from pathlib import Path
 import sys
 
-source, app, target = sys.argv[1:]
+source, app, target, checkout = sys.argv[1:]
+sys.path.insert(0, checkout)
+from r3el.constants.DLlama import DLlama
 # Escape paths for systemd's quoted values and specifier expansion.
 app = app.replace('\\', '\\\\').replace('"', '\\"').replace('%', '%%')
-Path(target).write_text(Path(source).read_text().replace('@APP@', app))
+Path(target).write_text(Path(source).read_text().replace('@APP@', app).replace('@LLM_PORT@', str(DLlama.PORT)))
 PY
 systemd-analyze verify "$unit_dir/r3el-server.service"
 install -m 644 -- "$unit_dir/r3el-server.service" /etc/systemd/system/r3el-server.service
 systemctl daemon-reload
 systemctl disable r3el-server.service
 printf 'Installed one-batch r3el-server.service at %s.\n' "$install_dir"
-printf 'Set R3EL_LLM_URL in /etc/r3el/server.env, then run: sudo systemctl start r3el-server.service\n'
+printf 'Start qwen-server.service and wait for its /health endpoint to return HTTP 200 before starting r3el-server.service.\n'
+printf 'The local Qwen URL is configured by default; /etc/r3el/server.env can override R3EL_LLM_URL.\n'

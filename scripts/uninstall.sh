@@ -10,6 +10,7 @@ Deletes DR3el.BASE_DIR, /etc/r3el/database.env, the local MariaDB database
 and account r3el, and the Linux service user/group r3el.
 All data in that database and installation directory is deleted.
 Stops, disables, and removes r3el-server.service before deleting resources.
+Preserves the shared qwen-server.service, its account/configuration, and model assets.
 Run as root with MariaDB administrative socket access.
 HELP
 }

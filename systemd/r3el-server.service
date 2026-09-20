@@ -8,6 +8,7 @@ User=r3el
 Group=r3el
 WorkingDirectory=@APP@
 EnvironmentFile=/etc/r3el/database.env
+Environment=R3EL_LLM_URL=http://127.0.0.1:@LLM_PORT@
 EnvironmentFile=-/etc/r3el/server.env
 ExecStart="@APP@/.venv/bin/python" -B -u -m r3el.server.R3elServer
 Restart=no

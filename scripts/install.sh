@@ -14,6 +14,8 @@ are reused; existing account passwords are not reset.
 MariaDB must already be running and root must have administrative socket
 access. The r3el install-services.sh helper must be present to install and
 prepare the one-batch r3el-server service. No release is published.
+Reuses an installed qwen-server.service, or provisions it using the existing
+llama.cpp and Qwen GGUF assets. Neither service is started by installation.
 HELP
 }
 

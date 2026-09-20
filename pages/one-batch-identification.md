@@ -61,8 +61,10 @@ isolated runs. Defaults come from `DR3el`. A missing model URL is an error;
 there is no assumed DEV model endpoint.
 
 Installation/upgrade prepares the systemd unit but leaves it stopped and
-disabled for automatic startup. Set `R3EL_LLM_URL=http://MODEL_HOST:PORT` in
-`/etc/r3el/server.env`, then explicitly start one batch:
+disabled for automatic startup. The installed unit defaults `R3EL_LLM_URL` to
+`http://127.0.0.1:27770`; `/etc/r3el/server.env` can override it. Start the shared
+model and wait until `http://127.0.0.1:27770/health` returns HTTP 200, then
+explicitly start one batch:
 
 ```bash
 sudo systemctl start r3el-server.service
@@ -70,6 +72,27 @@ sudo systemctl start r3el-server.service
 
 The service exits after that batch and does not restart automatically. The
 future web interface will replace this manual start with “Retrieve new batch.”
+
+## Shared Qwen service
+
+Install and upgrade check systemd for Ax3l's production `qwen-server.service`.
+An installed service is reused without rewriting its unit, MCP configuration,
+account, enabled state, or running state. A masked or broken unit must be
+repaired explicitly. Ax3l and R3el are intended to run one at a time.
+
+If absent, R3el installs that same service name using Ax3l's model defaults:
+`/opt/prod/llama.cpp/bin/llama-server`,
+`/opt/prod/models/Qwen3.5-4B-Q4_K_M.gguf`, context size 12288,
+host `0.0.0.0`, port 27770, metrics, Jinja, and the same systemd hardening.
+The assets must already exist and be accessible to the service account;
+the installer does not download or rebuild them.
+
+The new service uses an independent `qwen` account and
+`/etc/qwen-server/mcp.json` with no server-side tools, since R3el manages its
+own MCP conversations. It is left stopped and disabled. Start it with
+`sudo systemctl start qwen-server.service` before checking readiness.
+R3el uninstall preserves the shared model service, its account/configuration,
+llama.cpp, and GGUF. An existing Ax3l service retains its Ax3l dependencies.
 
 ## Verification
 
