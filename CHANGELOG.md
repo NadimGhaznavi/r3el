@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-09-20 @ 17:41
+
 ### Created
 
 - A compact linked summary for retrieved filenames showing the total count, first two filenames, and literal `...`. Message templates now own their links.
