@@ -51,6 +51,7 @@ modules=(
     server/templates/messages/files_retrieved.html
     server/templates/messages/batch_failed.html
     server/templates/messages/batch_started.html
+    server/templates/messages/batch_cancelled.html
     app/Prompt.py
     app/BatchIdentification.py app/ToolConversation.py
     app/SubmissionHandler.py app/ValidateIdentification.py
@@ -65,6 +66,8 @@ modules=(
     entity/EventCategory.py entity/LogEvent.py
     interface/DbMgr.py interface/EventLogDb.py interface/FileMgr.py
     activity/EventSchema.py activity/EventReport.py activity/ServerLifecycle.py
+    activity/WorkspaceSchema.py interface/WorkspaceDb.py
+    entity/MediaFile.py entity/MediaFileBatch.py
 )
 # Stop previous services before replacing their modules. Batches are started manually.
 for unit in r3el-server.service r3el-control.service; do
@@ -90,6 +93,8 @@ for line in Path('/etc/r3el/database.env').read_text().splitlines():
     key, value = line.split('=', 1)
     environment[key] = value
 subprocess.run([sys.executable, '-B', '-m', 'r3el.activity.EventSchema'],
+               cwd=sys.argv[1], env=environment, check=True)
+subprocess.run([sys.executable, '-B', '-m', 'r3el.activity.WorkspaceSchema'],
                cwd=sys.argv[1], env=environment, check=True)
 PYSCHEMA
 

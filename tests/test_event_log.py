@@ -21,11 +21,16 @@ import pymysql
 
 from r3el.activity.EventReport import EventReport
 from r3el.activity.EventSchema import EventSchema
+from r3el.activity.WorkspaceSchema import WorkspaceSchema
 from r3el.constants.DEventCategory import DEventCategory
 from r3el.entity.EventCategory import EventCategory
 from r3el.entity.LogEvent import LogEvent
+from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
+from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
+from r3el.entity.Identification import Identification
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
+from r3el.interface.WorkspaceDb import WorkspaceDb
 
 
 class ReportFilterTests(unittest.TestCase):
@@ -75,6 +80,8 @@ class EventDatabaseTests(unittest.TestCase):
         assert cls.db.query('SHOW TABLES') == []
         EventSchema(cls.db).apply()
         EventSchema(cls.db).apply()
+        WorkspaceSchema(cls.db).apply()
+        WorkspaceSchema(cls.db).apply()
 
     @classmethod
     def drop_database(cls):
@@ -90,7 +97,107 @@ class EventDatabaseTests(unittest.TestCase):
         self.events = EventLogDb(self.db)
 
     def tearDown(self):
+        self.db.execute('DELETE FROM media_file_batches')
         self.db.execute('DELETE FROM events ORDER BY event_id DESC')
+
+    def workspace_batch(self):
+        return MediaFileBatch(str(uuid4()), 10, '/tmp/films',
+                              files=[MediaFile(str(uuid4()), '/tmp/films/a.mkv')])
+
+    def test_workspace_creation_and_checkpoint_are_atomic(self):
+        workspace = WorkspaceDb(self.db)
+        batch = self.workspace_batch()
+        with workspace.processing():
+            with self.assertRaises(pymysql.IntegrityError):
+                workspace.create(batch, self.event(), self.event(message=None))
+            self.assertIsNone(workspace.load())
+            self.assertEqual(self.events.recent(), [])
+            batch.started_event_id = workspace.create(batch, self.event(), self.event())
+            item = batch.files[0]
+            item.state = MediaFileState.IDENTIFIED
+            item.identification = Identification('Film 🎬', 2001, 0.9)
+            item.attempts = 2
+            with self.assertRaises(pymysql.IntegrityError):
+                workspace.save_file(batch.id, item, self.event(message=None))
+            self.assertEqual(workspace.load().files[0].state, MediaFileState.PENDING)
+            self.assertEqual(len(self.events.recent()), 2)
+            workspace.save_file(batch.id, item, self.event())
+            with self.assertRaises(pymysql.IntegrityError):
+                workspace.save_batch_state(batch.id, MediaFileBatchState.IDENTIFICATION_COMPLETED,
+                                           self.event(message=None))
+            self.assertEqual(workspace.load().state, MediaFileBatchState.PROCESSING)
+        reader = DbMgr()
+        try:
+            restored = WorkspaceDb(reader).load()
+            self.assertEqual(restored, batch)
+        finally:
+            reader.close()
+
+    def test_workspace_issues_and_exclusive_processing(self):
+        first = WorkspaceDb(self.db)
+        reader = DbMgr()
+        try:
+            second = WorkspaceDb(reader)
+            with first.processing():
+                with self.assertRaises(RuntimeError):
+                    with second.processing():
+                        self.fail('Both processors acquired the workspace')
+                batch = self.workspace_batch()
+                batch.started_event_id = first.create(batch, self.event(), self.event())
+                item = batch.files[0]
+                item.state = MediaFileState.UNRESOLVED_LLM
+                item.issues = [MediaFileIssue('unresolved_llm', 'Missing title'),
+                               MediaFileIssue('missing_year', 'No year supplied')]
+                item.attempts = 3
+                first.save_file(batch.id, item, self.event())
+            with second.processing():
+                self.assertEqual(second.load(), batch)
+                with self.assertRaises(pymysql.IntegrityError):
+                    second.create(self.workspace_batch(), self.event(), self.event())
+                self.assertEqual(second.load(), batch)
+        finally:
+            reader.close()
+
+    def test_restart_resumes_only_pending_files(self):
+        good = {'title': 'Example', 'year': 2001, 'confidence': 0.9}
+        with TemporaryDirectory() as directory, FakeLLM([good, good], block_at=1) as llm:
+            root = Path(directory)
+            for name in ('a.mkv', 'b.mkv', 'c.mkv'):
+                (root / name).touch()
+            with self.run_batch(root, llm.url) as process:
+                try:
+                    self.assertTrue(llm.blocked.wait(20), 'second file did not start')
+                    before = WorkspaceDb(self.db).load()
+                    self.assertEqual([item.state for item in before.files],
+                                     ['identified', 'pending', 'pending'])
+                finally:
+                    process.kill()
+                    process.communicate(timeout=10)
+            llm.release.set()
+            # Recovery must use the saved selection, not the new size or directory.
+            with TemporaryDirectory() as other, FakeLLM([good, good]) as resumed_llm:
+                with self.run_batch(other, resumed_llm.url, size=500) as process:
+                    output, error = process.communicate(timeout=30)
+                self.assertEqual(process.returncode, 0, error)
+                self.assertEqual(len(resumed_llm.requests), 2)
+                self.assertEqual([row['filename'] for row in json.loads(output.splitlines()[1])],
+                                 ['a.mkv', 'b.mkv', 'c.mkv'])
+            after = WorkspaceDb(self.db).load()
+            self.assertEqual(after.id, before.id)
+            self.assertEqual([item.id for item in after.files], [item.id for item in before.files])
+            self.assertEqual(after.requested_size, 3)
+            self.assertEqual(after.source_directory, directory)
+            self.assertEqual(after.state, MediaFileBatchState.IDENTIFICATION_COMPLETED)
+            self.assertEqual(sum(row['name'] == 'item_completed' for row in self.events.recent()), 3)
+            # A completed identification batch is retained, not started again.
+            with self.run_batch(root, 'http://127.0.0.1:1') as process:
+                output, error = process.communicate(timeout=10)
+            self.assertEqual(process.returncode, 0, error)
+            self.assertEqual(len(json.loads(output.splitlines()[1])), 3)
+            names = [row['name'] for row in self.events.recent()]
+            self.assertEqual(names.count('batch_started'), 1)
+            self.assertEqual(names.count('batch_completed'), 1)
+            self.assertEqual(names.count('batch_resumed'), 1)
 
     def event(self, **values):
         defaults = dict(classification=DEventCategory.Server.LIFECYCLE,

@@ -1,7 +1,8 @@
 # One-batch identification
 
-This first slice scans only regular files directly inside `DR3el.FILM_DIR`,
-selects up to `DR3el.BATCH_SIZE` names alphabetically, identifies each, and exits.
+With an empty workspace, R3el scans regular files directly inside `DR3el.FILM_DIR`,
+selects up to `DR3el.BATCH_SIZE` names alphabetically, saves the selection,
+identifies each, and exits.
 It leaves source files untouched. It does not yet perform TMDB matching,
 create a persistent review queue, or move files into `MEDIA_DIR`.
 
@@ -22,12 +23,16 @@ and MCP tools in `r3el/app/tools`. The stdio MCP entry point is
 - `SubmissionHandler` and `ValidateIdentification` run in R3el. They perform
   ordinary form validation and return either an identification or a rejection.
 - `Identification` holds the accepted title, year, and confidence.
+- `MediaFileBatch` and `MediaFile` hold the current workspace data.
+- `WorkspaceDb` saves and reloads the workspace through the shared `DbMgr`.
 
 The model supplies only the form values. R3el assigns the batch, item, and
 attempt identifiers outside the model's control. The listener resolves the
 attempt identifier to the active server-owned context.
 
 ## Results and logging
+
+See [File states](file-states.md) for the state table and batch-summary counters.
 
 Hidden filenames (names beginning with `.`) are flagged as
 `unresolved_hidden_file` with zero attempts and are never sent to the LLM.
@@ -44,9 +49,23 @@ conversation, close the MCP process and listener, and stop the server.
 
 The event log records retrieved filenames, prompt sources and contents, raw
 model replies, tool receipt/results, validation decisions, and item/batch
-outcomes. JSON content carries batch/item/attempt IDs. Parent event IDs connect
-the batch, item, attempt, and its tool events. This prototype's results are
-stored in the event log and printed as JSON; staging tables come later.
+outcomes. JSON content carries batch/item/attempt IDs; item IDs are MediaFile IDs.
+Parent event IDs connect the batch, item, attempt, and its tool events.
+Results are saved in `media_file_batches` and `media_files`, recorded in the
+event log, and printed as JSON. File results include an `issues` list.
+
+## Restart and workspace
+
+Each file outcome and its completion event commit together. Restart reloads
+the retained batch and skips saved outcomes; an interrupted file starts a new
+identification conversation. The saved selection and batch size take precedence
+over new command-line settings. Only one processor can use the workspace at once.
+
+An `identification_completed` batch stays available for later matching and review.
+Starting the server again returns its results without calling the model. Workspace
+cleanup belongs to finalization, which is not implemented yet.
+
+Install and upgrade apply `EventSchema` followed by `WorkspaceSchema`.
 
 ## Run
 

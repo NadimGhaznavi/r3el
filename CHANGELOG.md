@@ -9,7 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Created
+
+- Persistent workspace with `MediaFileBatch` and `MediaFile` entities, current issues, stable IDs, and saved file selections. Restart resumes pending files; completed identification results remain available for later review.
+- Atomic workspace/event checkpoints and an exclusive database processing lock, with MariaDB rollback and process-restart tests.
+
+- Added a concise MediaFile design covering fields, current and proposed states, transitions, responsibilities, and batch-summary counters.
+
 ### Updated
+
+- Show `Batch cancelled` for `batch_cancelled`, linking the entire message to the full event.
 
 - Show `Batch started with size: XXX` for `batch_started`, linking the entire message to the full event.
 
