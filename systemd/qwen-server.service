@@ -1,0 +1,19 @@
+[Unit]
+Description=Shared Qwen 3.5 4B model server
+After=network.target
+
+[Service]
+Type=simple
+User=qwen
+Group=qwen
+WorkingDirectory=@WORKING_DIRECTORY@
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=@QWEN_COMMAND@
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

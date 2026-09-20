@@ -1,0 +1,5 @@
+plotly
+PyMySQL>=1.1,<2
+mcp>=2,<3
+pyzmq>=26,<28
+httpx>=0.28,<1
