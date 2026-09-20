@@ -49,6 +49,7 @@ modules=(
     server/templates/events.html server/templates/event.html server/templates/error.html
     server/templates/messages/default.html
     server/templates/messages/files_retrieved.html
+    server/templates/messages/batch_failed.html
     app/Prompt.py
     app/BatchIdentification.py app/ToolConversation.py
     app/SubmissionHandler.py app/ValidateIdentification.py

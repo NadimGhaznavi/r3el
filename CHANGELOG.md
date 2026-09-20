@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Updated
+
+- Show only the error text for `batch_failed` messages, linking the entire message to the full event.
+
 ## [0.3.3] - 2026-09-20 @ 17:46
 
 ### Updated

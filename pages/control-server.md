@@ -30,6 +30,9 @@ Each template owns the entire Message cell, including its links. The default
 includes a Full event link. The `files_retrieved.html` template shows only a
 linked summary: `Retrieved filenames (XXX): foo.txt, bar.xls, ...`, using the
 total count and first two filenames in stored order, followed by literal `...`.
+The `batch_failed.html` template shows only `data.error`. Custom messages use
+the whole displayed message as a link to `/events/<event_id>`, without a
+separate Full event link.
 
 Each message template receives:
 
