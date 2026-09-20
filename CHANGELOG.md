@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Capitalized the event-log column heading as "Event / Source".
+
+### Updated
+
+- Gave Subcategory its own event-log column, with its dropdown directly below the heading.
+
 ## [0.2.2] - 2026-09-20 @ 14:38
 
 - Updated the *film* and *media* paths to reflect the paths in production.

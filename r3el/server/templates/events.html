@@ -14,7 +14,7 @@
 <div class="table-wrap">
 <table aria-label="Event log">
   <thead>
-    <tr><th scope="col">Time (UTC)</th><th scope="col">ID</th><th scope="col">Level</th><th scope="col">Category</th><th scope="col">Event / source</th><th scope="col">Message</th></tr>
+    <tr><th scope="col">Time (UTC)</th><th scope="col">ID</th><th scope="col">Level</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Event / Source</th><th scope="col">Message</th></tr>
     <tr class="filter-row">
       <td></td><td></td><td></td>
       <td>
@@ -22,6 +22,8 @@
           <option value="">All categories</option>
           {% for choice in categories %}<option value="{{ choice }}" {% if category == choice %}selected{% endif %}>{{ choice }}</option>{% endfor %}
         </select>
+      </td>
+      <td>
         <select name="subcategory" id="subcategory" form="event-filters" aria-label="Filter by subcategory">
           <option value="">All subcategories</option>
           {% if category %}{% for choice in categories[category] %}<option value="{{ choice }}" {% if subcategory == choice %}selected{% endif %}>{{ choice }}</option>{% endfor %}{% endif %}
@@ -42,11 +44,12 @@
       <td><time>{{ event.occurred_at }}</time></td>
       <td><a href="/events/{{ event.event_id }}">#{{ event.event_id }}</a></td>
       <td class="level level-{{ event.log_level | lower }}">{{ event.log_level }}</td>
-      <td>{{ event.category }}<br><span class="note">{{ event.subcategory }}</span></td>
+      <td>{{ event.category }}</td>
+      <td>{{ event.subcategory }}</td>
       <td>{{ event.name }}<br><span class="note">{{ event.source_name or '—' }}</span></td>
       <td class="preview"><pre>{{ (event.content | message)[:1200] }}{% if (event.content | message) | length > 1200 %}…{% endif %}</pre><a href="/events/{{ event.event_id }}">Full event</a></td>
     </tr>
-  {% else %}<tr><td colspan="6">No events match these filters.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="7">No events match these filters.</td></tr>{% endfor %}
   </tbody>
 </table>
 </div>
