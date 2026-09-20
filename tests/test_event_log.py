@@ -32,7 +32,7 @@ class ReportFilterTests(unittest.TestCase):
     def test_invalid_external_filters_do_not_reach_database(self):
         events = Mock()
         report = EventReport(events)
-        for category, subcategory in [(None, 'Lifecycle'), ('Unknown', None), ('Server', 'Unknown')]:
+        for category, subcategory in [(None, 'Unknown'), ('Unknown', None), ('Server', 'Unknown')]:
             with self.subTest(category=category, subcategory=subcategory):
                 with self.assertRaises(ValueError):
                     report.recent(category, subcategory)

@@ -1,6 +1,9 @@
 """Stable names for individual events within the category hierarchy."""
 
 
+from r3el.constants.DEventCategory import DEventCategory as Categories
+
+
 class DEventName:
     SERVER_STARTED = "started"
     SERVER_STOPPED = "stopped"
@@ -22,8 +25,17 @@ class DEventName:
     SUBMISSION_REJECTED = "submission_rejected"
     SUBMISSION_ACCEPTED = "submission_accepted"
 
-    ALL = (SERVER_STARTED, SERVER_STOPPED, BATCH_STARTED, BATCH_COMPLETED,
-           BATCH_FAILED, BATCH_CANCELLED, FILES_RETRIEVED, ITEM_STARTED,
-           ITEM_COMPLETED, ATTEMPT_STARTED, ATTEMPT_FAILED, ATTEMPT_CANCELLED,
-           PROMPT_SENT, REPLY_RECEIVED, TOOL_STARTED, TOOL_RECEIVED,
-           TOOL_COMPLETED, SUBMISSION_REJECTED, SUBMISSION_ACCEPTED)
+    # Every event bucket has exactly one category/subcategory parent.
+    CHILDREN = {
+        Categories.Server.LIFECYCLE: (SERVER_STARTED, SERVER_STOPPED),
+        Categories.Batch.LIFECYCLE: (BATCH_STARTED, BATCH_COMPLETED, BATCH_FAILED, BATCH_CANCELLED),
+        Categories.Batch.DISCOVERY: (FILES_RETRIEVED,),
+        Categories.Identification.CONVERSATION: (
+            ITEM_STARTED, ATTEMPT_STARTED, ATTEMPT_FAILED, ATTEMPT_CANCELLED,
+            PROMPT_SENT, REPLY_RECEIVED),
+        Categories.Identification.TOOL: (TOOL_STARTED, TOOL_RECEIVED, TOOL_COMPLETED),
+        Categories.Identification.VALIDATION: (SUBMISSION_REJECTED, SUBMISSION_ACCEPTED),
+        Categories.Identification.RESULT: (ITEM_COMPLETED,),
+    }
+    PARENTS = {name: parent for parent, names in CHILDREN.items() for name in names}
+    ALL = tuple(PARENTS)

@@ -29,12 +29,17 @@ class BatchIdentification:
                 item_log = EventWriter(self._record, context, log.parent_event_id)
                 item_log.parent_event_id = item_log.write(Categories.Identification.CONVERSATION,
                     Names.ITEM_STARTED, {}, source='BatchIdentification')
-                result = await ToolConversation(self._llm, self._endpoint, self._handler, item_log).run()
+                if self._files.is_hidden(filename):
+                    result = {'status': 'unresolved_hidden_file', 'attempts': 0}
+                else:
+                    result = await ToolConversation(self._llm, self._endpoint, self._handler, item_log).run()
                 item_log.write(Categories.Identification.RESULT, Names.ITEM_COMPLETED,
                                result, source='BatchIdentification')
                 results.append({'filename': filename, **result})
             log.write(Categories.Batch.LIFECYCLE, Names.BATCH_COMPLETED,
-                      {'count': len(results), 'unresolved_llm': sum(r['status'] == 'unresolved_llm' for r in results)},
+                      {'count': len(results),
+                       'unresolved_llm': sum(r['status'] == 'unresolved_llm' for r in results),
+                       'unresolved_hidden_file': sum(r['status'] == 'unresolved_hidden_file' for r in results)},
                       source='BatchIdentification')
             return results
         except asyncio.CancelledError:

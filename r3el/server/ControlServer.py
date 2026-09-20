@@ -60,7 +60,8 @@ def make_server(host: str, port: int) -> ThreadingHTTPServer:
                 with event_log() as events:
                     if url.path in ('/', '/events'):
                         try:
-                            rows = EventReport(events).recent(category, subcategory, name)
+                            category, subcategory, name = EventReport.resolve_filters(category, subcategory, name)
+                            rows = events.recent(category=category, subcategory=subcategory, name=name)
                         except ValueError as error:
                             self.send_error(400, str(error))
                             return
