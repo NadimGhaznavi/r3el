@@ -21,6 +21,12 @@ JSON messages are indented; plain text messages are preserved. Times are UTC.
 
 ## Standalone startup
 
+To start or stop the whole installed stack, use `scripts/services.sh start`
+or `scripts/services.sh stop` from the checkout or installation directory.
+The helper uses sudo when needed. Startup runs control, Qwen, waits five
+seconds, then starts the R3el batch server. Shutdown reverses that order
+without delays. A failed command stops the script and returns an error.
+
 With dependencies installed, the event schema initialized, and `DB_HOST`,
 `DB_USER`, `DB_PASSWORD`, and `DB_NAME` in the environment:
 
