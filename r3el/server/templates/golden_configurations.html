@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Golden Configurations · Ax3l</title>
+  {% include "report_styles.html" %}
+</head>
+<body class="golden-configurations-page">
+  <header><h1>Golden Configurations</h1><a href="/">Back to event log</a></header>
+  <main class="panel">
+    <table class="wide-table" aria-label="Golden configurations">
+      <thead><tr><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Configuration</th><th scope="col">Simulation</th><th scope="col">High Score</th><th scope="col">Parameter</th><th scope="col">Change</th><th scope="col">Reason</th></tr></thead>
+      <tbody>
+        {% for config in configs %}
+        <tr>
+          <td>{{ config.occurred_at.strftime('%Y-%m-%d') if config.occurred_at else '' }}</td>
+          <td>{{ config.occurred_at.strftime('%H:%M:%S') if config.occurred_at else '' }}</td>
+          <td>{% if config.process_id %}<a href="/simulations/{{ config.process_id }}/config">{{ config.process_id[:13] }}</a>{% endif %}</td>
+          <td>{% if config.process_id %}<a href="/simulations/{{ config.process_id }}">Details</a>{% endif %}</td>
+          <td>{{ config.high_score if config.high_score is not none else '' }}</td>
+          <td>{{ field_labels.get(config.parameter, config.parameter) or '' }}</td>
+          <td>{{ config.change }}</td>
+          <td>{% if config.has_reason %}<a href="/events/{{ config.reply_id }}/reason">Reason</a>{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8">No golden configurations recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

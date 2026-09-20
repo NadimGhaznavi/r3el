@@ -1,0 +1,15 @@
+[Unit]
+Description=R3el server
+After=network.target
+
+[Service]
+Type=simple
+User=r3el
+Group=r3el
+WorkingDirectory=@APP@
+ExecStart="@APP@/.venv/bin/python" -B -u -m r3el.server.R3elServer
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

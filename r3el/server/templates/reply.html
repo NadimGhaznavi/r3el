@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title | default('Reply #' ~ event.event_id) }} · Ax3l</title>
+  {% include "report_styles.html" %}
+</head>
+<body>
+  <header><h1>{{ page_title | default('Reply #' ~ event.event_id) }}</h1><a href="{{ back_url | default('/') }}">{{ back_label | default('Back to event log') }}</a></header>
+  <main>
+    <section><h2>{{ message_title | default('Assistant message') }}</h2><pre>{{ reply_text }}</pre></section>
+    <section>
+      <h2>Event</h2>
+      <table aria-label="Event fields">
+        {% for key, value in event.items() if key != 'content' %}
+        <tr><th scope="row">{{ key }}</th><td>{{ (field_labels.get(value, value) if key == 'parameter' else value) if value is not none else '—' }}</td></tr>
+        {% endfor %}
+      </table>
+    </section>
+    {% for name, rows in sections %}
+    <section>
+      <h2>{{ name | replace('_', ' ') | title }}</h2>
+      <table aria-label="{{ name }} fields">
+        {% for path, value in rows %}
+        <tr><th scope="row">{{ field_labels.get(path, path) }}</th><td>{{ value }}</td></tr>
+        {% endfor %}
+      </table>
+    </section>
+    {% endfor %}
+  </main>
+</body>
+</html>
