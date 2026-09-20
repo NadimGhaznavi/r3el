@@ -1,0 +1,20 @@
+[Unit]
+Description=R3el Control event report server
+After=network.target mariadb.service
+
+[Service]
+Type=simple
+User=r3el
+Group=r3el
+WorkingDirectory=@APP@
+EnvironmentFile=/etc/r3el/database.env
+ExecStart="@APP@/.venv/bin/python" -B -u -m r3el.server.ControlServer
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

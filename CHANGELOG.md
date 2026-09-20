@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Summary
+
+- Added a standalone Jinja2 event viewer deployed as `r3el-control.service`, automatically enabled and started by install and upgrade.
+- Completed the removal of unused SnakeLab/Ax3l application code, leaving the R3el identification workflow, event components, and shared Qwen service integration.
+
+### Created
+
+- Event log pages with category/subcategory filters, optional refresh, full message details, and parent-event navigation, using the shared database interfaces.
+- An independent control HTTP server on port 42220 with a liveness endpoint and database-unavailable error page.
+- HTTP tests for filtering, HTML escaping, error responses, connection cleanup, and installed template loading.
+
+### Updated
+
+- Install, upgrade, and uninstall now manage the control service and deploy its Jinja2 templates and dependency.
+
+### Removed
+
+- The legacy reporting server and its nine SnakeLab report templates, replaced by the R3el event viewer.
+- SnakeLab query and MCP interfaces, the Ax3l server and tool dispatcher, and unused watchdog and health service helpers.
+- Obsolete SnakeLab, Ax3l, reporting, event display, Phi, and vision-model constants.
+- The unused Plotly dependency.
+
 ## [0.1.0] - 2026-09-20 @ 13:47
 
 ### Summary

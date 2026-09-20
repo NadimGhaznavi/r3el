@@ -15,7 +15,8 @@ MariaDB must already be running and root must have administrative socket
 access. The r3el install-services.sh helper must be present to install and
 prepare the one-batch r3el-server service. No release is published.
 Reuses an installed qwen-server.service, or provisions it using the existing
-llama.cpp and Qwen GGUF assets. Neither service is started by installation.
+llama.cpp and Qwen GGUF assets. Batch and model services are not started.
+Installs, enables, and starts r3el-control.service to display the event log.
 HELP
 }
 
