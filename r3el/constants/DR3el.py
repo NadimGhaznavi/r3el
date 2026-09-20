@@ -8,8 +8,8 @@ class DR3el:
     VERSION: Final[str] = "0.2.1"
 
     BASE_DIR: Final[str] = "/opt/prod/r3el"
-    FILM_DIR: Final[str] = "/imports/disk1/archive/film"
-    MEDIA_DIR: Final[str] = "/imports/disk1/archive/media"
+    FILM_DIR: Final[str] = "/exports/disk1/archive/film"
+    MEDIA_DIR: Final[str] = "/exports/disk1/archive/media"
     BATCH_SIZE: Final[int] = 10
     MAX_LLM_RETRIES: Final[int] = 2
 
