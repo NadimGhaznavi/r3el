@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Summary
+
+- Introduce new `MediaFile` and `MediaFileBatch` abstractions to track state information
+as files are processed by the system.
+- Persist these and their state in the database for resiliency.
+
 ### Created
 
 - Persistent workspace with `MediaFileBatch` and `MediaFile` entities, current issues, stable IDs, and saved file selections. Restart resumes pending files; completed identification results remain available for later review.
