@@ -15,6 +15,7 @@ class EventPages:
             loader=FileSystemLoader(Path(__file__).with_name('templates')),
             autoescape=select_autoescape(['html']), undefined=StrictUndefined,
         )
+        self._templates.filters['reasoning_preview'] = self.reasoning_preview
         self._templates.globals['categories'] = DEventCategory.CHILDREN
         self._templates.globals['event_parents'] = {
             name: {'category': parent.category, 'subcategory': parent.subcategory}
@@ -36,6 +37,19 @@ class EventPages:
         return self._templates.select_template([
             f'messages/{name}.html', 'messages/default.html',
         ])
+
+    @staticmethod
+    def reasoning_preview(content: str) -> str:
+        """Extract a short first line from the raw model response logged as data."""
+        # Replies are logged before validation, so malformed responses are expected here.
+        try:
+            reply = json.loads(content)
+            reasoning = reply['choices'][0]['message'].get('reasoning_content')
+        except (json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError):
+            reasoning = None
+        if not isinstance(reasoning, str):
+            return '...'
+        return reasoning.split('\n', 1)[0][:20].rstrip('\r') + '...'
 
     def render(self, template: str, **values) -> bytes:
         if template == 'events.html':
