@@ -53,6 +53,7 @@ modules=(
     server/templates/messages/batch_started.html
     server/templates/messages/batch_completed.html
     server/templates/messages/attempt_started.html
+    server/templates/messages/attempt_failed.html
     server/templates/messages/reply_received.html
     server/templates/messages/prompt_sent.html
     server/templates/messages/tool_completed.html
