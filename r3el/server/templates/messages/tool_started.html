@@ -1,0 +1,1 @@
+{% set arguments = message.payload.data.function.arguments | from_json %}<a href="/events/{{ event.event_id }}">Tool started. Attempts: {{ message.payload.context.attempt }}, Filename: {{ message.payload.context.filename }}, Title: {{ arguments.title }}, Year: {{ arguments.year }}, Confidence: {{ arguments.confidence }}</a>
