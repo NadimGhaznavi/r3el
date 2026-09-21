@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-09-21 @ 05:19
+
 ### Summary
 
 - Introduce new `MediaFile` and `MediaFileBatch` abstractions to track state information
