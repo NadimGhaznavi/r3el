@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-09-21 @ 05:26
+
+### Updated
+
+- Display `Filename: …` for `attempt_started`, with the entire message linking to the full event.
+
 ## [0.3.4] - 2026-09-21 @ 05:19
 
 ### Summary
