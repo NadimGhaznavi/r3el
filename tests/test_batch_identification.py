@@ -44,7 +44,7 @@ class BatchIdentificationTests(unittest.IsolatedAsyncioTestCase):
             with patch('r3el.app.BatchIdentification.ToolConversation') as conversation:
                 conversation.return_value.run = AsyncMock(
                     return_value={'status': 'identified', 'attempts': 1,
-                                  'identification': {'title': 'Film', 'year': 2026, 'confidence': 0.9}})
+                                  'identification': {'title': 'Film', 'year': 2026, 'confidence': 9}})
                 results = await BatchIdentification(
                     FileMgr(root), llm, 'unused', handler, record, self.workspace(record)).run(10)
                 conversation.assert_called_once()
@@ -55,7 +55,7 @@ class BatchIdentificationTests(unittest.IsolatedAsyncioTestCase):
                  'issues': [{'code': 'hidden_file', 'message': 'Hidden filename; identification skipped.'}]}
                 for name in names[:3]
             ] + [{'filename': names[3], 'status': 'identified', 'attempts': 1, 'issues': [],
-                  'identification': {'title': 'Film', 'year': 2026, 'confidence': 0.9}}])
+                  'identification': {'title': 'Film', 'year': 2026, 'confidence': 9}}])
             completed = [json.loads(event.message) for event in events if event.name == 'item_completed']
             self.assertEqual([item['data']['status'] for item in completed],
                              [result['status'] for result in results])

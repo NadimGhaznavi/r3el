@@ -49,6 +49,10 @@ Each custom template owns the entire Message cell. Its whole message links to
 
 `batch_resumed` and other events without a custom template use the default.
 
+Confidence is requested and accepted as an integer from 0 to 10, stored and
+displayed directly. Tool-received events show the submitted value before
+validation; missing fields display `—`.
+
 Each message template receives:
 
 - `event`: the event metadata and original `content`.
