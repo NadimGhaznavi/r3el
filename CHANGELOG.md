@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Updated
+
+- Display linked `Filename: …` messages for `item_started` and `item_completed`.
+
 ## [0.3.5] - 2026-09-21 @ 05:26
 
 ### Updated
