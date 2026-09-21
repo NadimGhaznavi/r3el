@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.11] - 2026-09-21 @ 18:56
+
 ### Updated
 
 - Display linked attempt-failed summaries with attempts, filename, and the error message.
