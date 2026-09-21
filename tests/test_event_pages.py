@@ -28,6 +28,7 @@ class EventPagesTests(unittest.TestCase):
         ])
 
     def test_default_preserves_plain_text_and_limits_preview(self):
+        self.event['name'] = 'default_test_event'
         for length in (1200, 1201):
             with self.subTest(length=length):
                 self.event['content'] = 'x' * length
@@ -37,6 +38,7 @@ class EventPagesTests(unittest.TestCase):
                 self.assertNotIn('Full event</a>', body)
 
     def test_default_indents_json_and_escapes_values(self):
+        self.event['name'] = 'default_test_event'
         self.event['content'] = json.dumps({'title': '<b>Film 🎬</b>'})
         body = self.render()
         self.assertIn('{\n  &#34;title&#34;: &#34;&lt;b&gt;Film 🎬&lt;/b&gt;&#34;\n}', body)
