@@ -1,0 +1,94 @@
+"""Persist batch working data and its checkpoint events through DbMgr."""
+
+from contextlib import contextmanager
+from dataclasses import asdict, replace
+import json
+
+from r3el.entity.Identification import Identification
+from r3el.entity.LogEvent import LogEvent
+from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
+from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
+from r3el.interface.DbMgr import DbMgr
+from r3el.interface.EventLogDb import EventLogDb
+
+
+class WorkspaceDb:
+    def __init__(self, db: DbMgr) -> None:
+        self._db = db
+        self._events = EventLogDb(db)
+
+    @contextmanager
+    def processing(self):
+        """One processor per database; connection loss releases the lock."""
+        acquired = self._db.query(
+            "SELECT GET_LOCK(CONCAT(DATABASE(), ':workspace'), 0) AS acquired",
+        )[0]['acquired']
+        if acquired != 1:
+            raise RuntimeError('The workspace is already being processed or its lock is unavailable.')
+        try:
+            yield
+        finally:
+            self._db.query("SELECT RELEASE_LOCK(CONCAT(DATABASE(), ':workspace'))")
+
+    def load(self) -> MediaFileBatch | None:
+        """Load the retained batch in its original file order while processing is locked."""
+        rows = self._db.query('SELECT * FROM media_file_batches')
+        if not rows:
+            return None
+        row = rows[0]
+        files = self._db.query(
+            'SELECT * FROM media_files WHERE batch_id = %s ORDER BY position', (row['batch_id'],),
+        )
+        return MediaFileBatch(
+            id=row['batch_id'], requested_size=row['requested_size'],
+            source_directory=row['source_directory'], state=MediaFileBatchState(row['state']),
+            started_event_id=row['started_event_id'], files=[self._file(item) for item in files],
+        )
+
+    @staticmethod
+    def _file(row: dict) -> MediaFile:
+        identification = json.loads(row['identification']) if row['identification'] is not None else None
+        return MediaFile(
+            id=row['file_id'], path=row['path'], state=MediaFileState(row['state']),
+            identification=Identification(**identification) if identification is not None else None,
+            issues=[MediaFileIssue(**issue) for issue in json.loads(row['issues'])],
+            attempts=row['attempts'],
+        )
+
+    def create(self, batch: MediaFileBatch, started: LogEvent, discovered: LogEvent) -> int:
+        """Commit the entire selection before any identification begins."""
+        with self._db.transaction():
+            event_id = self._events.record_in_transaction(started)
+            self._db.execute(
+                'INSERT INTO media_file_batches '
+                '(batch_id, requested_size, source_directory, state, started_event_id) '
+                'VALUES (%s, %s, %s, %s, %s)',
+                (batch.id, batch.requested_size, batch.source_directory, batch.state, event_id),
+            )
+            for position, item in enumerate(batch.files):
+                self._db.execute(
+                    'INSERT INTO media_files '
+                    '(file_id, batch_id, position, path, state, identification, issues, attempts) '
+                    'VALUES (%s, %s, %s, %s, %s, NULL, %s, %s)',
+                    (item.id, batch.id, position, item.path, item.state, '[]', item.attempts),
+                )
+            self._events.record_in_transaction(replace(discovered, parent_event_id=event_id))
+        return event_id
+
+    def save_file(self, batch_id: str, item: MediaFile, event: LogEvent) -> None:
+        with self._db.transaction():
+            self._db.execute(
+                'UPDATE media_files SET state = %s, identification = %s, issues = %s, attempts = %s '
+                'WHERE batch_id = %s AND file_id = %s',
+                (item.state,
+                 json.dumps(asdict(item.identification), allow_nan=False) if item.identification else None,
+                 json.dumps([asdict(issue) for issue in item.issues], allow_nan=False),
+                 item.attempts, batch_id, item.id),
+            )
+            self._events.record_in_transaction(event)
+
+    def save_batch_state(self, batch_id: str, state: MediaFileBatchState, event: LogEvent) -> None:
+        with self._db.transaction():
+            self._db.execute('UPDATE media_file_batches SET state = %s WHERE batch_id = %s',
+                             (state, batch_id))
+            self._events.record_in_transaction(event)

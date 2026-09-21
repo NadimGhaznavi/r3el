@@ -4,7 +4,7 @@ author_profile: true
 layout: single
 ---
 
-[Architecture](/pages/architecture.html) · [Developer integration](/pages/developer.html)
+[Workflow](01-high-level-flow.md) · [Persistent workspace](file-states.md) · [Running identification](one-batch-identification.md)
 
 R3el should be easy to navigate, understand, and maintain. Each component
 should have a clear responsibility, an obvious home, and a defined interface.
@@ -45,6 +45,8 @@ Group related components under `r3el/`:
 | Package | Responsibility |
 | --- | --- |
 | `app/` | Application logic and workflows |
+| `activity/` | Shared activities such as schema setup and event preparation |
+| `entity/` | Data objects such as MediaFile, MediaFileBatch, and Identification |
 | `server/` | Server entry points and orchestration |
 | `interface/` | Interfaces to external services and application components |
 | `constants/` | Shared application constants |

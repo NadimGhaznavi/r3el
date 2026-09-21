@@ -108,12 +108,12 @@ class ControlServerTests(unittest.TestCase):
     def test_dropdowns_follow_selected_branch(self):
         for query, expected_subcategories, expected_events in (
             ('category=Batch', {'Lifecycle', 'Discovery'},
-             {'batch_started', 'batch_completed', 'batch_failed', 'batch_cancelled', 'files_retrieved'}),
+             {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'files_retrieved'}),
             ('category=Identification&subcategory=Result',
              {'Conversation', 'Tool', 'Validation', 'Result'}, {'item_completed'}),
             ('subcategory=Lifecycle',
              {'Lifecycle', 'Discovery', 'Conversation', 'Tool', 'Validation', 'Result'},
-             {'started', 'stopped', 'batch_started', 'batch_completed', 'batch_failed', 'batch_cancelled'}),
+             {'started', 'stopped', 'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled'}),
         ):
             with self.subTest(query=query):
                 status, _, body = self.request('/?' + query)

@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Summary
+
+- Introduce new `MediaFile` and `MediaFileBatch` abstractions to track state information
+as files are processed by the system.
+- Persist these and their state in the database for resiliency.
+
+### Created
+
+- Persistent workspace with `MediaFileBatch` and `MediaFile` entities, current issues, stable IDs, and saved file selections. Restart resumes pending files; completed identification results remain available for later review.
+- Atomic workspace/event checkpoints and an exclusive database processing lock, with MariaDB rollback and process-restart tests.
+
+- Added a concise MediaFile design covering fields, current and proposed states, transitions, responsibilities, and batch-summary counters.
+
+### Updated
+
+- Make default event-message previews link directly to the full event, removing the separate Full event label for server lifecycle messages and other default displays.
+
+- Refreshed the pages documentation for the persistent workspace, startup schemas, event-message templates, and planned workflow stages; repaired navigation links.
+
+- Show `Batch cancelled` for `batch_cancelled`, linking the entire message to the full event.
+
+- Show `Batch started with size: XXX` for `batch_started`, linking the entire message to the full event.
+
+- Show only the error text for `batch_failed` messages, linking the entire message to the full event.
+
 ## [0.3.3] - 2026-09-20 @ 17:46
 
 ### Updated

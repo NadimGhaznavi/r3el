@@ -11,19 +11,23 @@ class EventLogDb:
     def record(self, event: LogEvent) -> int:
         """Save metadata and message atomically; call outside a transaction."""
         with self._db.transaction():
-            event_id = self._db.insert(
-                """INSERT INTO events
-                (category, subcategory, name, log_level, process_id,
-                 parent_event_id, source_name, app_version)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-                (event.classification.category, event.classification.subcategory,
-                 event.name, event.level, event.process_id, event.parent_event_id,
-                 event.source_name, event.app_version),
-            )
-            self._db.execute(
-                "INSERT INTO event_messages (event_id, content) VALUES (%s, %s)",
-                (event_id, event.message),
-            )
+            return self.record_in_transaction(event)
+
+    def record_in_transaction(self, event: LogEvent) -> int:
+        """Append an event inside a transaction owned by the caller."""
+        event_id = self._db.insert(
+            """INSERT INTO events
+            (category, subcategory, name, log_level, process_id,
+             parent_event_id, source_name, app_version)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (event.classification.category, event.classification.subcategory,
+             event.name, event.level, event.process_id, event.parent_event_id,
+             event.source_name, event.app_version),
+        )
+        self._db.execute(
+            "INSERT INTO event_messages (event_id, content) VALUES (%s, %s)",
+            (event_id, event.message),
+        )
         return event_id
 
     def recent(self, *, category: str | None = None,

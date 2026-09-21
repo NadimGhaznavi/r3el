@@ -6,7 +6,7 @@ does not require Qwen. This first control page is read-only; batch commands
 and human review actions will come later.
 
 Install and upgrade copy the Python modules and templates, initialize the
-event schema, then enable and start the control service. Open
+event and workspace schemas, then enable and start the control service. Open
 `http://<server>:42220/`. It listens on all interfaces by default, using
 `DR3el.PORT`. The separate batch service remains stopped and disabled until
 explicitly started. Uninstall removes both R3el units and preserves Qwen.
@@ -14,22 +14,32 @@ explicitly started. Uninstall removes both R3el units and preserves Qwen.
 The page shows up to 500 matching events, newest first. Category, subcategory,
 and event-name dropdowns sit in the table's second header row and apply to
 the full database history before the limit. The Event / source dropdown
-selects event names such as `tool_received` and `tool_started`.
+selects event names such as `tool_received` and `tool_started`. Rows display
+source first on one line, for example `FileMgr - files_retrieved`.
 Choose manual refresh or a 5, 30, or 60 second page refresh. Event links open
 the complete message, source, process ID, app version, and parent event.
-JSON messages are indented; plain text messages are preserved. Times are UTC.
+The full message page indents JSON and preserves plain text. Times are UTC.
 
 ## Message templates
 
 The Message column uses Jinja templates in `r3el/server/templates/messages/`.
-For each event, `EventPages` selects `<event-name>.html` (for example,
-`batch_completed.html`) when that file exists, otherwise `default.html`.
-The default shows indented JSON or unchanged
-plain text, limited to 1,200 characters with an ellipsis for longer messages.
-Each template owns the entire Message cell, including its links. The default
-includes a Full event link. The `files_retrieved.html` template shows only a
-linked summary: `Retrieved filenames (XXX): foo.txt, bar.xls, ...`, using the
-total count and first two filenames in stored order, followed by literal `...`.
+`EventPages` selects `<event-name>.html` when present, otherwise `default.html`.
+Selection uses only the event name; category and subcategory filter rows.
+The default shows indented JSON or unchanged plain text, limited to 1,200
+characters with an ellipsis. The entire preview links to the full event;
+there is no separate Full event link, including for server lifecycle messages.
+
+Each custom template owns the entire Message cell. Its whole message links to
+`/events/<event_id>`, without a separate Full event link:
+
+| Event / template name | Display |
+| --- | --- |
+| `files_retrieved` | `Retrieved filenames (XXX): foo.txt, bar.xls, ...` — total count, first two names in stored order, literal `...`. |
+| `batch_started` | `Batch started with size: XXX` using `data.batch_size`. |
+| `batch_failed` | Only `data.error`. |
+| `batch_cancelled` | `Batch cancelled`. |
+
+`batch_completed`, `batch_resumed`, and other events currently use the default.
 
 Each message template receives:
 
@@ -56,6 +66,8 @@ or `scripts/services.sh stop` from the checkout or installation directory.
 The helper uses sudo when needed. Startup runs control, Qwen, waits five
 seconds, then starts the R3el batch server. Shutdown reverses that order
 without delays. A failed command stops the script and returns an error.
+The five-second delay is not a model health check. The batch server resumes
+the retained workspace; see [Running identification](one-batch-identification.md).
 
 With dependencies installed, the event schema initialized, and `DB_HOST`,
 `DB_USER`, `DB_PASSWORD`, and `DB_NAME` in the environment:
