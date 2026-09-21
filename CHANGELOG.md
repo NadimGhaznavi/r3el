@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Updated
 
+- Display linked `InvalidIdentification` prompt-sent summaries with the filename and a 20-character prompt preview extended to complete the word.
+
 - Display linked `SubmissionHandler` rejection summaries with attempts, filename, and the rejection reason.
 
 - Display linked tool-started summaries with attempts, filename, and the submitted title, year, and confidence.
