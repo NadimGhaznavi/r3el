@@ -17,6 +17,7 @@ class EventPages:
         )
         self._templates.filters['reasoning_preview'] = self.reasoning_preview
         self._templates.filters['prompt_preview'] = self.prompt_preview
+        self._templates.filters['from_json'] = json.loads
         self._templates.globals['categories'] = DEventCategory.CHILDREN
         self._templates.globals['event_parents'] = {
             name: {'category': parent.category, 'subcategory': parent.subcategory}

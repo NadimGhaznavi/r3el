@@ -1,0 +1,1 @@
+{% if event.source_name == 'SubmissionHandler' %}<a href="/events/{{ event.event_id }}">Submission rejected. Attempts: {{ message.payload.context.attempt }}, Filename: {{ message.payload.context.filename }}, Reason: {{ message.payload.data.reason }}</a>{% else %}{% include 'messages/default.html' %}{% endif %}
