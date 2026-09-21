@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.10] - 2026-09-21 @ 18:53
+
 ### Updated
 
 - Display linked `InvalidIdentification` prompt-sent summaries with the filename and a 20-character prompt preview extended to complete the word.
