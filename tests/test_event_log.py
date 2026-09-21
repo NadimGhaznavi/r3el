@@ -115,7 +115,7 @@ class EventDatabaseTests(unittest.TestCase):
             batch.started_event_id = workspace.create(batch, self.event(), self.event())
             item = batch.files[0]
             item.state = MediaFileState.IDENTIFIED
-            item.identification = Identification('Film 🎬', 2001, 0.9)
+            item.identification = Identification('Film 🎬', 2001, 9)
             item.attempts = 2
             with self.assertRaises(pymysql.IntegrityError):
                 workspace.save_file(batch.id, item, self.event(message=None))
@@ -159,7 +159,7 @@ class EventDatabaseTests(unittest.TestCase):
             reader.close()
 
     def test_restart_resumes_only_pending_files(self):
-        good = {'title': 'Example', 'year': 2001, 'confidence': 0.9}
+        good = {'title': 'Example', 'year': 2001, 'confidence': 9}
         with TemporaryDirectory() as directory, FakeLLM([good, good], block_at=1) as llm:
             root = Path(directory)
             for name in ('a.mkv', 'b.mkv', 'c.mkv'):
@@ -244,9 +244,9 @@ class EventDatabaseTests(unittest.TestCase):
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     def test_one_batch_real_http_mcp_zmq_and_database(self):
-        good = {'title': 'Example', 'year': 2001, 'confidence': 0.9}
+        good = {'title': 'Example', 'year': 2001, 'confidence': 9}
         # A malformed reply and server correction, an exhausted file, then success.
-        submissions = ['{"choices": []}', {**good, 'title': ''}, good] + [{**good, 'year': 'bad'}] * 3 + [good]
+        submissions = ['{"choices": []}', {**good, 'confidence': 0.9}, good] + [{**good, 'year': 'bad'}] * 3 + [good]
         with TemporaryDirectory() as directory, FakeLLM(submissions) as llm:
             root = Path(directory)
             for name in ('a.mkv', 'b.mkv', 'c.mkv', 'd.mkv'):
@@ -271,6 +271,17 @@ class EventDatabaseTests(unittest.TestCase):
             schema = llm.requests[0]['tools'][0]['function']['parameters']
             self.assertEqual(set(schema['required']), {'title', 'year', 'confidence'})
             self.assertEqual(schema['properties']['year']['type'], 'integer')
+            self.assertEqual(schema['properties']['confidence']['type'], 'integer')
+            self.assertEqual(schema['properties']['confidence']['minimum'], 0)
+            self.assertEqual(schema['properties']['confidence']['maximum'], 10)
+            self.assertEqual(results[0]['identification']['confidence'], 9)
+            self.assertIs(type(results[0]['identification']['confidence']), int)
+            saved = WorkspaceDb(self.db).load().files[0].identification.confidence
+            self.assertEqual(saved, 9)
+            self.assertIs(type(saved), int)
+            rejected = self.events.recent(name='submission_rejected')
+            self.assertTrue(any('confidence must be an integer between 0 and 10.' in row['content']
+                                for row in rejected))
             for name in ('a.mkv', 'b.mkv', 'c.mkv', 'd.mkv'):
                 self.assertEqual((root / name).read_text(), 'untouched')
         rows = self.events.recent()
@@ -294,7 +305,7 @@ class EventDatabaseTests(unittest.TestCase):
             self.assertEqual(json.loads(output.splitlines()[1]), [])
 
     def test_operational_error_aborts_without_retry(self):
-        good = {'title': 'Example', 'year': 2001, 'confidence': 0.9}
+        good = {'title': 'Example', 'year': 2001, 'confidence': 9}
         with TemporaryDirectory() as directory, FakeLLM([good], status=503) as llm:
             Path(directory, 'a.mkv').touch()
             with self.run_batch(directory, llm.url) as process:
@@ -307,7 +318,7 @@ class EventDatabaseTests(unittest.TestCase):
 
     def test_lifecycle_records_start_and_stop_on_signals(self):
         for sig in (signal.SIGTERM, signal.SIGINT):
-            good = {'title': 'Example', 'year': 2001, 'confidence': 0.9}
+            good = {'title': 'Example', 'year': 2001, 'confidence': 9}
             with TemporaryDirectory() as directory, FakeLLM([good], block=True) as llm:
                 Path(directory, 'a.mkv').touch()
                 process = self.run_batch(directory, llm.url)

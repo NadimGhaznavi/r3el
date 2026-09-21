@@ -7,4 +7,4 @@ from dataclasses import dataclass
 class Identification:
     title: str
     year: int
-    confidence: float
+    confidence: int

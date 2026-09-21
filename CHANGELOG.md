@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.9] - 2026-09-21 @ 18:41
+
+### Updated
+
+- Display linked `FileContext` and `SubmitIdentificationPrompt` prompt-sent summaries with the filename and the first 20 prompt characters, extending to complete the word.
+
+- Request, validate, store, and display confidence as an integer from 0 to 10. Reject non-integer and out-of-range submissions through the existing correction flow.
+
 ## [0.3.8] - 2026-09-21 @ 18:08
 
 ### Updated

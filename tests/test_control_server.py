@@ -41,7 +41,8 @@ class ControlServerTests(unittest.TestCase):
                           category='Identification', subcategory='Result', name='item_completed',
                           log_level='INFO', source_name='BatchIdentification', process_id='item-123',
                           parent_event_id=41, app_version='0.1.0',
-                          content=json.dumps({'title': '<script>alert(1)</script> 🎬'}))
+                          content=json.dumps({'context': {'filename': '<script>alert(1)</script> 🎬'},
+                                              'data': {}}))
         self.db.query.return_value = [self.event]
 
     def request(self, path):

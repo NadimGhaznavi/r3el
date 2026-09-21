@@ -11,7 +11,7 @@ processing survives a restart.
 | `id` | Stable identity referenced by events. |
 | `path` | File location, including filename. |
 | `state` | Current workflow state. |
-| `identification` | Accepted title, year, and confidence. |
+| `identification` | Accepted title, year, and integer confidence from 0 to 10. |
 | `issues` | Current problems as `{code, message}` entries; empty when clear. |
 | `attempts` | Attempts used for the saved outcome. |
 

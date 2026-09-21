@@ -16,6 +16,7 @@ class EventPages:
             autoescape=select_autoescape(['html']), undefined=StrictUndefined,
         )
         self._templates.filters['reasoning_preview'] = self.reasoning_preview
+        self._templates.filters['prompt_preview'] = self.prompt_preview
         self._templates.globals['categories'] = DEventCategory.CHILDREN
         self._templates.globals['event_parents'] = {
             name: {'category': parent.category, 'subcategory': parent.subcategory}
@@ -37,6 +38,15 @@ class EventPages:
         return self._templates.select_template([
             f'messages/{name}.html', 'messages/default.html',
         ])
+
+    @staticmethod
+    def prompt_preview(content: str) -> str:
+        """Show the first 20 characters, extending to finish the current word."""
+        end = 20
+        while (end < len(content) and not content[end - 1].isspace()
+               and not content[end].isspace()):
+            end += 1
+        return content[:end].rstrip() + ('...' if end < len(content) else '')
 
     @staticmethod
     def reasoning_preview(content: str) -> str:

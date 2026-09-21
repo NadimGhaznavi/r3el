@@ -22,7 +22,7 @@ and MCP tools in `r3el/app/tools`. The stdio MCP entry point is
 - The MCP `SubmitIdentification` bridge forwards values over ZeroMQ.
 - `SubmissionHandler` and `ValidateIdentification` run in R3el. They perform
   ordinary form validation and return either an identification or a rejection.
-- `Identification` holds the accepted title, year, and confidence.
+- `Identification` holds the accepted title, year, and integer confidence from 0 to 10.
 - `MediaFileBatch` and `MediaFile` hold the current workspace data.
 - `WorkspaceDb` saves and reloads the workspace through the shared `DbMgr`.
 
@@ -42,6 +42,8 @@ Each other filename gets one initial attempt and at most `MAX_LLM_RETRIES = 2`
 correction attempts. Invalid tool-call structure or rejected form data produces
 a corrective prompt. Exhaustion records `unresolved_llm` and advances to the
 next file. An accepted submission is `identified`, not TMDB-resolved.
+The prompts and tool schema request integer confidence from 0 to 10. Validation
+rejects fractional values, strings, booleans, and out-of-range numbers without coercion.
 
 HTTP, MCP, database, and transport failures abort the batch and are not
 silently retried as identification failures. SIGTERM/SIGINT cancel the current

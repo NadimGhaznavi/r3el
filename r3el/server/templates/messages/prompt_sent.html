@@ -1,0 +1,1 @@
+{% if event.source_name in ['FileContext', 'SubmitIdentificationPrompt'] %}<a href="/events/{{ event.event_id }}">Prompt sent. Filename: {{ message.payload.context.filename }}, Prompt: {{ message.payload.data.content | prompt_preview }}</a>{% else %}{% include 'messages/default.html' %}{% endif %}

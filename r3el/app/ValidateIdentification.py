@@ -1,6 +1,5 @@
 """Basic form validation at the external submission boundary."""
 
-import math
 import unicodedata
 
 from r3el.entity.Identification import Identification
@@ -17,6 +16,6 @@ class ValidateIdentification:
             raise ValueError('title must not contain control or invisible formatting characters.')
         if type(year) is not int or not 1 <= year <= 9999:
             raise ValueError('year must be an integer between 1 and 9999.')
-        if type(confidence) not in (int, float) or not 0 <= confidence <= 1 or not math.isfinite(confidence):
-            raise ValueError('confidence must be a finite number between 0 and 1.')
-        return Identification(title.strip(), year, float(confidence))
+        if type(confidence) is not int or not 0 <= confidence <= 10:
+            raise ValueError('confidence must be an integer between 0 and 10.')
+        return Identification(title.strip(), year, confidence)
