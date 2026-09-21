@@ -64,3 +64,27 @@ class EventPagesTests(unittest.TestCase):
                 self.add_template(source)
                 with self.assertRaises(error):
                     self.render()
+
+    def test_reply_preview_decodes_reasoning_before_truncating_and_escaping(self):
+        self.event['name'] = 'reply_received'
+        for reasoning, expected in (
+            ('12345678901234567890extra', '12345678901234567890...'),
+            ('First line\nSecond line', 'First line...'),
+            ('First line\r\nSecond line', 'First line...'),
+            ('Brief', 'Brief...'),
+            ('<b>Film 🎬</b>\nMore', '&lt;b&gt;Film 🎬&lt;/b&gt;...'),
+        ):
+            with self.subTest(reasoning=reasoning):
+                self.event['content'] = json.dumps({
+                    'context': {'filename': 'foobar.foo'},
+                    'data': json.dumps({'choices': [{'message': {'reasoning_content': reasoning}}]}),
+                })
+                body = self.render()
+                self.assertIn(f'<a href="/events/42">Filename: foobar.foo, Reasoning: {expected}</a>', body)
+                self.assertNotIn('Full event</a>', body)
+
+    def test_reply_preview_handles_unvalidated_model_responses(self):
+        for response in ('not JSON', '{}', '{"choices": []}',
+                         '{"choices": [{"message": {"reasoning_content": null}}]}'):
+            with self.subTest(response=response):
+                self.assertEqual(self.pages.reasoning_preview(response), '...')

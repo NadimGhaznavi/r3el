@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.8] - 2026-09-21 @ 18:08
+
+### Updated
+
+- Display linked tool-received summaries with attempts, filename, and submitted title, year, and confidence.
+
+- Display linked accepted-submission summaries with attempts, filename, title, year, and confidence.
+
+- Display linked `Tool completed. Attempts: XX, Filename: …` messages for `tool_completed`.
+
+- Display linked filenames and reasoning previews for `reply_received`, limited to 20 decoded characters or the first newline and followed by `...`.
+
 ## [0.3.7] - 2026-09-21 @ 05:47
 
 ### Updated
