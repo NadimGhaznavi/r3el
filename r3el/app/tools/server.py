@@ -15,7 +15,7 @@ mcp = MCPServer('r3el-identification')
 async def submit_identification(
     title: Annotated[Any, Field(json_schema_extra={'type': 'string'})],
     year: Annotated[Any, Field(json_schema_extra={'type': 'integer'})],
-    confidence: Annotated[Any, Field(json_schema_extra={'type': 'number'})],
+    confidence: Annotated[Any, Field(json_schema_extra={'type': 'integer', 'minimum': 0, 'maximum': 10})],
 ) -> str:
     return await SubmitIdentification(
         os.environ['R3EL_ZMQ_ENDPOINT'], os.environ['R3EL_ATTEMPT_ID'],
