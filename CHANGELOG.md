@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Updated
 
+- Display linked `Tool completed. Attempts: XX, Filename: …` messages for `tool_completed`.
+
 - Display linked filenames and reasoning previews for `reply_received`, limited to 20 decoded characters or the first newline and followed by `...`.
 
 ## [0.3.7] - 2026-09-21 @ 05:47
