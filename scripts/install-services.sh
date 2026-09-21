@@ -55,6 +55,7 @@ modules=(
     server/templates/messages/attempt_started.html
     server/templates/messages/reply_received.html
     server/templates/messages/tool_completed.html
+    server/templates/messages/submission_accepted.html
     server/templates/messages/item_started.html
     server/templates/messages/item_completed.html
     server/templates/messages/batch_cancelled.html

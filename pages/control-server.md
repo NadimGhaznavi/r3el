@@ -40,6 +40,7 @@ Each custom template owns the entire Message cell. Its whole message links to
 | `attempt_started` | `Filename: …` using `context.filename`. |
 | `reply_received` | `Filename: …, Reasoning: …` using the decoded reply's `reasoning_content`, up to 20 characters or the first newline, followed by literal `...`. |
 | `tool_completed` | `Tool completed. Attempts: XX, Filename: …` using `context.attempt` and `context.filename`. |
+| `submission_accepted` | `Submission accepted. Attempts: XX, Filename: …, Title: …, Year: XXXX, Confidence: XX.` using the attempt context and `data.identification`. |
 | `item_started` | `Filename: …` using `context.filename`. |
 | `item_completed` | `Filename: …` using `context.filename`. |
 | `batch_failed` | Only `data.error`. |
