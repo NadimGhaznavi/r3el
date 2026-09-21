@@ -51,6 +51,7 @@ modules=(
     server/templates/messages/files_retrieved.html
     server/templates/messages/batch_failed.html
     server/templates/messages/batch_started.html
+    server/templates/messages/attempt_started.html
     server/templates/messages/batch_cancelled.html
     app/Prompt.py
     app/BatchIdentification.py app/ToolConversation.py
