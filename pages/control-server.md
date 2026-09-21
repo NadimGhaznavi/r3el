@@ -37,6 +37,8 @@ Each custom template owns the entire Message cell. Its whole message links to
 | `files_retrieved` | `Retrieved filenames (XXX): foo.txt, bar.xls, ...` — total count, first two names in stored order, literal `...`. |
 | `batch_started` | `Batch started with size: XXX` using `data.batch_size`. |
 | `attempt_started` | `Filename: …` using `context.filename`. |
+| `item_started` | `Filename: …` using `context.filename`. |
+| `item_completed` | `Filename: …` using `context.filename`. |
 | `batch_failed` | Only `data.error`. |
 | `batch_cancelled` | `Batch cancelled`. |
 
