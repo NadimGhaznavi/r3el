@@ -1,7 +1,8 @@
 # Persistent workspace
 
 `MediaFileBatch` owns the active batch; `MediaFile` holds each file's current
-working data. Both persist in MariaDB so processing survives a restart.
+working data. They persist in `media_file_batches` and `media_files` so
+processing survives a restart.
 
 ## MediaFile
 

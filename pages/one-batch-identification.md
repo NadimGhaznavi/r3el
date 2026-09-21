@@ -2,7 +2,7 @@
 
 With an empty workspace, R3el scans regular files directly inside `DR3el.FILM_DIR`,
 selects up to `DR3el.BATCH_SIZE` names alphabetically, saves the selection,
-identifies each, and exits.
+identifies each, and exits. Subdirectories and symbolic links are excluded.
 It leaves source files untouched. It does not yet perform TMDB matching,
 create a persistent review queue, or move files into `MEDIA_DIR`.
 
@@ -32,7 +32,7 @@ attempt identifier to the active server-owned context.
 
 ## Results and logging
 
-See [File states](file-states.md) for the state table and batch-summary counters.
+See [Persistent workspace](file-states.md) for states and batch-summary counters.
 
 Hidden filenames (names beginning with `.`) are flagged as
 `unresolved_hidden_file` with zero attempts and are never sent to the LLM.
@@ -58,8 +58,9 @@ event log, and printed as JSON. File results include an `issues` list.
 
 Each file outcome and its completion event commit together. Restart reloads
 the retained batch and skips saved outcomes; an interrupted file starts a new
-identification conversation. The saved selection and batch size take precedence
-over new command-line settings. Only one processor can use the workspace at once.
+identification conversation. The saved directory, selection, and batch size
+take precedence over new `--film-dir` and `--batch-size` arguments. Only one
+processor can use the workspace at once. Resuming logs `batch_resumed`.
 
 An `identification_completed` batch stays available for later matching and review.
 Starting the server again returns its results without calling the model. Workspace
@@ -69,32 +70,32 @@ Install and upgrade apply `EventSchema` followed by `WorkspaceSchema`.
 
 ## Run
 
-DEV does not have access to the real LLM. Tests use a scripted local HTTP
-server with real MCP, ZeroMQ, and MariaDB components.
-
-Where the model is available, after installing dependencies and initializing
-the event schema, with `DB_*` credentials in the environment:
+For a source checkout, install dependencies and set `DB_HOST`, `DB_USER`,
+`DB_PASSWORD`, and `DB_NAME` (`DB_PORT` defaults to 3306). Initialize both
+schemas, then run against an available model:
 
 ```bash
+.venv/bin/python -B -m r3el.activity.EventSchema
+.venv/bin/python -B -m r3el.activity.WorkspaceSchema
 .venv/bin/python -B -m r3el.server.R3elServer --llm-url http://MODEL_HOST:PORT
 ```
 
-Optional `--film-dir`, `--batch-size`, and `--zmq-endpoint` arguments allow
-isolated runs. Defaults come from `DR3el`. A missing model URL is an error;
-there is no assumed DEV model endpoint.
+Optional `--film-dir`, `--batch-size`, and `--zmq-endpoint` arguments override
+defaults in `DR3el`; the default batch size is 10. Use a separate database
+for an isolated workspace. Supply `--llm-url` or `R3EL_LLM_URL`.
 
 Installation/upgrade prepares the systemd unit but leaves it stopped and
 disabled for automatic startup. The installed unit defaults `R3EL_LLM_URL` to
 `http://127.0.0.1:27770`; `/etc/r3el/server.env` can override it. Start the shared
 model and wait until `http://127.0.0.1:27770/health` returns HTTP 200, then
-explicitly start one batch:
+explicitly start or resume the workspace:
 
 ```bash
 sudo systemctl start r3el-server.service
 ```
 
-The service exits after that batch and does not restart automatically. The
-future web interface will replace this manual start with “Retrieve new batch.”
+The service exits after identification and does not restart automatically.
+Batch controls in the web interface are planned.
 
 ## Shared Qwen service
 
@@ -126,4 +127,6 @@ sudo env R3EL_TEST_DB=1 .venv/bin/python -B -m unittest discover -s tests -v
 
 The second command requires MariaDB root socket access and creates/removes a
 unique test database and account. It uses temporary filenames and a fake LLM;
-it does not use production files or the production database.
+it does not use production files or the production database. Integration tests
+exercise real HTTP, MCP, ZeroMQ, and MariaDB, including checkpoint rollback,
+exclusive processing, and restart after killing the server mid-batch.

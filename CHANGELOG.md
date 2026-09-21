@@ -24,6 +24,8 @@ as files are processed by the system.
 
 ### Updated
 
+- Refreshed the pages documentation for the persistent workspace, startup schemas, event-message templates, and planned workflow stages; repaired navigation links.
+
 - Show `Batch cancelled` for `batch_cancelled`, linking the entire message to the full event.
 
 - Show `Batch started with size: XXX` for `batch_started`, linking the entire message to the full event.
