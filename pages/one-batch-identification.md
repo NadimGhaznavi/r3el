@@ -1,6 +1,11 @@
-# One-batch identification
+# Identification server
 
-With an empty workspace, R3el scans regular files directly inside `DR3el.FILM_DIR`,
+The server starts idle and keeps its MCP/ZeroMQ listener available until stopped.
+It does not scan files, resume the workspace, or contact the model on startup.
+The control page provides a placeholder New Batch button; dispatch is not wired yet.
+An explicit `--run-batch` option retains the one-batch diagnostic workflow described below.
+
+With `--run-batch` and an empty workspace, R3el scans regular files directly inside `DR3el.FILM_DIR`,
 selects up to `DR3el.BATCH_SIZE` names alphabetically, saves the selection,
 identifies each, and exits. Subdirectories and symbolic links are excluded.
 It leaves source files untouched. It does not yet perform TMDB matching,
@@ -58,14 +63,14 @@ event log, and printed as JSON. File results include an `issues` list.
 
 ## Restart and workspace
 
-Each file outcome and its completion event commit together. Restart reloads
+Each file outcome and its completion event commit together. Running again with `--run-batch` reloads
 the retained batch and skips saved outcomes; an interrupted file starts a new
 identification conversation. The saved directory, selection, and batch size
 take precedence over new `--film-dir` and `--batch-size` arguments. Only one
 processor can use the workspace at once. Resuming logs `batch_resumed`.
 
 An `identification_completed` batch stays available for later matching and review.
-Starting the server again returns its results without calling the model. Workspace
+Running `--run-batch` again returns its results without calling the model. Workspace
 cleanup belongs to finalization, which is not implemented yet.
 
 Install and upgrade apply `EventSchema` followed by `WorkspaceSchema`.
@@ -79,25 +84,25 @@ schemas, then run against an available model:
 ```bash
 .venv/bin/python -B -m r3el.activity.EventSchema
 .venv/bin/python -B -m r3el.activity.WorkspaceSchema
-.venv/bin/python -B -m r3el.server.R3elServer --llm-url http://MODEL_HOST:PORT
+.venv/bin/python -B -m r3el.server.R3elServer --run-batch --llm-url http://MODEL_HOST:PORT
 ```
 
 Optional `--film-dir`, `--batch-size`, and `--zmq-endpoint` arguments override
 defaults in `DR3el`; the default batch size is 10. Use a separate database
-for an isolated workspace. Supply `--llm-url` or `R3EL_LLM_URL`.
+for an isolated workspace. For `--run-batch`, supply `--llm-url` or `R3EL_LLM_URL`; idle startup needs neither.
 
 Installation/upgrade prepares the systemd unit but leaves it stopped and
 disabled for automatic startup. The installed unit defaults `R3EL_LLM_URL` to
 `http://127.0.0.1:27770`; `/etc/r3el/server.env` can override it. Start the shared
 model and wait until `http://127.0.0.1:27770/health` returns HTTP 200, then
-explicitly start or resume the workspace:
+start the idle listener:
 
 ```bash
 sudo systemctl start r3el-server.service
 ```
 
-The service exits after identification and does not restart automatically.
-Batch controls in the web interface are planned.
+The service stays idle until stopped. Only the explicit `--run-batch` diagnostic
+mode exits after identification. Batch dispatch from the web interface is planned.
 
 ## Shared Qwen service
 

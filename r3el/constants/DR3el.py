@@ -11,6 +11,8 @@ class DR3el:
     FILM_DIR: Final[str] = "/exports/disk1/archive/film"
     MEDIA_DIR: Final[str] = "/exports/disk1/archive/media"
     BATCH_SIZE: Final[int] = 10
+    BATCH_SIZES: Final[tuple[int, ...]] = (5, 10)
+    CONTROL_LOGO_URL: Final[str] = "/static/r3el.png"
     MAX_LLM_RETRIES: Final[int] = 2
 
     PORT: Final[int] = 42220

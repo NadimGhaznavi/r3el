@@ -2,8 +2,11 @@
 
 `r3el-control.service` is a standalone Jinja2 report server. It displays the
 MariaDB event log while the identification service is running or stopped and
-does not require Qwen. This first control page is read-only; batch commands
-and human review actions will come later.
+does not require Qwen. The landing page provides a Media Directory text box prefilled from `DR3el.FILM_DIR`,
+a Batch Size dropdown (5 or 10, default 10), and a placeholder New Batch button.
+The button does not submit or start processing. Labels and layout use Jinja2;
+shared defaults live in `DR3el`. The R3el logo is deployed with the server assets.
+Batch commands and human review actions will come later.
 
 Install and upgrade copy the Python modules and templates, initialize the
 event and workspace schemas, then enable and start the control service. Open
@@ -78,8 +81,7 @@ or `scripts/services.sh stop` from the checkout or installation directory.
 The helper uses sudo when needed. Startup runs control, Qwen, waits five
 seconds, then starts the R3el batch server. Shutdown reverses that order
 without delays. A failed command stops the script and returns an error.
-The five-second delay is not a model health check. The batch server resumes
-the retained workspace; see [Running identification](one-batch-identification.md).
+The five-second delay is not a model health check. The server starts idle with its MCP/ZeroMQ listener; see [Running identification](one-batch-identification.md).
 
 With dependencies installed, the event schema initialized, and `DB_HOST`,
 `DB_USER`, `DB_PASSWORD`, and `DB_NAME` in the environment:
@@ -88,7 +90,7 @@ With dependencies installed, the event schema initialized, and `DB_HOST`,
 .venv/bin/python -B -m r3el.server.ControlServer --host 127.0.0.1 --port 42220
 ```
 
-`GET /` and `/events` show the log. `/events/<id>` shows one event.
+`GET /` shows batch controls without accessing MariaDB. `/events` shows the log. `/events/<id>` shows one event.
 `/health` reports HTTP server liveness without querying MariaDB; a database
 failure on a report page returns HTTP 503. Invalid filters return HTTP 400
 and missing events return HTTP 404. The service journal contains database

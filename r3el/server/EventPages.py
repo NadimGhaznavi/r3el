@@ -5,6 +5,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, Template, select_autoescape
 
+from r3el.constants.DR3el import DR3el
 from r3el.constants.DEventCategory import DEventCategory
 from r3el.constants.DEventName import DEventName
 
@@ -18,6 +19,7 @@ class EventPages:
         self._templates.filters['reasoning_preview'] = self.reasoning_preview
         self._templates.filters['prompt_preview'] = self.prompt_preview
         self._templates.filters['from_json'] = json.loads
+        self._templates.globals['settings'] = DR3el
         self._templates.globals['categories'] = DEventCategory.CHILDREN
         self._templates.globals['event_parents'] = {
             name: {'category': parent.category, 'subcategory': parent.subcategory}

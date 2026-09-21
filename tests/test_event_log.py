@@ -238,7 +238,7 @@ class EventDatabaseTests(unittest.TestCase):
 
     def run_batch(self, root, url, size=3):
         return subprocess.Popen([
-            sys.executable, '-B', '-u', '-m', 'r3el.server.R3elServer',
+            sys.executable, '-B', '-u', '-m', 'r3el.server.R3elServer', '--run-batch',
             '--film-dir', str(root), '--batch-size', str(size), '--llm-url', url,
             '--zmq-endpoint', 'tcp://127.0.0.1:*',
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

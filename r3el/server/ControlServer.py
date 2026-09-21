@@ -4,6 +4,7 @@ import argparse
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import logging
+from pathlib import Path
 import re
 import signal
 from urllib.parse import parse_qs, urlsplit
@@ -37,10 +38,16 @@ def make_server(host: str, port: int) -> ThreadingHTTPServer:
 
         def do_GET(self):
             url = urlsplit(self.path)
+            if url.path == DR3el.CONTROL_LOGO_URL:
+                self.respond(200, Path(__file__).with_name('static').joinpath('r3el.png').read_bytes(), 'image/png')
+                return
+            if url.path == '/':
+                self.respond(200, pages.render('control.html', refresh=0))
+                return
             if url.path == '/health':
                 self.respond(200, b'{"status":"ok","service":"r3el-control"}', 'application/json')
                 return
-            if url.path not in ('/', '/events') and not re.fullmatch(r'/events/[0-9]{1,20}', url.path):
+            if url.path != '/events' and not re.fullmatch(r'/events/[0-9]{1,20}', url.path):
                 self.send_error(404, 'Page not found')
                 return
             try:
@@ -58,7 +65,7 @@ def make_server(host: str, port: int) -> ThreadingHTTPServer:
                 return
             try:
                 with event_log() as events:
-                    if url.path in ('/', '/events'):
+                    if url.path == '/events':
                         try:
                             category, subcategory, name = EventReport.resolve_filters(category, subcategory, name)
                             rows = events.recent(category=category, subcategory=subcategory, name=name)

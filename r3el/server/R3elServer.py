@@ -1,4 +1,4 @@
-"""Run one identification batch with an MCP/ZeroMQ listener, then stop."""
+"""Run the MCP/ZeroMQ listener, idle until work is requested."""
 
 import argparse
 import asyncio
@@ -37,10 +37,13 @@ async def run(args) -> None:
         events = EventLogDb(db)
         lifecycle = ServerLifecycle(events)
         lifecycle.started()
-        print('R3el server started (one batch).', flush=True)
+        print('R3el server started.', flush=True)
         try:
             handler = SubmissionHandler(record_tool_event)
             with ZMQServer(args.zmq_endpoint, handler.handle) as listener:
+                if not args.run_batch:
+                    await asyncio.Event().wait()
+                    return
                 results = await BatchIdentification(
                     FileMgr(args.film_dir), LLM(args.llm_url), listener.endpoint, handler, events.record,
                     WorkspaceDb(db),
@@ -57,12 +60,14 @@ async def run(args) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--run-batch', action='store_true',
+                        help='Explicitly run one batch and exit (manual diagnostics).')
     parser.add_argument('--llm-url', default=os.environ.get('R3EL_LLM_URL'))
     parser.add_argument('--film-dir', default=DR3el.FILM_DIR)
     parser.add_argument('--batch-size', type=int, default=DR3el.BATCH_SIZE)
     parser.add_argument('--zmq-endpoint', default=DR3el.ZMQ_ENDPOINT)
     args = parser.parse_args()
-    if not args.llm_url:
+    if args.run_batch and not args.llm_url:
         parser.error('Supply --llm-url or R3EL_LLM_URL.')
     if args.batch_size < 1:
         parser.error('--batch-size must be positive.')

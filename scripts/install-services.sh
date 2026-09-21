@@ -45,6 +45,7 @@ chmod -R g+rX "$install_dir/.venv"
 modules=(
     server/R3elServer.py
     server/ControlServer.py server/EventPages.py
+    server/static/r3el.png server/templates/control.html
     server/templates/base.html server/templates/styles.html
     server/templates/events.html server/templates/event.html server/templates/error.html
     server/templates/messages/default.html
@@ -134,6 +135,6 @@ systemctl disable r3el-server.service
 systemctl enable --now r3el-control.service
 control_port=$(cd -- "$checkout_dir" && python3 -B -c 'from r3el.constants.DR3el import DR3el; print(DR3el.PORT)')
 printf 'R3el Control started: http://<server>:%s/\n' "$control_port"
-printf 'Installed one-batch r3el-server.service at %s.\n' "$install_dir"
+printf 'Installed idle r3el-server.service at %s.\n' "$install_dir"
 printf 'Start qwen-server.service and wait for its /health endpoint to return HTTP 200 before starting r3el-server.service.\n'
 printf 'The local Qwen URL is configured by default; /etc/r3el/server.env can override R3EL_LLM_URL.\n'
