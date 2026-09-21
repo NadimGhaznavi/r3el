@@ -24,6 +24,8 @@ as files are processed by the system.
 
 ### Updated
 
+- Make default event-message previews link directly to the full event, removing the separate Full event label for server lifecycle messages and other default displays.
+
 - Refreshed the pages documentation for the persistent workspace, startup schemas, event-message templates, and planned workflow stages; repaired navigation links.
 
 - Show `Batch cancelled` for `batch_cancelled`, linking the entire message to the full event.

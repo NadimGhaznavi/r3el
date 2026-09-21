@@ -26,7 +26,8 @@ The Message column uses Jinja templates in `r3el/server/templates/messages/`.
 `EventPages` selects `<event-name>.html` when present, otherwise `default.html`.
 Selection uses only the event name; category and subcategory filter rows.
 The default shows indented JSON or unchanged plain text, limited to 1,200
-characters with an ellipsis, followed by a Full event link.
+characters with an ellipsis. The entire preview links to the full event;
+there is no separate Full event link, including for server lifecycle messages.
 
 Each custom template owns the entire Message cell. Its whole message links to
 `/events/<event_id>`, without a separate Full event link:

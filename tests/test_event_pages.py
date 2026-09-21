@@ -33,8 +33,8 @@ class EventPagesTests(unittest.TestCase):
                 self.event['content'] = 'x' * length
                 body = self.render()
                 ending = '…' if length > 1200 else ''
-                self.assertIn('<pre>' + 'x' * 1200 + ending + '</pre>', body)
-                self.assertIn('<a href="/events/42">Full event</a>', body)
+                self.assertIn('<a href="/events/42"><pre>' + 'x' * 1200 + ending + '</pre></a>', body)
+                self.assertNotIn('Full event</a>', body)
 
     def test_default_indents_json_and_escapes_values(self):
         self.event['content'] = json.dumps({'title': '<b>Film 🎬</b>'})
