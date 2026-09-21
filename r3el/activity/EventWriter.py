@@ -17,9 +17,14 @@ class EventWriter:
 
     def write(self, category: EventCategory, name: str, data,
               *, source: str, level: str = 'INFO') -> int:
-        return self.record(LogEvent(
+        return self.record(self.prepare(category, name, data, source=source, level=level))
+
+    def prepare(self, category: EventCategory, name: str, data,
+                *, source: str, level: str = 'INFO') -> LogEvent:
+        """Build an event for a workspace checkpoint or direct recording."""
+        return LogEvent(
             classification=category, name=name,
             message=json.dumps({'context': self.context, 'data': data}, ensure_ascii=False, allow_nan=False),
             level=level, process_id=self.context.get('item_id', self.context['batch_id']),
             parent_event_id=self.parent_event_id, source_name=source, app_version=DR3el.VERSION,
-        ))
+        )

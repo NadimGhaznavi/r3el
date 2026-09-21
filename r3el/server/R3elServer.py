@@ -14,6 +14,7 @@ from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
 from r3el.interface.FileMgr import FileMgr
 from r3el.interface.LLM import LLM
+from r3el.interface.WorkspaceDb import WorkspaceDb
 from r3el.zmq.ZMQServer import ZMQServer
 
 
@@ -42,6 +43,7 @@ async def run(args) -> None:
             with ZMQServer(args.zmq_endpoint, handler.handle) as listener:
                 results = await BatchIdentification(
                     FileMgr(args.film_dir), LLM(args.llm_url), listener.endpoint, handler, events.record,
+                    WorkspaceDb(db),
                 ).run(args.batch_size)
                 print(json.dumps(results, ensure_ascii=False), flush=True)
         finally:

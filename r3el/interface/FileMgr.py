@@ -7,7 +7,7 @@ from pathlib import Path
 
 class FileMgr:
     def __init__(self, directory: str | Path) -> None:
-        self._directory = directory
+        self.directory = Path(directory).resolve()
 
     @staticmethod
     def is_hidden(filename: str) -> bool:
@@ -20,7 +20,7 @@ class FileMgr:
         Scan the directory afresh on each call. Subdirectories and symbolic
         links are excluded. Filesystem errors propagate to the caller.
         """
-        with os.scandir(self._directory) as entries:
+        with os.scandir(self.directory) as entries:
             return nsmallest(
                 limit,
                 (entry.name for entry in entries if entry.is_file(follow_symlinks=False)),

@@ -1,52 +1,107 @@
-"""Retrieve and identify a single batch, then return to the caller."""
+"""Identify the pending files in a persistent batch workspace."""
 
 import asyncio
+from dataclasses import asdict
 from uuid import uuid4
 
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.ToolConversation import ToolConversation
 from r3el.constants.DEventCategory import DEventCategory as Categories
 from r3el.constants.DEventName import DEventName as Names
+from r3el.entity.Identification import Identification
+from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
+from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
+from r3el.interface.WorkspaceDb import WorkspaceDb
 
 
 class BatchIdentification:
-    def __init__(self, files, llm, endpoint, handler, record) -> None:
+    def __init__(self, files, llm, endpoint, handler, record, workspace: WorkspaceDb) -> None:
         self._files, self._llm = files, llm
         self._endpoint, self._handler, self._record = endpoint, handler, record
+        self._workspace = workspace
 
     async def run(self, batch_size: int) -> list[dict]:
-        batch_id = str(uuid4())
-        log = EventWriter(self._record, {'batch_id': batch_id})
-        log.parent_event_id = log.write(Categories.Batch.LIFECYCLE, Names.BATCH_STARTED,
-                                       {'batch_size': batch_size}, source='BatchIdentification')
-        try:
-            filenames = self._files.filenames(batch_size)
-            log.write(Categories.Batch.DISCOVERY, Names.FILES_RETRIEVED,
-                      filenames, source='FileMgr')
-            results = []
-            for filename in filenames:
-                context = {'batch_id': batch_id, 'item_id': str(uuid4()), 'filename': filename}
-                item_log = EventWriter(self._record, context, log.parent_event_id)
-                item_log.parent_event_id = item_log.write(Categories.Identification.CONVERSATION,
-                    Names.ITEM_STARTED, {}, source='BatchIdentification')
-                if self._files.is_hidden(filename):
-                    result = {'status': 'unresolved_hidden_file', 'attempts': 0}
-                else:
-                    result = await ToolConversation(self._llm, self._endpoint, self._handler, item_log).run()
-                item_log.write(Categories.Identification.RESULT, Names.ITEM_COMPLETED,
-                               result, source='BatchIdentification')
-                results.append({'filename': filename, **result})
-            log.write(Categories.Batch.LIFECYCLE, Names.BATCH_COMPLETED,
-                      {'count': len(results),
-                       'unresolved_llm': sum(r['status'] == 'unresolved_llm' for r in results),
-                       'unresolved_hidden_file': sum(r['status'] == 'unresolved_hidden_file' for r in results)},
-                      source='BatchIdentification')
-            return results
-        except asyncio.CancelledError:
-            log.write(Categories.Batch.LIFECYCLE, Names.BATCH_CANCELLED, {},
-                      source='BatchIdentification', level='WARNING')
-            raise
-        except Exception as error:
-            log.write(Categories.Batch.LIFECYCLE, Names.BATCH_FAILED, {'error': str(error)},
-                      source='BatchIdentification', level='ERROR')
-            raise
+        with self._workspace.processing():
+            batch = self._workspace.load()
+            if batch is None:
+                batch = self._create(batch_size)
+            elif batch.state == MediaFileBatchState.IDENTIFICATION_COMPLETED:
+                return self._results(batch)
+            else:
+                self._set_state(batch, MediaFileBatchState.PROCESSING, Names.BATCH_RESUMED,
+                                {'pending': sum(item.state == MediaFileState.PENDING for item in batch.files)})
+            try:
+                for item in batch.files:
+                    if item.state != MediaFileState.PENDING:
+                        continue
+                    await self._identify(batch, item)
+                self._set_state(batch, MediaFileBatchState.IDENTIFICATION_COMPLETED, Names.BATCH_COMPLETED,
+                                {'count': len(batch.files),
+                                 'unresolved_llm': sum(item.state == MediaFileState.UNRESOLVED_LLM
+                                                       for item in batch.files),
+                                 'unresolved_hidden_file': sum(item.state == MediaFileState.UNRESOLVED_HIDDEN_FILE
+                                                               for item in batch.files)})
+                return self._results(batch)
+            except asyncio.CancelledError:
+                self._set_state(batch, MediaFileBatchState.CANCELLED, Names.BATCH_CANCELLED, {}, 'WARNING')
+                raise
+            except Exception as error:
+                self._set_state(batch, MediaFileBatchState.FAILED, Names.BATCH_FAILED,
+                                {'error': str(error)}, 'ERROR')
+                raise
+
+    def _create(self, batch_size: int) -> MediaFileBatch:
+        filenames = self._files.filenames(batch_size)
+        batch = MediaFileBatch(
+            id=str(uuid4()), requested_size=batch_size, source_directory=str(self._files.directory),
+            files=[MediaFile(str(uuid4()), str(self._files.directory / name)) for name in filenames],
+        )
+        log = EventWriter(self._record, {'batch_id': batch.id})
+        batch.started_event_id = self._workspace.create(
+            batch,
+            log.prepare(Categories.Batch.LIFECYCLE, Names.BATCH_STARTED,
+                        {'batch_size': batch_size}, source='BatchIdentification'),
+            log.prepare(Categories.Batch.DISCOVERY, Names.FILES_RETRIEVED, filenames, source='FileMgr'),
+        )
+        return batch
+
+    async def _identify(self, batch: MediaFileBatch, item: MediaFile) -> None:
+        context = {'batch_id': batch.id, 'item_id': item.id, 'filename': item.filename}
+        log = EventWriter(self._record, context, batch.started_event_id)
+        log.parent_event_id = log.write(Categories.Identification.CONVERSATION,
+                                       Names.ITEM_STARTED, {}, source='BatchIdentification')
+        if self._files.is_hidden(item.filename):
+            item.state = MediaFileState.UNRESOLVED_HIDDEN_FILE
+            item.issues = [MediaFileIssue('hidden_file', 'Hidden filename; identification skipped.')]
+        else:
+            result = await ToolConversation(self._llm, self._endpoint, self._handler, log).run()
+            item.state = MediaFileState(result['status'])
+            item.attempts = result['attempts']
+            if item.state == MediaFileState.IDENTIFIED:
+                item.identification = Identification(**result['identification'])
+                item.issues = []
+            else:
+                item.issues = [MediaFileIssue('unresolved_llm', result['reason'])]
+        event = log.prepare(Categories.Identification.RESULT, Names.ITEM_COMPLETED,
+                            self._result(item), source='BatchIdentification')
+        self._workspace.save_file(batch.id, item, event)
+
+    def _set_state(self, batch: MediaFileBatch, state: MediaFileBatchState,
+                   name: str, data: dict, level: str = 'INFO') -> None:
+        log = EventWriter(self._record, {'batch_id': batch.id}, batch.started_event_id)
+        event = log.prepare(Categories.Batch.LIFECYCLE, name, data,
+                            source='BatchIdentification', level=level)
+        self._workspace.save_batch_state(batch.id, state, event)
+        batch.state = state
+
+    @staticmethod
+    def _result(item: MediaFile) -> dict:
+        result = {'filename': item.filename, 'status': item.state, 'attempts': item.attempts,
+                  'issues': [asdict(issue) for issue in item.issues]}
+        if item.identification is not None:
+            result['identification'] = asdict(item.identification)
+        return result
+
+    @classmethod
+    def _results(cls, batch: MediaFileBatch) -> list[dict]:
+        return [cls._result(item) for item in batch.files]

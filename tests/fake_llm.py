@@ -6,11 +6,12 @@ from threading import Event, Thread
 
 
 class FakeLLM:
-    def __init__(self, submissions, *, block=False, status=200):
+    def __init__(self, submissions, *, block=False, block_at=None, status=200):
         self.requests = []
         self.errors = []
         self.called = Event()
         self.release = Event()
+        self.blocked = Event()
         owner = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -24,7 +25,8 @@ class FakeLLM:
                     index = len(owner.requests)
                     owner.requests.append(request)
                     owner.called.set()
-                    if block:
+                    if block or index == block_at:
+                        owner.blocked.set()
                         owner.release.wait(15)
                     submission = submissions[index]
                     if isinstance(submission, str):
