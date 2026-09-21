@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Updated
+
+- Display linked tool-started summaries with attempts, filename, and the submitted title, year, and confidence.
+
 ## [0.3.9] - 2026-09-21 @ 18:41
 
 ### Updated
