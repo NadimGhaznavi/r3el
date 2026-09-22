@@ -37,5 +37,12 @@
   dl { display: grid; grid-template-columns: max-content 1fr; gap: .6rem 1.5rem; }
   dd { margin: 0; overflow-wrap: anywhere; }
   .message { padding: 1.2rem; background: #1b2935; border-radius: .4rem; }
+  .reasoning { line-height: 1.6; overflow-wrap: anywhere; }
+  .reasoning > :first-child { margin-top: 0; }
+  .reasoning > :last-child { margin-bottom: 0; }
+  .reasoning pre { padding: 1rem; background: #111820; border-radius: .3rem; }
+  .reasoning code { font-size: .9em; }
+  .reasoning blockquote { margin-left: 0; padding-left: 1rem; border-left: 3px solid #526474; }
+  .reasoning table { display: block; overflow-x: auto; }
   @media (max-width: 600px) { main, .masthead { padding: 1rem; } dl { grid-template-columns: 1fr; } }
 </style>

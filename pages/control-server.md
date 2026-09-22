@@ -47,7 +47,11 @@ selects event names such as `tool_received` and `tool_started`. Rows display
 source first on one line, for example `FileMgr - files_retrieved`.
 Choose manual refresh or a 5, 30, or 60 second page refresh. Event links open
 the complete message, source, process ID, app version, and parent event.
-The full message page indents JSON and preserves plain text. Times are UTC.
+The full message page indents JSON and preserves plain text. For `reply_received`,
+Message shows the decoded LLM reasoning with Markdown formatting (headings, lists,
+emphasis, code blocks, tables, and line breaks). The full logged payload remains
+below a JSON heading. Embedded HTML is escaped and unsafe link schemes are blocked.
+Replies without reasoning show an explicit empty-state message. Times are UTC.
 
 ## Message templates
 
@@ -97,8 +101,8 @@ when the event-specific template is absent, not when it is broken.
 
 To customize an event, add its named template and include its path in the
 `modules` list in `scripts/install-services.sh` so install and upgrade deploy
-it. The Full event page always shows the complete generic message, independent
-of the column's custom presentation.
+it. The Full event page retains the complete payload independently of the column's
+custom presentation; `reply_received` adds formatted reasoning above that payload.
 
 ## Standalone startup
 

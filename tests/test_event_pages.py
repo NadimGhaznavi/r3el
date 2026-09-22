@@ -2,6 +2,8 @@
 
 from datetime import datetime
 import json
+import html
+import re
 import unittest
 
 from jinja2 import ChoiceLoader, DictLoader, TemplateSyntaxError, UndefinedError
@@ -88,3 +90,50 @@ class EventPagesTests(unittest.TestCase):
                          '{"choices": [{"message": {"reasoning_content": null}}]}'):
             with self.subTest(response=response):
                 self.assertEqual(self.pages.reasoning_preview(response), '...')
+
+    def reply_detail(self, data):
+        event = dict(self.event, name='reply_received', process_id='item-1',
+                     parent_event_id=None, app_version='test',
+                     content=json.dumps({'context': {'filename': 'Film.mkv'}, 'data': data}))
+        return self.pages.render('event.html', event=event, refresh=0).decode(), event['content']
+
+    def test_reply_detail_renders_decoded_formatting_before_complete_json(self):
+        reasoning = ('## Identification\n\n**Film** and *year* 🎬\nNext line\n\n'
+                     '- First reason\n- Second reason\n\n```text\nLiteral <tag>\n```\n\n'
+                     '| Field | Value |\n| --- | --- |\n| Year | 2020 |')
+        reply = json.dumps({'choices': [{'message': {'reasoning_content': reasoning}}]})
+        body, original = self.reply_detail(reply)
+        message = body.split('<h2>Message</h2>', 1)[1].split('<h2>JSON</h2>', 1)[0]
+        for formatted in ('<h2>Identification</h2>', '<strong>Film</strong>', '<em>year</em>',
+                          '<br />', '<li>First reason</li>', '<pre><code', 'Literal &lt;tag&gt;',
+                          '<table>', '🎬'):
+            self.assertIn(formatted, message)
+        self.assertNotIn('\\n', message)
+        raw = re.search(r'<h2>JSON</h2>\s*<pre class="message">(.*?)</pre>', body, re.S).group(1)
+        self.assertEqual(json.loads(html.unescape(raw)), json.loads(original))
+
+    def test_reply_reasoning_cannot_inject_html_or_script_links(self):
+        reasoning = ('<script>alert(1)</script>\n\n<img src=x onerror=alert(2)>\n\n'
+                     '[click](javascript:alert%281%29)\n\n'
+                     '[safe](https://example.com)')
+        body, _ = self.reply_detail(json.dumps({'choices': [{'message': {'reasoning_content': reasoning}}]}))
+        self.assertNotIn('<script>', body)
+        self.assertNotIn('<img src=x', body)
+        self.assertNotIn('href="javascript:', body)
+        self.assertIn('href="https://example.com"', body)
+
+    def test_reply_detail_missing_or_malformed_reasoning_keeps_raw_data(self):
+        for reply in ('not JSON', '{}', '{"choices": []}',
+                      json.dumps({'choices': [{'message': {'reasoning_content': None}}]}),
+                      json.dumps({'choices': [{'message': {'reasoning_content': 42}}]}),
+                      json.dumps({'choices': [{'message': {'reasoning_content': ''}}]})):
+            with self.subTest(reply=reply):
+                body, _ = self.reply_detail(reply)
+                self.assertIn('No reasoning was included in this reply.', body)
+                self.assertIn('<h2>JSON</h2>', body)
+
+    def test_other_event_detail_keeps_original_message_layout(self):
+        event = dict(self.event, process_id=None, parent_event_id=None, app_version='test')
+        body = self.pages.render('event.html', event=event, refresh=0).decode()
+        self.assertIn('<pre class="message">Batch finished.</pre>', body)
+        self.assertNotIn('<h2>JSON</h2>', body)

@@ -274,6 +274,18 @@ class ControlServerTests(unittest.TestCase):
                                         body, re.S).group(1)
                     self.assertEqual(set(re.findall(r'<option value="([^\"]+)"', options)), expected)
 
+    def test_reply_detail_shows_formatted_reasoning_and_json(self):
+        self.event['name'] = 'reply_received'
+        self.event['content'] = json.dumps({'context': {'filename': 'Film.mkv'}, 'data': json.dumps({
+            'choices': [{'message': {'reasoning_content': '**Film**\n\n- First reason'}}],
+        })})
+        status, _, body = self.request('/events/42')
+        self.assertEqual(status, 200)
+        self.assertIn('<strong>Film</strong>', body)
+        self.assertIn('<li>First reason</li>', body)
+        self.assertLess(body.index('<strong>Film</strong>'), body.index('<h2>JSON</h2>'))
+        self.assertIn('reasoning_content', body)
+
     def test_detail_has_full_content_and_parent_link(self):
         self.event['content'] = 'Long message\n' + 'x' * 2500
         status, _, body = self.request('/events/42')
