@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Updated
+
+- Add Title, Year, and Confidence after Filename in the current batch table, keeping Status last. Show saved identification values or a dash when unavailable.
+
 ## [0.3.15] - 2026-09-22 @ 02:11
 
 ### Updated
