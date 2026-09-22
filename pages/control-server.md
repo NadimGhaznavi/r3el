@@ -16,7 +16,9 @@ batch shows the current work instead. The identification worker finishing does
 not clear the application's workspace or automatically begin another batch.
 
 When the workspace contains a batch, the landing page shows its filenames and
-saved statuses in selection order, with no form or button. This also applies to
+saved statuses in selection order. The Control section stays visible but greyed
+out, with “Batch is being processed...” beneath its heading. Saved input/output
+directories and batch size appear as static text, and New Batch is disabled. This also applies to
 completed, failed, cancelled, and zero-file batches retained in the workspace.
 The control page never refreshes automatically. Reload it in the browser to update
 the table and timestamp, including after submitting a batch.

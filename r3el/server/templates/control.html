@@ -1,14 +1,20 @@
 {% extends 'base.html' %}
-{% block title %}{% if workspace is not none %}Current batch{% else %}Batch controls{% endif %}{% endblock %}
+{% block title %}Control{% endblock %}
 {% block updated %}<span class="last-updated">Last updated: <time datetime="{{ last_updated.isoformat() }}">{{ last_updated.strftime('%Y-%m-%d %H:%M:%S') }} UTC</time></span>{% endblock %}
 {% block content %}
 <img class="control-logo" src="{{ settings.CONTROL_LOGO_URL }}" alt="R3el">
 <div class="batch-controls">
+  <section aria-labelledby="control-heading"{% if workspace is not none %} class="control-occupied"{% endif %}>
+  <h1 id="control-heading">Control</h1>
   {% if workspace is not none %}
-  <h1>Current batch</h1>
-  {% include 'workspace.html' %}
+  <p id="batch-processing">Batch is being processed...</p>
+  <dl class="control-values">
+    <div class="media-directory"><dt>Media Directory</dt><dd>{{ workspace.source_directory }}</dd></div>
+    <div class="media-directory"><dt>Output Directory</dt><dd>{{ workspace.destination_directory or 'Not available' }}</dd></div>
+    <div><dt>Batch Size</dt><dd>{{ workspace.requested_size }}</dd></div>
+  </dl>
+  <button type="button" disabled aria-describedby="batch-processing">New Batch</button>
   {% else %}
-  <h1>Batch controls</h1>
   <form method="post" action="{{ settings.NEW_BATCH_URL }}" aria-label="New batch">
     <label class="media-directory" for="media-directory">Media Directory
       <input id="media-directory" name="input_directory" type="text" value="{{ input_directory }}" required>
@@ -24,6 +30,11 @@
     <button type="submit" aria-describedby="batch-note">New Batch</button>
   </form>
   <p class="note" id="batch-note">Media Directory is the input directory. New Batch requires an empty workspace. The output directory is saved for later stages; identification leaves source files untouched.</p>
+  {% endif %}
+  </section>
+  {% if workspace is not none %}
+  <h2>Current batch</h2>
+  {% include 'workspace.html' %}
   {% endif %}
   {% if result %}
   <p role="status">
