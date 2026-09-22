@@ -13,5 +13,13 @@
   <dt>App version</dt><dd>{{ event.app_version or '—' }}</dd>
 </dl>
 <h2>Message</h2>
+{% if event.name == event_types.REPLY_RECEIVED %}
+{% if reasoning %}
+<div class="message reasoning">{{ reasoning }}</div>
+{% else %}
+<p class="message">No reasoning was included in this reply.</p>
+{% endif %}
+<h2>JSON</h2>
+{% endif %}
 <pre class="message">{{ message.text }}</pre>
 {% endblock %}
