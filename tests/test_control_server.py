@@ -79,6 +79,21 @@ class ControlServerTests(unittest.TestCase):
         self.workspace.assert_called_once()
         self.db.close.assert_called_once()
 
+    @patch('r3el.server.ControlServer.BatchControl.new_batch')
+    def test_startup_and_page_refreshes_never_start_a_batch(self, new_batch):
+        with make_server('127.0.0.1', 0):
+            new_batch.assert_not_called()
+        batch = MediaFileBatch('batch-1', 5, '/tmp/input')
+        for workspace in (None, batch):
+            self.workspace.return_value = workspace
+            for path in ('/', '/', '/?result=accepted', '/?result=accepted'):
+                with self.subTest(workspace=workspace, path=path):
+                    status, _, body = self.request(path)
+                    self.assertEqual(status, 200)
+                    self.assertEqual('<button' in body, workspace is None)
+                    self.assertNotIn('http-equiv="refresh"', body)
+        new_batch.assert_not_called()
+
     def test_occupied_workspace_shows_ordered_filenames_and_statuses_without_buttons(self):
         self.workspace.return_value = MediaFileBatch(
             'batch-1', 5, '/tmp/input',
@@ -99,7 +114,7 @@ class ControlServerTests(unittest.TestCase):
                     self.assertIn(label, body)
                 self.assertNotIn('<button', body)
                 self.assertNotIn('<form', body)
-                self.assertIn('http-equiv="refresh" content="5"', body)
+                self.assertNotIn('http-equiv="refresh"', body)
                 header = re.search(r'<header.*?</header>', body, re.S).group(0)
                 self.assertRegex(header, r'Last updated: <time datetime="[^"]+">[0-9-]+ [0-9:]+ UTC</time>')
 
@@ -353,7 +368,7 @@ assert b'Media Directory' in page
 from r3el.entity.MediaFile import MediaFile
 from r3el.entity.MediaFileBatch import MediaFileBatch
 batch = MediaFileBatch('batch-1', 5, '/tmp', files=[MediaFile('file-1', '/tmp/Film.mkv')])
-page = EventPages().render('control.html', workspace=batch, refresh=5)
+page = EventPages().render('control.html', workspace=batch, refresh=0)
 assert b'Film.mkv' in page and b'Pending' in page and b'<button' not in page
 assert b'Workspace unavailable' in EventPages().render('workspace_error.html', refresh=0)
 from pathlib import Path
