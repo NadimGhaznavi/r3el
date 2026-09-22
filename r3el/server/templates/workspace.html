@@ -6,12 +6,18 @@
 } %}
 <div class="table-wrap">
   <table class="workspace-files" aria-label="Current batch files">
-    <thead><tr><th scope="col">Filename</th><th scope="col">Status</th></tr></thead>
+    <thead><tr><th scope="col">Filename</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Status</th></tr></thead>
     <tbody>
       {% for file in workspace.files %}
-      <tr><td>{{ file.filename }}</td><td>{{ status_labels[file.state] if file.state else 'Not available' }}</td></tr>
+      <tr>
+        <td>{{ file.filename }}</td>
+        <td>{{ file.identification.title if file.identification is not none else '—' }}</td>
+        <td>{{ file.identification.year if file.identification is not none else '—' }}</td>
+        <td>{{ file.identification.confidence if file.identification is not none else '—' }}</td>
+        <td>{{ status_labels[file.state] if file.state else 'Not available' }}</td>
+      </tr>
       {% else %}
-      <tr><td colspan="2">No files in this batch.</td></tr>
+      <tr><td colspan="5">No files in this batch.</td></tr>
       {% endfor %}
     </tbody>
   </table>
