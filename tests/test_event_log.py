@@ -37,6 +37,8 @@ from r3el.entity.LogEvent import LogEvent
 from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
 from r3el.entity.Identification import Identification
+from r3el.entity.MediaFileAction import MediaFileAction
+from r3el.interface.WorkspaceDb import WorkspaceActionConflict
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
 from r3el.interface.WorkspaceDb import WorkspaceDb
@@ -126,9 +128,11 @@ class EventDatabaseTests(unittest.TestCase):
             item.state = MediaFileState.IDENTIFIED
             item.identification = Identification('Film 🎬', 2001, 9)
             item.attempts = 2
+            item.action = MediaFileAction.APPROVE
             with self.assertRaises(pymysql.IntegrityError):
                 workspace.save_file(batch.id, item, self.event(message=None))
             self.assertEqual(workspace.load().files[0].state, MediaFileState.PENDING)
+            self.assertEqual(workspace.load().files[0].action, MediaFileAction.PENDING)
             self.assertEqual(len(self.events.recent()), 2)
             workspace.save_file(batch.id, item, self.event())
             with self.assertRaises(pymysql.IntegrityError):
@@ -141,6 +145,51 @@ class EventDatabaseTests(unittest.TestCase):
             self.assertEqual(restored, batch)
         finally:
             reader.close()
+
+    def test_workspace_action_changes_persist_without_changing_identification(self):
+        workspace = WorkspaceDb(self.db)
+        batch = self.workspace_batch()
+        batch.started_event_id = workspace.create(batch, self.event(), self.event())
+        item = batch.files[0]
+        with self.assertRaises(WorkspaceActionConflict):
+            workspace.save_action(batch.id, item.id, MediaFileAction.APPROVE)
+        item.state = MediaFileState.IDENTIFIED
+        item.identification = Identification('Film', 2000, 10)
+        item.action = MediaFileAction.APPROVE
+        workspace.save_file(batch.id, item, self.event())
+        for action in MediaFileAction:
+            saved = workspace.save_action(batch.id, item.id, action)
+            self.assertEqual(saved.files[0].action, action)
+            self.assertEqual(saved.files[0].identification, item.identification)
+            self.assertEqual(saved.files[0].state, MediaFileState.IDENTIFIED)
+            self.assertEqual(workspace.snapshot().files[0].action, action)
+        with self.assertRaises(WorkspaceActionConflict):
+            workspace.save_action(str(uuid4()), item.id, MediaFileAction.IGNORE)
+        with self.assertRaises(WorkspaceActionConflict):
+            workspace.save_action(batch.id, str(uuid4()), MediaFileAction.IGNORE)
+
+    def test_workspace_action_upgrade_initializes_only_legacy_rows(self):
+        workspace = WorkspaceDb(self.db)
+        batch = self.workspace_batch()
+        batch.files.extend([MediaFile(str(uuid4()), '/tmp/films/b'),
+                            MediaFile(str(uuid4()), '/tmp/films/c')])
+        batch.started_event_id = workspace.create(batch, self.event(), self.event())
+        for item, confidence in zip(batch.files, (10, 8)):
+            item.state = MediaFileState.IDENTIFIED
+            item.identification = Identification('Film', 2020, confidence)
+            workspace.save_file(batch.id, item, self.event())
+        self.db.execute('ALTER TABLE media_files DROP COLUMN action')
+        try:
+            WorkspaceSchema(self.db).apply()
+            self.assertEqual([item.action for item in workspace.load().files],
+                             [MediaFileAction.APPROVE, MediaFileAction.PENDING, MediaFileAction.PENDING])
+            workspace.save_action(batch.id, batch.files[0].id, MediaFileAction.PENDING)
+            workspace.save_action(batch.id, batch.files[1].id, MediaFileAction.IGNORE)
+            WorkspaceSchema(self.db).apply()
+            self.assertEqual([item.action for item in workspace.load().files],
+                             [MediaFileAction.PENDING, MediaFileAction.IGNORE, MediaFileAction.PENDING])
+        finally:
+            WorkspaceSchema(self.db).apply()
 
     def test_workspace_issues_and_exclusive_processing(self):
         first = WorkspaceDb(self.db)

@@ -8,12 +8,17 @@ from r3el.entity.Identification import Identification
 from r3el.entity.LogEvent import LogEvent
 from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
+from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
 
 
 class WorkspaceOccupied(RuntimeError):
     """A new batch requires an empty workspace."""
+
+
+class WorkspaceActionConflict(ValueError):
+    """The requested file is unavailable for a preparation decision."""
 
 
 class WorkspaceDb:
@@ -62,7 +67,7 @@ class WorkspaceDb:
             id=row['file_id'], path=row['path'], state=MediaFileState(row['state']),
             identification=Identification(**identification) if identification is not None else None,
             issues=[MediaFileIssue(**issue) for issue in json.loads(row['issues'])],
-            attempts=row['attempts'],
+            attempts=row['attempts'], action=MediaFileAction(row['action']),
         )
 
     def create(self, batch: MediaFileBatch, started: LogEvent, discovered: LogEvent) -> int:
@@ -79,9 +84,9 @@ class WorkspaceDb:
             for position, item in enumerate(batch.files):
                 self._db.execute(
                     'INSERT INTO media_files '
-                    '(file_id, batch_id, position, path, state, identification, issues, attempts) '
-                    'VALUES (%s, %s, %s, %s, %s, NULL, %s, %s)',
-                    (item.id, batch.id, position, item.path, item.state, '[]', item.attempts),
+                    '(file_id, batch_id, position, path, state, identification, issues, attempts, action) '
+                    'VALUES (%s, %s, %s, %s, %s, NULL, %s, %s, %s)',
+                    (item.id, batch.id, position, item.path, item.state, '[]', item.attempts, item.action),
                 )
             self._events.record_in_transaction(replace(discovered, parent_event_id=event_id))
         return event_id
@@ -89,14 +94,32 @@ class WorkspaceDb:
     def save_file(self, batch_id: str, item: MediaFile, event: LogEvent) -> None:
         with self._db.transaction():
             self._db.execute(
-                'UPDATE media_files SET state = %s, identification = %s, issues = %s, attempts = %s '
+                'UPDATE media_files SET state = %s, identification = %s, issues = %s, attempts = %s, action = %s '
                 'WHERE batch_id = %s AND file_id = %s',
                 (item.state,
                  json.dumps(asdict(item.identification), allow_nan=False) if item.identification else None,
                  json.dumps([asdict(issue) for issue in item.issues], allow_nan=False),
-                 item.attempts, batch_id, item.id),
+                 item.attempts, item.action, batch_id, item.id),
             )
             self._events.record_in_transaction(event)
+
+    def save_action(self, batch_id: str, file_id: str, action: MediaFileAction) -> MediaFileBatch:
+        """Save a user choice after the file's identification checkpoint is committed."""
+        with self._db.transaction():
+            batches = self._db.query(
+                'SELECT batch_id FROM media_file_batches WHERE batch_id = %s FOR UPDATE', (batch_id,),
+            )
+            if not batches:
+                raise WorkspaceActionConflict('The batch is no longer in the workspace.')
+            files = self._db.query(
+                'SELECT state FROM media_files WHERE batch_id = %s AND file_id = %s FOR UPDATE',
+                (batch_id, file_id),
+            )
+            if not files or files[0]['state'] == MediaFileState.PENDING:
+                raise WorkspaceActionConflict('The file is missing or identification has not finished.')
+            self._db.execute('UPDATE media_files SET action = %s WHERE batch_id = %s AND file_id = %s',
+                             (action, batch_id, file_id))
+            return self.load()
 
     def save_batch_state(self, batch_id: str, state: MediaFileBatchState, event: LogEvent) -> None:
         with self._db.transaction():

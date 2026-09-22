@@ -4,9 +4,13 @@
   file_states.UNRESOLVED_LLM: 'Unresolved — identification',
   file_states.UNRESOLVED_HIDDEN_FILE: 'Unresolved — hidden file'
 } %}
+{% set action_labels = {
+  file_actions.PENDING: 'Pending', file_actions.APPROVE: 'Approve',
+  file_actions.IGNORE: 'Ignore', file_actions.DELETE: 'Delete'
+} %}
 <div class="table-wrap">
   <table class="workspace-files" aria-label="Current batch files">
-    <thead><tr><th scope="col">Filename</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Status</th></tr></thead>
+    <thead><tr><th scope="col">Filename</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
     <tbody>
       {% for file in workspace.files %}
       <tr>
@@ -15,11 +19,62 @@
         <td>{{ file.identification.year if file.identification is not none else '—' }}</td>
         <td>{{ file.identification.confidence if file.identification is not none else '—' }}</td>
         <td>{{ status_labels[file.state] if file.state else 'Not available' }}</td>
+        <td>
+          <select class="file-action" aria-label="Action for {{ file.filename }}"
+                  data-file-id="{{ file.id }}" data-saved-action="{{ file.action }}"
+                  {% if file.state == file_states.PENDING %}disabled{% else %}data-action-editable{% endif %}>
+            {% for action, label in action_labels.items() %}
+            <option value="{{ action }}"{% if file.action == action %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </td>
       </tr>
       {% else %}
-      <tr><td colspan="5">No files in this batch.</td></tr>
+      <tr><td colspan="6">No files in this batch.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 <p class="note">Reload the page to update statuses. Status reflects the latest saved result.</p>
+<p class="note">Actions save when changed. Pending files can be reviewed once identification finishes.</p>
+<p role="status" id="action-feedback">
+  <span id="action-saving" hidden>Saving action...</span>
+  <span id="action-saved" hidden>Action saved.</span>
+  <span id="action-error" hidden>Could not confirm the saved action. Reload the page to check the workspace before continuing.</span>
+</p>
+<button id="process-batch" type="button"{% if not process_ready %} disabled{% endif %} aria-describedby="process-note">Process Batch</button>
+<p class="note" id="process-note">Choose an action for every file after identification finishes. Process Batch is a placeholder and does not execute actions yet.</p>
+<script>
+  const actionMenus = [...document.querySelectorAll('[data-action-editable]')];
+  const processBatch = document.getElementById('process-batch');
+  const feedback = [...document.querySelectorAll('#action-feedback span')];
+  const saving = document.getElementById('action-saving');
+  const saved = document.getElementById('action-saved');
+  const failed = document.getElementById('action-error');
+
+  for (const menu of actionMenus) {
+    menu.addEventListener('change', async () => {
+      actionMenus.forEach(select => { select.disabled = true; });
+      processBatch.disabled = true;
+      feedback.forEach(message => { message.hidden = message !== saving; });
+      try {
+        const response = await fetch({{ settings.FILE_ACTION_URL | tojson }}, {
+          method: 'POST',
+          body: new URLSearchParams({
+            batch_id: {{ workspace.id | tojson }}, file_id: menu.dataset.fileId, action: menu.value
+          })
+        });
+        if (!response.ok) throw new Error();
+        const result = await response.json();
+        if (result.saved !== true) throw new Error();
+        menu.dataset.savedAction = menu.value;
+        processBatch.disabled = result.ready !== true;
+        feedback.forEach(message => { message.hidden = message !== saved; });
+        actionMenus.forEach(select => { select.disabled = false; });
+      } catch {
+        menu.value = menu.dataset.savedAction;
+        feedback.forEach(message => { message.hidden = message !== failed; });
+      }
+    });
+  }
+</script>

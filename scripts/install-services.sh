@@ -85,6 +85,7 @@ modules=(
     activity/EventSchema.py activity/EventReport.py activity/ServerLifecycle.py
     activity/WorkspaceSchema.py interface/WorkspaceDb.py
     entity/MediaFile.py entity/MediaFileBatch.py
+    entity/MediaFileAction.py activity/BatchPreparation.py
 )
 # Stop previous services before replacing their modules. Batches are started manually.
 for unit in r3el-server.service r3el-control.service; do

@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-22 @ 02:59
+
+### Summary
+
+- Add batch processing status and controls in the Control Server UI.
+
+### Updated
+
+- Add an Action dropdown after Status with Pending, Approve, Ignore, and Delete. Identification initializes confidence 10 to Approve and all other results to Pending; subsequent user selections are saved.
+- Add the workspace action column and migrate existing records without resetting user choices on later upgrades.
+- Enable Process Batch only for a nonempty, identification-complete batch with no Pending file actions. The button does not execute any operations yet.
+
 ## [0.3.16] - 2026-09-22 @ 02:16
 
 ### Updated

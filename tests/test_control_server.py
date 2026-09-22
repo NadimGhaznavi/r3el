@@ -16,6 +16,8 @@ import zmq
 
 from r3el.constants.DMessage import DMessage
 from r3el.entity.BatchRequest import BatchRequest
+from r3el.entity.MediaFileAction import MediaFileAction
+from r3el.interface.WorkspaceDb import WorkspaceActionConflict
 from r3el.entity.MediaFile import MediaFile, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
 import unittest
@@ -121,11 +123,67 @@ class ControlServerTests(unittest.TestCase):
                 self.assertIn('<dt>Batch Size</dt><dd>5</dd>', body)
                 self.assertIn('type="button" disabled', body)
                 self.assertNotIn('<input', body)
-                self.assertNotIn('<select', body)
+                controls = re.search(r'<section.*?</section>', body, re.S).group(0)
+                self.assertNotIn('<select', controls)
+                self.assertIn('class="file-action"', body)
                 self.assertNotIn('<form', body)
                 self.assertNotIn('http-equiv="refresh"', body)
                 header = re.search(r'<header.*?</header>', body, re.S).group(0)
                 self.assertRegex(header, r'Last updated: <time datetime="[^"]+">[0-9-]+ [0-9:]+ UTC</time>')
+
+    def test_process_placeholder_requires_completed_identification_and_saved_actions(self):
+        batch = MediaFileBatch('batch-1', 5, '/tmp', files=[
+            MediaFile('file-1', '/tmp/a.mkv', state=MediaFileState.IDENTIFIED,
+                      action=MediaFileAction.APPROVE)])
+        self.workspace.return_value = batch
+        for state, action, enabled in (
+            (MediaFileBatchState.PROCESSING, MediaFileAction.APPROVE, False),
+            (MediaFileBatchState.FAILED, MediaFileAction.APPROVE, False),
+            (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.PENDING, False),
+            (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.APPROVE, True),
+            (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.IGNORE, True),
+            (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.DELETE, True),
+        ):
+            with self.subTest(state=state, action=action):
+                batch.state, batch.files[0].action = state, action
+                body = self.request('/')[2]
+                button = re.search(r'<button id="process-batch"[^>]*>', body).group(0)
+                self.assertEqual('disabled' not in button, enabled)
+                self.assertIn('type="button"', button)
+                self.assertNotIn('onclick', button)
+                self.assertIn(f'<option value="{action}" selected>', body)
+        batch.files = []
+        self.assertIn('type="button" disabled', re.search(
+            r'<button id="process-batch"[^>]*>', self.request('/')[2]).group(0))
+
+    @patch('r3el.server.ControlServer.WorkspaceDb.save_action')
+    def test_action_change_is_saved_and_reports_readiness(self, save):
+        save.return_value = MediaFileBatch('batch-1', 5, '/tmp',
+            state=MediaFileBatchState.IDENTIFICATION_COMPLETED,
+            files=[MediaFile('file-1', '/tmp/a', state=MediaFileState.IDENTIFIED,
+                             action=MediaFileAction.DELETE)])
+        status, _, body = self.request('/workspace/actions', 'POST',
+            urlencode(dict(batch_id='batch-1', file_id='file-1', action='delete')),
+            {'Content-Type': 'application/x-www-form-urlencoded'})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), {'saved': True, 'ready': True})
+        save.assert_called_once_with('batch-1', 'file-1', MediaFileAction.DELETE)
+        self.db.close.assert_called_once()
+
+    @patch('r3el.server.ControlServer.WorkspaceDb.save_action')
+    def test_invalid_and_stale_actions_are_rejected(self, save):
+        for action in ('unknown', 'APPROVE', ''):
+            status, _, _ = self.request('/workspace/actions', 'POST',
+                urlencode(dict(batch_id='batch-1', file_id='file-1', action=action)),
+                {'Content-Type': 'application/x-www-form-urlencoded'})
+            self.assertEqual(status, 400)
+        save.assert_not_called()
+        save.side_effect = WorkspaceActionConflict('not ready')
+        status, _, _ = self.request('/workspace/actions', 'POST',
+            urlencode(dict(batch_id='batch-1', file_id='file-1', action='approve')),
+            {'Content-Type': 'application/x-www-form-urlencoded'})
+        self.assertEqual(status, 409)
+        self.db.close.assert_called_once()
 
     def test_retained_batch_with_no_files_still_disables_new_batch(self):
         self.workspace.return_value = MediaFileBatch('batch-1', 5, '/tmp/input')
