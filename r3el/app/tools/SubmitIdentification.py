@@ -3,6 +3,7 @@
 import asyncio
 import json
 
+from r3el.constants.DMessage import DMessage
 from r3el.zmq.ZMQClient import ZMQClient
 from r3el.zmq.ZMQMsg import ZMQMsg
 
@@ -14,7 +15,8 @@ class SubmitIdentification:
 
     async def submit(self, title, year, confidence) -> str:
         response = await asyncio.to_thread(self._client.request, ZMQMsg(
-            sender='mcp-identification', target='identification', method='submit_identification',
+            sender=DMessage.MCP_IDENTIFICATION, target=DMessage.IDENTIFICATION,
+            method=DMessage.SUBMIT_IDENTIFICATION,
             payload={'attempt_id': self._attempt_id,
                      'submission': {'title': title, 'year': year, 'confidence': confidence}},
         ))

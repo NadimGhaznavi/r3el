@@ -1,12 +1,16 @@
 """Render event reports with the control server's Jinja2 templates."""
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, Template, select_autoescape
 
+from r3el.constants.DR3el import DR3el
+from r3el.constants.DMessage import DMessage
 from r3el.constants.DEventCategory import DEventCategory
 from r3el.constants.DEventName import DEventName
+from r3el.entity.MediaFile import MediaFileState
 
 
 class EventPages:
@@ -18,6 +22,9 @@ class EventPages:
         self._templates.filters['reasoning_preview'] = self.reasoning_preview
         self._templates.filters['prompt_preview'] = self.prompt_preview
         self._templates.filters['from_json'] = json.loads
+        self._templates.globals['settings'] = DR3el
+        self._templates.globals['messages'] = DMessage
+        self._templates.globals['file_states'] = MediaFileState
         self._templates.globals['categories'] = DEventCategory.CHILDREN
         self._templates.globals['event_parents'] = {
             name: {'category': parent.category, 'subcategory': parent.subcategory}
@@ -63,6 +70,12 @@ class EventPages:
         return reasoning.split('\n', 1)[0][:20].rstrip('\r') + '...'
 
     def render(self, template: str, **values) -> bytes:
+        if template == 'control.html':
+            values['last_updated'] = datetime.now(timezone.utc)
+            values.setdefault('result', None)
+            values.setdefault('input_directory', DR3el.FILM_DIR)
+            values.setdefault('output_directory', DR3el.MEDIA_DIR)
+            values.setdefault('batch_size', DR3el.BATCH_SIZE)
         if template == 'events.html':
             values['events'] = [
                 dict(event, message=self.message(event['content']),

@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}{% if workspace is not none %}Current batch{% else %}Batch controls{% endif %}{% endblock %}
+{% block updated %}<span class="last-updated">Last updated: <time datetime="{{ last_updated.isoformat() }}">{{ last_updated.strftime('%Y-%m-%d %H:%M:%S') }} UTC</time></span>{% endblock %}
+{% block content %}
+<img class="control-logo" src="{{ settings.CONTROL_LOGO_URL }}" alt="R3el">
+<div class="batch-controls">
+  {% if workspace is not none %}
+  <h1>Current batch</h1>
+  {% include 'workspace.html' %}
+  {% else %}
+  <h1>Batch controls</h1>
+  <form method="post" action="{{ settings.NEW_BATCH_URL }}" aria-label="New batch">
+    <label class="media-directory" for="media-directory">Media Directory
+      <input id="media-directory" name="input_directory" type="text" value="{{ input_directory }}" required>
+    </label>
+    <label class="media-directory" for="output-directory">Output Directory
+      <input id="output-directory" name="output_directory" type="text" value="{{ output_directory }}" required>
+    </label>
+    <label for="batch-size">Batch Size
+      <select id="batch-size" name="batch_size">
+        {% for size in settings.BATCH_SIZES %}<option value="{{ size }}" {% if size == batch_size %}selected{% endif %}>{{ size }}</option>{% endfor %}
+      </select>
+    </label>
+    <button type="submit" aria-describedby="batch-note">New Batch</button>
+  </form>
+  <p class="note" id="batch-note">Media Directory is the input directory. New Batch requires an empty workspace. The output directory is saved for later stages; identification leaves source files untouched.</p>
+  {% endif %}
+  {% if result %}
+  <p role="status">
+    {% if result == messages.ACCEPTED %}
+      Batch accepted. Follow progress in the <a href="/events">event log</a>. The server returns to idle when processing finishes.
+    {% elif result == messages.BUSY %}
+      A batch is already running. No additional batch was queued.
+    {% elif result == messages.INVALID_PARAMETERS %}
+      Supply absolute input and output directory paths and select an available batch size.
+    {% elif result == messages.NOT_CONFIGURED %}
+      The identification server is not configured to accept batches. Check its model URL and startup options.
+    {% elif result == messages.UNAVAILABLE %}
+      Batch acceptance could not be confirmed. Check the event log and service journal before trying again; the request may have reached the server.
+    {% else %}
+      The batch request was rejected. Check the service journal for details.
+    {% endif %}
+  </p>
+  {% endif %}
+</div>
+{% endblock %}

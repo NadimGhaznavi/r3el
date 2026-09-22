@@ -35,7 +35,7 @@ and the selected TMDB record are not implemented yet.
 
 ## MediaFileBatch
 
-Stores `id`, `requested_size`, `source_directory`, ordered `files`, `state`,
+Stores `id`, `requested_size`, `source_directory`, `destination_directory`, ordered `files`, `state`,
 and `started_event_id`. One batch occupies the workspace.
 
 | State | Meaning |
@@ -45,15 +45,17 @@ and `started_event_id`. One batch occupies the workspace.
 | `cancelled` | Processing interrupted. |
 | `identification_completed` | All outcomes saved, awaiting the next stage. |
 
-Restart resumes pending files and returns failed/cancelled batches to
-`processing`. Identification completion is not finalization.
+Explicit diagnostic `--run-batch` resumes pending files and returns failed/cancelled batches to
+`processing`. Identification completion is not finalization. Normal server startup is idle;
+control-requested New Batch currently requires an empty workspace. The destination
+directory is optional for older batches and saved for future file operations.
 
 ## Persistence and cleanup
 
 - Entities store data; activities perform work and state transitions.
 - `WorkspaceDb` uses `DbMgr` to save the selection before identification and
   commit each file outcome with its completion event.
-- Restart uses the saved selection, skips saved outcomes, and retries an
+- Diagnostic `--run-batch` uses the saved selection, skips saved outcomes, and retries an
   interrupted file. Only one processor can hold the workspace.
 - Issues represent current problems, not an accumulating cleanup history.
 - Identification-complete batches remain available without repeating model calls.

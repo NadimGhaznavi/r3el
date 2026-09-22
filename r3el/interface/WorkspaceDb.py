@@ -12,10 +12,19 @@ from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
 
 
+class WorkspaceOccupied(RuntimeError):
+    """A new batch requires an empty workspace."""
+
+
 class WorkspaceDb:
     def __init__(self, db: DbMgr) -> None:
         self._db = db
         self._events = EventLogDb(db)
+
+    def snapshot(self) -> MediaFileBatch | None:
+        """Read the current workspace without taking the processor's exclusive lock."""
+        with self._db.transaction():
+            return self.load()
 
     @contextmanager
     def processing(self):
@@ -31,7 +40,7 @@ class WorkspaceDb:
             self._db.query("SELECT RELEASE_LOCK(CONCAT(DATABASE(), ':workspace'))")
 
     def load(self) -> MediaFileBatch | None:
-        """Load the retained batch in its original file order while processing is locked."""
+        """Load the retained batch in order, within a snapshot or processing lock."""
         rows = self._db.query('SELECT * FROM media_file_batches')
         if not rows:
             return None
@@ -42,6 +51,7 @@ class WorkspaceDb:
         return MediaFileBatch(
             id=row['batch_id'], requested_size=row['requested_size'],
             source_directory=row['source_directory'], state=MediaFileBatchState(row['state']),
+            destination_directory=row['destination_directory'],
             started_event_id=row['started_event_id'], files=[self._file(item) for item in files],
         )
 
@@ -61,9 +71,10 @@ class WorkspaceDb:
             event_id = self._events.record_in_transaction(started)
             self._db.execute(
                 'INSERT INTO media_file_batches '
-                '(batch_id, requested_size, source_directory, state, started_event_id) '
-                'VALUES (%s, %s, %s, %s, %s)',
-                (batch.id, batch.requested_size, batch.source_directory, batch.state, event_id),
+                '(batch_id, requested_size, source_directory, destination_directory, state, started_event_id) '
+                'VALUES (%s, %s, %s, %s, %s, %s)',
+                (batch.id, batch.requested_size, batch.source_directory, batch.destination_directory,
+                 batch.state, event_id),
             )
             for position, item in enumerate(batch.files):
                 self._db.execute(

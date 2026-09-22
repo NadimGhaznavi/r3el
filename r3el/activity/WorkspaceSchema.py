@@ -14,11 +14,15 @@ class WorkspaceSchema:
                 workspace_slot TINYINT NOT NULL DEFAULT 1 UNIQUE CHECK (workspace_slot = 1),
                 requested_size INT UNSIGNED NOT NULL CHECK (requested_size > 0),
                 source_directory TEXT NOT NULL,
+                destination_directory TEXT NULL,
                 state ENUM('processing', 'failed', 'cancelled', 'identification_completed') NOT NULL,
                 started_event_id BIGINT UNSIGNED NOT NULL,
                 FOREIGN KEY (started_event_id) REFERENCES events(event_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """)
+        self._db.execute(
+            'ALTER TABLE media_file_batches ADD COLUMN IF NOT EXISTS destination_directory TEXT NULL'
+        )
         self._db.execute("""
             CREATE TABLE IF NOT EXISTS media_files (
                 file_id CHAR(36) PRIMARY KEY,
