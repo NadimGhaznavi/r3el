@@ -11,10 +11,12 @@ from r3el.constants.DMessage import DMessage
 from r3el.constants.DEventCategory import DEventCategory
 from r3el.constants.DEventName import DEventName
 from r3el.entity.MediaFile import MediaFileState
+from r3el.server.ReplyReasoning import ReplyReasoning
 
 
 class EventPages:
     def __init__(self) -> None:
+        self._reasoning = ReplyReasoning()
         self._templates = Environment(
             loader=FileSystemLoader(Path(__file__).with_name('templates')),
             autoescape=select_autoescape(['html']), undefined=StrictUndefined,
@@ -24,6 +26,7 @@ class EventPages:
         self._templates.filters['from_json'] = json.loads
         self._templates.globals['settings'] = DR3el
         self._templates.globals['messages'] = DMessage
+        self._templates.globals['event_types'] = DEventName
         self._templates.globals['file_states'] = MediaFileState
         self._templates.globals['categories'] = DEventCategory.CHILDREN
         self._templates.globals['event_parents'] = {
@@ -59,13 +62,8 @@ class EventPages:
     @staticmethod
     def reasoning_preview(content: str) -> str:
         """Extract a short first line from the raw model response logged as data."""
-        # Replies are logged before validation, so malformed responses are expected here.
-        try:
-            reply = json.loads(content)
-            reasoning = reply['choices'][0]['message'].get('reasoning_content')
-        except (json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError):
-            reasoning = None
-        if not isinstance(reasoning, str):
+        reasoning = ReplyReasoning.extract(content)
+        if reasoning is None:
             return '...'
         return reasoning.split('\n', 1)[0][:20].rstrip('\r') + '...'
 
@@ -94,4 +92,6 @@ class EventPages:
             )
         elif template == 'event.html':
             values['message'] = self.message(values['event']['content'])
+            if values['event']['name'] == DEventName.REPLY_RECEIVED:
+                values['reasoning'] = self._reasoning.render(values['message']['payload'])
         return self._templates.get_template(template).render(**values).encode('utf-8')

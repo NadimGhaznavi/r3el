@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Updated
+
+- Render decoded LLM reasoning as formatted Markdown under Message on reply-received event details, with the complete raw payload below a JSON heading.
+
 ## [0.3.12] - 2026-09-21 @ 20:10
 
 ### Summary
