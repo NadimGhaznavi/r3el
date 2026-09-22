@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Updated
+
+- Rename Batch controls to Control and keep the section visible but greyed out for an occupied workspace, with saved settings as static text, a disabled New Batch button, and “Batch is being processed...” beneath the heading.
+
 ## [0.3.14] - 2026-09-21 @ 20:52
 
 ### Updated

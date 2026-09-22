@@ -90,13 +90,14 @@ class ControlServerTests(unittest.TestCase):
                 with self.subTest(workspace=workspace, path=path):
                     status, _, body = self.request(path)
                     self.assertEqual(status, 200)
-                    self.assertEqual('<button' in body, workspace is None)
+                    self.assertIn('<button', body)
+                    self.assertEqual('type="button" disabled' in body, workspace is not None)
                     self.assertNotIn('http-equiv="refresh"', body)
         new_batch.assert_not_called()
 
-    def test_occupied_workspace_shows_ordered_filenames_and_statuses_without_buttons(self):
+    def test_occupied_workspace_shows_static_controls_and_ordered_files(self):
         self.workspace.return_value = MediaFileBatch(
-            'batch-1', 5, '/tmp/input',
+            'batch-1', 5, '/tmp/<input>', destination_directory='/tmp/<output>',
             files=[MediaFile('file-1', '/tmp/input/z<&>.mkv'),
                    MediaFile('file-2', '/tmp/input/a.mkv', state=MediaFileState.IDENTIFIED),
                    MediaFile('file-3', '/tmp/input/b.mkv', state=MediaFileState.UNRESOLVED_LLM),
@@ -112,18 +113,27 @@ class ControlServerTests(unittest.TestCase):
                 self.assertLess(body.index('z&lt;&amp;&gt;.mkv'), body.index('a.mkv'))
                 for label in ('Pending', 'Identified', 'Unresolved — identification', 'Unresolved — hidden file'):
                     self.assertIn(label, body)
-                self.assertNotIn('<button', body)
+                self.assertIn('<h1 id="control-heading">Control</h1>', body)
+                self.assertIn('Batch is being processed...', body)
+                self.assertIn('class="control-occupied"', body)
+                self.assertIn('/tmp/&lt;input&gt;', body)
+                self.assertIn('/tmp/&lt;output&gt;', body)
+                self.assertIn('<dt>Batch Size</dt><dd>5</dd>', body)
+                self.assertIn('type="button" disabled', body)
+                self.assertNotIn('<input', body)
+                self.assertNotIn('<select', body)
                 self.assertNotIn('<form', body)
                 self.assertNotIn('http-equiv="refresh"', body)
                 header = re.search(r'<header.*?</header>', body, re.S).group(0)
                 self.assertRegex(header, r'Last updated: <time datetime="[^"]+">[0-9-]+ [0-9:]+ UTC</time>')
 
-    def test_retained_batch_with_no_files_still_hides_new_batch(self):
+    def test_retained_batch_with_no_files_still_disables_new_batch(self):
         self.workspace.return_value = MediaFileBatch('batch-1', 5, '/tmp/input')
         status, _, body = self.request('/')
         self.assertEqual(status, 200)
         self.assertIn('No files in this batch.', body)
-        self.assertNotIn('<button', body)
+        self.assertIn('type="button" disabled', body)
+        self.assertIn('<dd>Not available</dd>', body)
 
     def test_workspace_failure_does_not_offer_new_batch_or_expose_details(self):
         self.workspace.side_effect = pymysql.OperationalError('private database details')
@@ -144,13 +154,13 @@ class ControlServerTests(unittest.TestCase):
         self.workspace.assert_not_called()
 
     @patch('r3el.server.ControlServer.BatchControl.new_batch')
-    def test_post_feedback_for_current_batch_has_no_button_or_post_refresh(self, new_batch):
+    def test_post_feedback_for_current_batch_has_disabled_button_and_no_refresh(self, new_batch):
         self.workspace.return_value = MediaFileBatch('batch-1', 5, '/tmp/input')
         new_batch.return_value = {'status': DMessage.BUSY}
         status, _, body = self.post_batch()
         self.assertEqual(status, 409)
         self.assertIn('Current batch files', body)
-        self.assertNotIn('<button', body)
+        self.assertIn('type="button" disabled', body)
         self.assertNotIn('http-equiv="refresh"', body)
 
     def post_batch(self, **values):
@@ -369,7 +379,7 @@ from r3el.entity.MediaFile import MediaFile
 from r3el.entity.MediaFileBatch import MediaFileBatch
 batch = MediaFileBatch('batch-1', 5, '/tmp', files=[MediaFile('file-1', '/tmp/Film.mkv')])
 page = EventPages().render('control.html', workspace=batch, refresh=0)
-assert b'Film.mkv' in page and b'Pending' in page and b'<button' not in page
+assert b'Film.mkv' in page and b'Pending' in page and b'type="button" disabled' in page
 assert b'Workspace unavailable' in EventPages().render('workspace_error.html', refresh=0)
 from pathlib import Path
 assert Path('r3el/server/static/r3el.png').is_file()
