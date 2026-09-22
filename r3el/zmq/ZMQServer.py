@@ -6,6 +6,7 @@ import traceback
 
 import zmq
 
+from r3el.constants.DMessage import DMessage
 from r3el.constants.DZMQ import DZMQ
 from r3el.zmq.ZMQMsg import ZMQMsg
 
@@ -65,7 +66,7 @@ class ZMQServer:
                                     "code": "handler_error",
                                     "message": "R3el could not complete the request. Do not automatically retry; submission may have occurred.",
                                 }}
-                        reply = ZMQMsg(sender="r3el", target=request.sender if request else None,
+                        reply = ZMQMsg(sender=DMessage.SERVER, target=request.sender if request else None,
                                        method=request.method if request else "error", payload=payload)
                         socket.send(reply.to_json())
         except BaseException as error:

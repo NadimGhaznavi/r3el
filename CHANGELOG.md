@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.12] - 2026-09-21 @ 20:10
+
+### Summary
+
+- The control page can request an identification batch over ZeroMQ. R3el runs one
+  batch at a time, keeps accepting MCP submissions, and returns to idle afterward.
+
+### Updated
+
+- Show current workspace filenames and saved statuses instead of batch controls when a batch is retained. Refresh every five seconds and display a top-right Last updated timestamp in UTC.
+
+- Start R3el idle with its MCP/ZeroMQ listener; retain explicit `--run-batch` for manual diagnostics.
+- Save the requested output directory with the batch; upgrade the workspace schema without replacing retained data. New Batch assumes an empty workspace.
+- Centralize message routing names and separate request validation, dispatch, and batch execution.
+- Add a Jinja2 batch-control landing page with the R3el logo, configured input directory, batch sizes 5 and 10, and a New Batch button. Keep reports at `/events`.
+
 ## [0.3.11] - 2026-09-21 @ 18:56
 
 ### Updated

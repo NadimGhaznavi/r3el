@@ -2,8 +2,37 @@
 
 `r3el-control.service` is a standalone Jinja2 report server. It displays the
 MariaDB event log while the identification service is running or stopped and
-does not require Qwen. This first control page is read-only; batch commands
-and human review actions will come later.
+does not require Qwen. When the workspace is empty, the landing page provides a Media Directory text box prefilled from `DR3el.FILM_DIR`,
+an Output Directory text box prefilled from `DR3el.MEDIA_DIR`, a Batch Size dropdown
+(5 or 10, default 10), and a New Batch button. The button sends the directories
+and size to the identification server over ZeroMQ. Labels and result messages
+use Jinja2; shared defaults live in `DR3el`, and message names live in `DMessage`.
+The R3el logo is deployed with the server assets. Human review will come later.
+
+When the workspace contains a batch, the landing page shows its filenames and
+saved statuses in selection order, with no form or button. This also applies to
+completed, failed, cancelled, and zero-file batches retained in the workspace.
+The table refreshes every `DR3el.WORKSPACE_REFRESH_SECONDS` (currently five seconds).
+“Last updated” at the top right reports the page's latest workspace read in UTC,
+not the time the file last changed. Pending files stay Pending until an outcome
+is saved. Reads use the shared workspace interface without taking the processor's
+exclusive lock. A database failure shows Workspace unavailable with no button.
+
+New Batch assumes an empty workspace. It does not clear, replace, or resume a
+retained batch. The output directory is stored with the batch for future stages;
+identification does not create that directory or move source files. Set the
+identification server's `--llm-url` or `R3EL_LLM_URL` before requesting work.
+
+The command receives an immediate `accepted` reply; this means accepted for
+processing, not completed. While running, additional commands receive `busy`
+and are not queued. The listener continues handling MCP submissions throughout
+the batch. The server returns to idle after completion. Check `/events` for
+outcomes and the service journal for failures before workspace creation.
+A timeout is an uncertain outcome and is never retried automatically.
+
+`POST /batches` handles the form. Successful submissions redirect to a GET page
+so refreshing it does not resubmit work. Both services accept `--zmq-endpoint`
+when using a nondefault endpoint. See [ZMQ messages](zmq-messages.md).
 
 Install and upgrade copy the Python modules and templates, initialize the
 event and workspace schemas, then enable and start the control service. Open
@@ -78,8 +107,7 @@ or `scripts/services.sh stop` from the checkout or installation directory.
 The helper uses sudo when needed. Startup runs control, Qwen, waits five
 seconds, then starts the R3el batch server. Shutdown reverses that order
 without delays. A failed command stops the script and returns an error.
-The five-second delay is not a model health check. The batch server resumes
-the retained workspace; see [Running identification](one-batch-identification.md).
+The five-second delay is not a model health check. The server starts idle with its MCP/ZeroMQ listener; see [Running identification](one-batch-identification.md).
 
 With dependencies installed, the event schema initialized, and `DB_HOST`,
 `DB_USER`, `DB_PASSWORD`, and `DB_NAME` in the environment:
@@ -88,7 +116,7 @@ With dependencies installed, the event schema initialized, and `DB_HOST`,
 .venv/bin/python -B -m r3el.server.ControlServer --host 127.0.0.1 --port 42220
 ```
 
-`GET /` and `/events` show the log. `/events/<id>` shows one event.
+`GET /` reads MariaDB to show either batch controls or the retained workspace. `/events` shows the log. `/events/<id>` shows one event.
 `/health` reports HTTP server liveness without querying MariaDB; a database
 failure on a report page returns HTTP 503. Invalid filters return HTTP 400
 and missing events return HTTP 404. The service journal contains database

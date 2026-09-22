@@ -4,6 +4,7 @@ from dataclasses import asdict
 import json
 from threading import Lock
 
+from r3el.constants.DMessage import DMessage
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.ValidateIdentification import ValidateIdentification
 from r3el.app.prompts.InvalidIdentification import InvalidIdentification
@@ -27,7 +28,7 @@ class SubmissionHandler:
             del self._attempts[attempt_id]
 
     def handle(self, request: ZMQMsg) -> dict:
-        if request.target != 'identification' or request.method != 'submit_identification':
+        if request.target != DMessage.IDENTIFICATION or request.method != DMessage.SUBMIT_IDENTIFICATION:
             return {'status': 'error', 'reason': 'Unknown target or method.'}
         attempt_id = request.payload.get('attempt_id')
         if not isinstance(attempt_id, str):

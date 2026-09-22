@@ -14,6 +14,15 @@ import signal
 import subprocess
 import sys
 import unittest
+import time
+
+import zmq
+
+from r3el.constants.DMessage import DMessage
+from r3el.entity.BatchRequest import BatchRequest
+from r3el.interface.BatchControl import BatchControl
+from r3el.zmq.ZMQClient import ZMQClient
+from r3el.zmq.ZMQMsg import ZMQMsg
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
@@ -158,6 +167,36 @@ class EventDatabaseTests(unittest.TestCase):
         finally:
             reader.close()
 
+    def test_workspace_snapshot_reads_saved_status_while_processor_holds_lock(self):
+        processor = WorkspaceDb(self.db)
+        reader_db = DbMgr()
+        try:
+            reader = WorkspaceDb(reader_db)
+            self.assertIsNone(reader.snapshot())
+            with processor.processing():
+                batch = self.workspace_batch()
+                batch.started_event_id = processor.create(batch, self.event(), self.event())
+                self.assertEqual(reader.snapshot().files[0].state, MediaFileState.PENDING)
+                batch.files[0].state = MediaFileState.IDENTIFIED
+                processor.save_file(batch.id, batch.files[0], self.event())
+                self.assertEqual(reader.snapshot().files[0].state, MediaFileState.IDENTIFIED)
+        finally:
+            reader_db.close()
+
+    def test_workspace_upgrade_keeps_existing_batch(self):
+        workspace = WorkspaceDb(self.db)
+        batch = self.workspace_batch()
+        with workspace.processing():
+            batch.started_event_id = workspace.create(batch, self.event(), self.event())
+        # Recreate the old layout, then apply the same upgrade used by installation.
+        self.db.execute('ALTER TABLE media_file_batches DROP COLUMN destination_directory')
+        try:
+            WorkspaceSchema(self.db).apply()
+            WorkspaceSchema(self.db).apply()
+            self.assertEqual(workspace.load(), batch)
+        finally:
+            WorkspaceSchema(self.db).apply()
+
     def test_restart_resumes_only_pending_files(self):
         good = {'title': 'Example', 'year': 2001, 'confidence': 9}
         with TemporaryDirectory() as directory, FakeLLM([good, good], block_at=1) as llm:
@@ -238,10 +277,75 @@ class EventDatabaseTests(unittest.TestCase):
 
     def run_batch(self, root, url, size=3):
         return subprocess.Popen([
-            sys.executable, '-B', '-u', '-m', 'r3el.server.R3elServer',
+            sys.executable, '-B', '-u', '-m', 'r3el.server.R3elServer', '--run-batch',
             '--film-dir', str(root), '--batch-size', str(size), '--llm-url', url,
             '--zmq-endpoint', 'tcp://127.0.0.1:*',
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    def test_control_starts_batch_and_server_returns_to_idle(self):
+        good = {'title': 'Example', 'year': 2001, 'confidence': 9}
+        with TemporaryDirectory() as directory, FakeLLM([good], block=True) as llm:
+            root = Path(directory)
+            source = root / 'input'
+            source.mkdir()
+            (source / 'a.mkv').write_text('untouched')
+            output = str(root / 'output')
+            endpoint = 'ipc://' + str(root / 'control.sock')
+            process = subprocess.Popen([
+                sys.executable, '-B', '-u', '-m', 'r3el.server.R3elServer',
+                '--llm-url', llm.url, '--zmq-endpoint', endpoint,
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            try:
+                # Probe readiness without sending or retrying any batch commands.
+                probe = ZMQMsg(sender=DMessage.CONTROL, method='unknown')
+                deadline = time.monotonic() + 15
+                while True:
+                    try:
+                        ZMQClient(endpoint, timeout=0.1).request(probe)
+                        break
+                    except zmq.Again:
+                        self.assertIsNone(process.poll())
+                        self.assertLess(time.monotonic(), deadline)
+                self.assertIsNone(WorkspaceDb(self.db).load())
+                self.assertEqual(llm.requests, [])
+                control = BatchControl(endpoint)
+                parameters = BatchRequest(str(source), output, 5)
+                self.assertEqual(control.new_batch(parameters)['status'], DMessage.ACCEPTED)
+                self.assertTrue(llm.blocked.wait(15))
+                self.assertEqual(control.new_batch(parameters)['status'], DMessage.BUSY)
+                llm.release.set()
+                deadline = time.monotonic() + 20
+                while True:
+                    batch = WorkspaceDb(self.db).load()
+                    if batch.state == MediaFileBatchState.IDENTIFICATION_COMPLETED:
+                        break
+                    self.assertIsNone(process.poll())
+                    self.assertLess(time.monotonic(), deadline)
+                    time.sleep(0.05)
+                self.assertEqual(batch.source_directory, str(source))
+                self.assertEqual(batch.destination_directory, output)
+                self.assertEqual(batch.requested_size, 5)
+                self.assertEqual(batch.files[0].identification.title, good['title'])
+                self.assertEqual(len(llm.requests), 1)
+                self.assertEqual(llm.errors, [])
+                self.assertEqual((source / 'a.mkv').read_text(), 'untouched')
+                self.assertFalse(Path(output).exists())
+                self.assertIsNone(process.poll())
+                self.assertEqual(ZMQClient(endpoint).request(probe).payload['error']['code'],
+                                 DMessage.UNKNOWN_REQUEST)
+                process.terminate()
+                _, error = process.communicate(timeout=10)
+                self.assertEqual(process.returncode, 0, error)
+                names = [row['name'] for row in self.events.recent()]
+                self.assertEqual(names.count('batch_started'), 1)
+                self.assertEqual(names.count('batch_completed'), 1)
+                self.assertEqual(names[0], 'stopped')
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+                process.stdout.close()
+                process.stderr.close()
 
     def test_one_batch_real_http_mcp_zmq_and_database(self):
         good = {'title': 'Example', 'year': 2001, 'confidence': 9}

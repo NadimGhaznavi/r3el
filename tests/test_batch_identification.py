@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from r3el.app.BatchIdentification import BatchIdentification
 from r3el.interface.FileMgr import FileMgr
-from r3el.interface.WorkspaceDb import WorkspaceDb
+from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceOccupied
 
 
 class BatchIdentificationTests(unittest.IsolatedAsyncioTestCase):
@@ -78,3 +78,29 @@ class BatchIdentificationTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(all(result['status'] == 'unresolved_hidden_file' for result in results))
             self.assertEqual(llm.mock_calls, [])
             self.assertEqual(handler.mock_calls, [])
+
+    async def test_new_batch_saves_output_directory_without_touching_it(self):
+        with TemporaryDirectory() as directory:
+            record = Mock(return_value=1)
+            workspace = self.workspace(record)
+            destination = str(Path(directory, 'future-output'))
+            await BatchIdentification(
+                FileMgr(directory), Mock(), 'unused', Mock(), record, workspace,
+            ).run(5, destination_directory=destination, new_batch=True)
+            batch = workspace.create.call_args.args[0]
+            self.assertEqual(batch.source_directory, directory)
+            self.assertEqual(batch.destination_directory, destination)
+            self.assertEqual(batch.requested_size, 5)
+            self.assertFalse(Path(destination).exists())
+
+    async def test_new_batch_does_not_reuse_or_replace_existing_workspace(self):
+        record = Mock(return_value=1)
+        workspace = self.workspace(record)
+        workspace.load.return_value = Mock()
+        files = Mock()
+        with self.assertRaises(WorkspaceOccupied):
+            await BatchIdentification(files, Mock(), 'unused', Mock(), record, workspace).run(
+                5, destination_directory='/tmp/output', new_batch=True)
+        files.filenames.assert_not_called()
+        workspace.create.assert_not_called()
+        workspace.save_batch_state.assert_not_called()

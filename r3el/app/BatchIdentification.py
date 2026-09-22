@@ -11,7 +11,7 @@ from r3el.constants.DEventName import DEventName as Names
 from r3el.entity.Identification import Identification
 from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
-from r3el.interface.WorkspaceDb import WorkspaceDb
+from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceOccupied
 
 
 class BatchIdentification:
@@ -20,11 +20,14 @@ class BatchIdentification:
         self._endpoint, self._handler, self._record = endpoint, handler, record
         self._workspace = workspace
 
-    async def run(self, batch_size: int) -> list[dict]:
+    async def run(self, batch_size: int, *, destination_directory: str | None = None,
+                  new_batch: bool = False) -> list[dict]:
         with self._workspace.processing():
             batch = self._workspace.load()
+            if new_batch and batch is not None:
+                raise WorkspaceOccupied('New Batch requires an empty workspace; clearing is not implemented yet.')
             if batch is None:
-                batch = self._create(batch_size)
+                batch = self._create(batch_size, destination_directory)
             elif batch.state == MediaFileBatchState.IDENTIFICATION_COMPLETED:
                 return self._results(batch)
             else:
@@ -50,10 +53,11 @@ class BatchIdentification:
                                 {'error': str(error)}, 'ERROR')
                 raise
 
-    def _create(self, batch_size: int) -> MediaFileBatch:
+    def _create(self, batch_size: int, destination_directory: str | None) -> MediaFileBatch:
         filenames = self._files.filenames(batch_size)
         batch = MediaFileBatch(
             id=str(uuid4()), requested_size=batch_size, source_directory=str(self._files.directory),
+            destination_directory=destination_directory,
             files=[MediaFile(str(uuid4()), str(self._files.directory / name)) for name in filenames],
         )
         log = EventWriter(self._record, {'batch_id': batch.id})
