@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Updated
+
+- Remove automatic refresh from the batch control page; users reload to update workspace statuses and the Last updated timestamp.
+
+- Document human-operated batch control and add regression coverage confirming that server startup and page refreshes never start batches.
+
 ## [0.3.13] - 2026-09-21 @ 20:28
 
 ### Updated
