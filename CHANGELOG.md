@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.14] - 2026-09-21 @ 20:52
+
 ### Updated
 
 - Remove automatic refresh from the batch control page; users reload to update workspace statuses and the Last updated timestamp.
