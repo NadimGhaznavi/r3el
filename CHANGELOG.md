@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-22 @ 02:59
+
 ### Summary
 
 - Add batch processing status and controls in the Control Server UI.
