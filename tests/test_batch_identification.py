@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from r3el.app.BatchIdentification import BatchIdentification
 from r3el.interface.FileMgr import FileMgr
+from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceOccupied
 
 
@@ -104,3 +105,18 @@ class BatchIdentificationTests(unittest.IsolatedAsyncioTestCase):
         files.filenames.assert_not_called()
         workspace.create.assert_not_called()
         workspace.save_batch_state.assert_not_called()
+
+    async def test_confidence_initializes_saved_action_once(self):
+        for confidence, action in ((0, MediaFileAction.PENDING), (8, MediaFileAction.PENDING),
+                                   (10, MediaFileAction.APPROVE)):
+            with self.subTest(confidence=confidence), TemporaryDirectory() as directory:
+                Path(directory, 'film.mkv').touch()
+                record = Mock(return_value=1)
+                workspace = self.workspace(record)
+                with patch('r3el.app.BatchIdentification.ToolConversation') as conversation:
+                    conversation.return_value.run = AsyncMock(return_value={
+                        'status': 'identified', 'attempts': 1,
+                        'identification': {'title': 'Film', 'year': 2020, 'confidence': confidence}})
+                    await BatchIdentification(FileMgr(directory), Mock(), 'unused', Mock(),
+                                              record, workspace).run(5)
+                self.assertEqual(workspace.save_file.call_args.args[1].action, action)

@@ -20,6 +20,19 @@ saved statuses in selection order. The Control section stays visible but greyed
 out, with “Batch is being processed...” beneath its heading. Saved input/output
 directories and batch size appear as static text, and New Batch is disabled. This also applies to
 completed, failed, cancelled, and zero-file batches retained in the workspace.
+The file table ends with an Action dropdown: Pending / Approve / Ignore / Delete.
+These choices are saved in the workspace when changed. Identification initially
+selects Approve for confidence 10 and Pending otherwise. Rows still awaiting
+identification have disabled dropdowns until an outcome is available on reload.
+Saving an action updates button readiness without reloading the page. A failed
+or uncertain save disables further edits until the user reloads to read the saved
+state; no save is retried automatically.
+
+Process Batch stays disabled until identification is complete and the nonempty
+batch has no Pending actions. It is a placeholder and does nothing when clicked.
+Changing an action never executes file operations. `POST /workspace/actions`
+accepts `batch_id`, `file_id`, and `action`, returning saved readiness as JSON.
+
 The control page never refreshes automatically. Reload it in the browser to update
 the table and timestamp, including after submitting a batch.
 “Last updated” at the top right reports the page's latest workspace read in UTC,

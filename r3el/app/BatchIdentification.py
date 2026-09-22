@@ -9,6 +9,8 @@ from r3el.app.ToolConversation import ToolConversation
 from r3el.constants.DEventCategory import DEventCategory as Categories
 from r3el.constants.DEventName import DEventName as Names
 from r3el.entity.Identification import Identification
+from r3el.constants.DR3el import DR3el
+from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
 from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceOccupied
@@ -86,6 +88,9 @@ class BatchIdentification:
                 item.issues = []
             else:
                 item.issues = [MediaFileIssue('unresolved_llm', result['reason'])]
+        item.action = (MediaFileAction.APPROVE if item.identification is not None
+                       and item.identification.confidence == DR3el.AUTO_APPROVE_CONFIDENCE
+                       else MediaFileAction.PENDING)
         event = log.prepare(Categories.Identification.RESULT, Names.ITEM_COMPLETED,
                             self._result(item), source='BatchIdentification')
         self._workspace.save_file(batch.id, item, event)
