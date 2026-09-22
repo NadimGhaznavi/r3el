@@ -108,10 +108,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 logging.exception('Unable to read the workspace')
                 self.respond(503, pages.render('workspace_error.html', refresh=0))
                 return
-            refresh = 0
-            if self.command == 'GET' and (workspace is not None or values.get('result') == DMessage.ACCEPTED):
-                refresh = DR3el.WORKSPACE_REFRESH_SECONDS
-            self.respond(status, pages.render('control.html', workspace=workspace, refresh=refresh, **values))
+            self.respond(status, pages.render('control.html', workspace=workspace, refresh=0, **values))
 
         def do_POST(self):
             if self.path != DR3el.NEW_BATCH_URL:

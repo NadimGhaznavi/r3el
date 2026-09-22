@@ -9,10 +9,17 @@ and size to the identification server over ZeroMQ. Labels and result messages
 use Jinja2; shared defaults live in `DR3el`, and message names live in `DMessage`.
 The R3el logo is deployed with the server assets. Human review will come later.
 
+The control server is a human-operated web application. Starting it, opening a
+page, or refreshing status never sends a batch-start command. Only submitting
+the New Batch form does so. An empty workspace offers that action; a retained
+batch shows the current work instead. The identification worker finishing does
+not clear the application's workspace or automatically begin another batch.
+
 When the workspace contains a batch, the landing page shows its filenames and
 saved statuses in selection order, with no form or button. This also applies to
 completed, failed, cancelled, and zero-file batches retained in the workspace.
-The table refreshes every `DR3el.WORKSPACE_REFRESH_SECONDS` (currently five seconds).
+The control page never refreshes automatically. Reload it in the browser to update
+the table and timestamp, including after submitting a batch.
 “Last updated” at the top right reports the page's latest workspace read in UTC,
 not the time the file last changed. Pending files stay Pending until an outcome
 is saved. Reads use the shared workspace interface without taking the processor's
