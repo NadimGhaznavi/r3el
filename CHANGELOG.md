@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.12] - 2026-09-21 @ 20:10
+
 ### Summary
 
 - The control page can request an identification batch over ZeroMQ. R3el runs one
