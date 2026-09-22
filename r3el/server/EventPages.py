@@ -11,6 +11,8 @@ from r3el.constants.DMessage import DMessage
 from r3el.constants.DEventCategory import DEventCategory
 from r3el.constants.DEventName import DEventName
 from r3el.entity.MediaFile import MediaFileState
+from r3el.entity.MediaFileAction import MediaFileAction
+from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.server.ReplyReasoning import ReplyReasoning
 
 
@@ -28,6 +30,7 @@ class EventPages:
         self._templates.globals['messages'] = DMessage
         self._templates.globals['event_types'] = DEventName
         self._templates.globals['file_states'] = MediaFileState
+        self._templates.globals['file_actions'] = MediaFileAction
         self._templates.globals['categories'] = DEventCategory.CHILDREN
         self._templates.globals['event_parents'] = {
             name: {'category': parent.category, 'subcategory': parent.subcategory}
@@ -69,6 +72,8 @@ class EventPages:
 
     def render(self, template: str, **values) -> bytes:
         if template == 'control.html':
+            workspace = values['workspace']
+            values['process_ready'] = workspace is not None and BatchPreparation.ready(workspace)
             values['last_updated'] = datetime.now(timezone.utc)
             values.setdefault('result', None)
             values.setdefault('input_directory', DR3el.FILM_DIR)

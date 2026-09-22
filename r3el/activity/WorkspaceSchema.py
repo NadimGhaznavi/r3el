@@ -1,6 +1,9 @@
 """Create the durable workspace explicitly during installation and upgrade."""
 
 from r3el.interface.DbMgr import DbMgr
+from r3el.constants.DR3el import DR3el
+from r3el.entity.MediaFileAction import MediaFileAction
+from r3el.entity.MediaFile import MediaFileState
 
 
 class WorkspaceSchema:
@@ -36,6 +39,22 @@ class WorkspaceSchema:
                 UNIQUE (batch_id, position),
                 FOREIGN KEY (batch_id) REFERENCES media_file_batches(batch_id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        # NULL marks only unmigrated rows. Reapplying the upgrade preserves user choices.
+        self._db.execute("""
+            ALTER TABLE media_files ADD COLUMN IF NOT EXISTS
+            action ENUM('pending', 'approve', 'ignore', 'delete') NULL DEFAULT NULL
+        """)
+        self._db.execute(
+            'UPDATE media_files SET action = CASE '
+            "WHEN state = %s AND JSON_EXTRACT(identification, '$.confidence') = %s "
+            'THEN %s ELSE %s END WHERE action IS NULL',
+            (MediaFileState.IDENTIFIED, DR3el.AUTO_APPROVE_CONFIDENCE,
+             MediaFileAction.APPROVE, MediaFileAction.PENDING),
+        )
+        self._db.execute("""
+            ALTER TABLE media_files MODIFY COLUMN
+            action ENUM('pending', 'approve', 'ignore', 'delete') NOT NULL DEFAULT 'pending'
         """)
 
 

@@ -10,7 +10,8 @@ processing survives a restart.
 | --- | --- |
 | `id` | Stable identity referenced by events. |
 | `path` | File location, including filename. |
-| `state` | Current workflow state. |
+| `state` | Current identification workflow state. |
+| `action` | Saved preparation decision: `pending`, `approve`, `ignore`, or `delete`. |
 | `identification` | Accepted title, year, and integer confidence from 0 to 10. |
 | `issues` | Current problems as `{code, message}` entries; empty when clear. |
 | `attempts` | Attempts used for the saved outcome. |
@@ -24,6 +25,28 @@ processing survives a restart.
 
 Discovery creates `pending` files. Identification transitions each to one of
 these three outcomes.
+
+## Preparation actions
+
+`MediaFileAction` is persisted separately from identification state in
+`media_files.action`. New files start with `pending`. The identification checkpoint
+saves `approve` when confidence equals `DR3el.AUTO_APPROVE_CONFIDENCE` (10), otherwise
+`pending`, in the same transaction as the file outcome and completion event.
+
+After a file has finished identification, its Action dropdown saves human choices
+immediately. Pending identification rows cannot be edited, preventing a later
+checkpoint from overwriting a user choice. Resuming identification skips saved
+outcomes and preserves their actions. A user can set a confidence-10 item back to
+Pending; rendering and schema upgrades do not reapply defaults to saved choices.
+
+The schema upgrade initializes legacy rows once: identified confidence-10 files
+become Approve, and all others become Pending. It preserves rows and identification
+data. Apply the workspace schema through the usual install/upgrade flow.
+
+`BatchPreparation.ready` requires a nonempty identification-complete batch, no
+pending identification rows, and no Pending actions. The Process Batch button is
+enabled only then. It is currently a placeholder: clicking it does not move,
+delete, or otherwise process files. Approve/Ignore/Delete record intent only.
 
 Later stages are proposed:
 

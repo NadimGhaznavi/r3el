@@ -5,6 +5,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from r3el.entity.Identification import Identification
+from r3el.entity.MediaFileAction import MediaFileAction
 
 
 class MediaFileState(StrEnum):
@@ -28,6 +29,7 @@ class MediaFile:
     identification: Identification | None = None
     issues: list[MediaFileIssue] = field(default_factory=list)
     attempts: int = 0
+    action: MediaFileAction = MediaFileAction.PENDING
 
     @property
     def filename(self) -> str:

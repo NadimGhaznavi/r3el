@@ -4,6 +4,7 @@ import argparse
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import logging
+import json
 from pathlib import Path
 import re
 import signal
@@ -13,13 +14,15 @@ import pymysql
 import zmq
 
 from r3el.activity.EventReport import EventReport
+from r3el.activity.BatchPreparation import BatchPreparation
+from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.constants.DMessage import DMessage
 from r3el.constants.DR3el import DR3el
 from r3el.interface.BatchConfiguration import BatchConfiguration
 from r3el.interface.BatchControl import BatchControl
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
-from r3el.interface.WorkspaceDb import WorkspaceDb
+from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict
 from r3el.server.EventPages import EventPages
 
 
@@ -111,7 +114,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             self.respond(status, pages.render('control.html', workspace=workspace, refresh=0, **values))
 
         def do_POST(self):
-            if self.path != DR3el.NEW_BATCH_URL:
+            if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL):
                 self.send_error(404)
                 return
             # Browser form submissions must originate from this control server.
@@ -130,9 +133,15 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 if any(len(values) != 1 for values in fields.values()):
                     raise ValueError('Repeated form field.')
                 payload = {name: values[0] for name, values in fields.items()}
+                if self.path == DR3el.FILE_ACTION_URL:
+                    self.save_file_action(payload)
+                    return
                 payload['batch_size'] = int(payload['batch_size'])
                 parameters = BatchConfiguration.resolve(payload)
             except (KeyError, ValueError):
+                if self.path == DR3el.FILE_ACTION_URL:
+                    self.respond(400, b'{"saved":false}', 'application/json')
+                    return
                 self.respond_control(400, result=DMessage.INVALID_PARAMETERS)
                 return
             try:
@@ -159,6 +168,29 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                                  input_directory=parameters.input_directory,
                                  output_directory=parameters.output_directory,
                                  batch_size=parameters.batch_size)
+
+        def save_file_action(self, payload: dict):
+            if set(payload) != {'batch_id', 'file_id', 'action'}:
+                raise ValueError('Supply batch_id, file_id, and action.')
+            for name in ('batch_id', 'file_id'):
+                if not payload[name].strip() or len(payload[name]) > 36:
+                    raise ValueError('Invalid workspace identifier.')
+            action = MediaFileAction(payload['action'])
+            try:
+                db = DbMgr()
+                try:
+                    batch = WorkspaceDb(db).save_action(payload['batch_id'], payload['file_id'], action)
+                finally:
+                    db.close()
+            except WorkspaceActionConflict:
+                self.respond(409, b'{"saved":false}', 'application/json')
+                return
+            except pymysql.MySQLError:
+                logging.exception('Unable to save file action')
+                self.respond(503, b'{"saved":false}', 'application/json')
+                return
+            self.respond(200, json.dumps({'saved': True, 'ready': BatchPreparation.ready(batch)}).encode(),
+                         'application/json')
 
         def respond(self, status: int, body: bytes, content_type: str = 'text/html; charset=utf-8'):
             self.send_response(status)
