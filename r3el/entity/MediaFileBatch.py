@@ -21,3 +21,4 @@ class MediaFileBatch:
     files: list[MediaFile] = field(default_factory=list)
     state: MediaFileBatchState = MediaFileBatchState.PROCESSING
     started_event_id: int | None = None
+    destination_directory: str | None = None

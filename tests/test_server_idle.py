@@ -15,7 +15,7 @@ class IdleServerTests(unittest.IsolatedAsyncioTestCase):
               patch('r3el.server.R3elServer.ZMQServer') as listener,
               patch('r3el.server.R3elServer.BatchIdentification') as batch):
             task = asyncio.create_task(run(argparse.Namespace(
-                zmq_endpoint='tcp://127.0.0.1:*', run_batch=False)))
+                zmq_endpoint='tcp://127.0.0.1:*', run_batch=False, llm_url=None)))
             try:
                 await asyncio.sleep(0)
                 self.assertFalse(task.done())
@@ -28,4 +28,4 @@ class IdleServerTests(unittest.IsolatedAsyncioTestCase):
                     await task
             listener.return_value.__exit__.assert_called_once()
             lifecycle.return_value.stopped.assert_called_once()
-            database.return_value.close.assert_called_once()
+            database.assert_not_called()

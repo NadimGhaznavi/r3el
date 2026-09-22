@@ -1,0 +1,19 @@
+{% set status_labels = {
+  file_states.PENDING: 'Pending',
+  file_states.IDENTIFIED: 'Identified',
+  file_states.UNRESOLVED_LLM: 'Unresolved — identification',
+  file_states.UNRESOLVED_HIDDEN_FILE: 'Unresolved — hidden file'
+} %}
+<div class="table-wrap">
+  <table class="workspace-files" aria-label="Current batch files">
+    <thead><tr><th scope="col">Filename</th><th scope="col">Status</th></tr></thead>
+    <tbody>
+      {% for file in workspace.files %}
+      <tr><td>{{ file.filename }}</td><td>{{ status_labels[file.state] if file.state else 'Not available' }}</td></tr>
+      {% else %}
+      <tr><td colspan="2">No files in this batch.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="note">Updates every {{ settings.WORKSPACE_REFRESH_SECONDS }} seconds. Status reflects the latest saved result.</p>

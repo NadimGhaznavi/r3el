@@ -46,6 +46,7 @@ modules=(
     server/R3elServer.py
     server/ControlServer.py server/EventPages.py
     server/static/r3el.png server/templates/control.html
+    server/templates/workspace.html server/templates/workspace_error.html
     server/templates/base.html server/templates/styles.html
     server/templates/events.html server/templates/event.html server/templates/error.html
     server/templates/messages/default.html
@@ -66,6 +67,8 @@ modules=(
     server/templates/messages/item_completed.html
     server/templates/messages/batch_cancelled.html
     app/Prompt.py
+    app/BatchControlHandler.py app/BatchProcessor.py app/BatchRunner.py app/MessageHandler.py
+    interface/BatchConfiguration.py interface/BatchControl.py entity/BatchRequest.py constants/DMessage.py
     app/BatchIdentification.py app/ToolConversation.py
     app/SubmissionHandler.py app/ValidateIdentification.py
     app/prompts/FileContext.py app/prompts/SubmitIdentificationPrompt.py

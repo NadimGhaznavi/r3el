@@ -2,7 +2,10 @@
 
 The server starts idle and keeps its MCP/ZeroMQ listener available until stopped.
 It does not scan files, resume the workspace, or contact the model on startup.
-The control page provides a placeholder New Batch button; dispatch is not wired yet.
+The control page's New Batch button sends input/output directories and batch size
+to the server. It runs one batch and returns to idle while keeping the listener
+available. This path assumes an empty workspace; clearing and replacement remain
+unimplemented. Output directories are saved for later stages, not used to move files.
 An explicit `--run-batch` option retains the one-batch diagnostic workflow described below.
 
 With `--run-batch` and an empty workspace, R3el scans regular files directly inside `DR3el.FILM_DIR`,
@@ -102,7 +105,7 @@ sudo systemctl start r3el-server.service
 ```
 
 The service stays idle until stopped. Only the explicit `--run-batch` diagnostic
-mode exits after identification. Batch dispatch from the web interface is planned.
+mode exits after identification. The normal service accepts batches from the web interface.
 
 ## Shared Qwen service
 

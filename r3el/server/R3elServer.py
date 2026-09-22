@@ -8,6 +8,10 @@ import signal
 
 from r3el.activity.ServerLifecycle import ServerLifecycle
 from r3el.app.BatchIdentification import BatchIdentification
+from r3el.app.BatchControlHandler import BatchControlHandler
+from r3el.app.BatchProcessor import BatchProcessor
+from r3el.app.BatchRunner import BatchRunner
+from r3el.app.MessageHandler import MessageHandler
 from r3el.app.SubmissionHandler import SubmissionHandler
 from r3el.constants.DR3el import DR3el
 from r3el.interface.DbMgr import DbMgr
@@ -18,8 +22,8 @@ from r3el.interface.WorkspaceDb import WorkspaceDb
 from r3el.zmq.ZMQServer import ZMQServer
 
 
-def record_tool_event(event) -> int:
-    # The listener thread owns its connections; never share the batch connection.
+def record_event(event) -> int:
+    # Lifecycle and listener events own fresh connections, including after long idle periods.
     db = DbMgr()
     try:
         return EventLogDb(db).record(event)
@@ -32,28 +36,34 @@ async def run(args) -> None:
     task = asyncio.current_task()
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, task.cancel)
-    db = DbMgr()
+    lifecycle = ServerLifecycle(record_event)
     try:
-        events = EventLogDb(db)
-        lifecycle = ServerLifecycle(events)
         lifecycle.started()
         print('R3el server started.', flush=True)
         try:
-            handler = SubmissionHandler(record_tool_event)
-            with ZMQServer(args.zmq_endpoint, handler.handle) as listener:
-                if not args.run_batch:
-                    await asyncio.Event().wait()
-                    return
-                results = await BatchIdentification(
-                    FileMgr(args.film_dir), LLM(args.llm_url), listener.endpoint, handler, events.record,
-                    WorkspaceDb(db),
-                ).run(args.batch_size)
-                print(json.dumps(results, ensure_ascii=False), flush=True)
+            submissions = SubmissionHandler(record_event)
+            runner = BatchRunner(args.llm_url, args.zmq_endpoint, submissions)
+            processor = BatchProcessor(runner.run)
+            control = BatchControlHandler(processor.submit, bool(args.llm_url) and not args.run_batch)
+            messages = MessageHandler(submissions.handle, control.handle)
+            with ZMQServer(args.zmq_endpoint, messages.handle) as listener:
+                runner.endpoint = listener.endpoint
+                if args.run_batch:
+                    db = DbMgr()
+                    try:
+                        results = await BatchIdentification(
+                            FileMgr(args.film_dir), LLM(args.llm_url), listener.endpoint,
+                            submissions, EventLogDb(db).record, WorkspaceDb(db),
+                        ).run(args.batch_size)
+                        print(json.dumps(results, ensure_ascii=False), flush=True)
+                    finally:
+                        db.close()
+                else:
+                    await processor.run()
         finally:
             lifecycle.stopped()
             print('R3el server stopped.', flush=True)
     finally:
-        db.close()
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.remove_signal_handler(sig)
 
