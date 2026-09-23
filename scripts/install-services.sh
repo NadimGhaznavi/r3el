@@ -74,7 +74,7 @@ modules=(
     interface/BatchConfiguration.py interface/BatchControl.py entity/BatchRequest.py constants/DMessage.py
     app/BatchIdentification.py app/ToolConversation.py
     app/SubmissionHandler.py app/ValidateIdentification.py
-    app/prompts/FileContext.py app/prompts/SubmitIdentificationPrompt.py
+    app/prompts/CurrentDate.py app/prompts/FileContext.py app/prompts/SubmitIdentificationPrompt.py
     app/prompts/InvalidIdentification.py
     app/tools/__main__.py app/tools/server.py
     app/tools/SubmitIdentification.py

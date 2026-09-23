@@ -6,6 +6,7 @@ import math
 from uuid import uuid4
 
 from r3el.activity.EventWriter import EventWriter
+from r3el.app.prompts.CurrentDate import CurrentDate
 from r3el.app.prompts.FileContext import FileContext
 from r3el.app.prompts.SubmitIdentificationPrompt import SubmitIdentificationPrompt
 from r3el.app.prompts.InvalidIdentification import InvalidIdentification
@@ -49,7 +50,8 @@ class ToolConversation:
 
     async def run(self) -> dict:
         messages = []
-        for prompt in (FileContext(self._log.context['filename']), SubmitIdentificationPrompt()):
+        for prompt in (CurrentDate(), FileContext(self._log.context['filename']),
+                       SubmitIdentificationPrompt()):
             message = json.loads(prompt.to_json())
             messages.append(message)
             self._log.write(Categories.Prompt.LLM_PROMPT, Names.PROMPT_SENT,
