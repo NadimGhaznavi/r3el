@@ -6,6 +6,7 @@ from pathlib import Path
 
 from r3el.entity.Identification import Identification
 from r3el.entity.MediaFileAction import MediaFileAction
+from r3el.entity.TMDBMatch import TMDBMatch
 
 
 class MediaFileState(StrEnum):
@@ -30,6 +31,7 @@ class MediaFile:
     issues: list[MediaFileIssue] = field(default_factory=list)
     attempts: int = 0
     action: MediaFileAction = MediaFileAction.PENDING
+    tmdb_match: TMDBMatch | None = None
 
     @property
     def filename(self) -> str:

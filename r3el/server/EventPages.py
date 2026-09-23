@@ -74,6 +74,8 @@ class EventPages:
         if template == 'control.html':
             workspace = values['workspace']
             values['process_ready'] = workspace is not None and BatchPreparation.ready(workspace)
+            values['has_match_results'] = workspace is not None and any(
+                item.tmdb_match is not None for item in workspace.files)
             values['last_updated'] = datetime.now(timezone.utc)
             values.setdefault('result', None)
             values.setdefault('input_directory', DR3el.FILM_DIR)

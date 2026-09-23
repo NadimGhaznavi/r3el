@@ -41,6 +41,7 @@ class WorkspaceSchema:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """)
         # NULL marks only unmigrated rows. Reapplying the upgrade preserves user choices.
+        self._db.execute('ALTER TABLE media_files ADD COLUMN IF NOT EXISTS tmdb_match JSON NULL')
         self._db.execute("""
             ALTER TABLE media_files ADD COLUMN IF NOT EXISTS
             action ENUM('pending', 'approve', 'ignore', 'delete') NULL DEFAULT NULL

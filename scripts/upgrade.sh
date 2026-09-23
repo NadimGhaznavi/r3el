@@ -9,8 +9,9 @@ Usage: sudo scripts/upgrade.sh
 Updates the installation at DR3el.BASE_DIR via the r3el install-services.sh
 helper, which installs the one-batch server and starts/enables r3el-control.
 Reuses or installs the shared Qwen service and defaults R3EL_LLM_URL to it.
-Start Qwen and wait for health readiness before starting a batch. Existing database, credentials,
-and accounts are preserved; no MariaDB administrative access is needed.
+Start Qwen and wait for health readiness before starting a batch. Existing database,
+database credentials, and accounts are preserved; no MariaDB administrative access is needed.
+Refreshes /etc/r3el/tmdb.env from TMDB_TOKEN and TMDB_KEY in /root/.tmdb.
 
 Run install.sh first. This does not pull Git changes.
 HELP

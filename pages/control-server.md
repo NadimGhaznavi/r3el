@@ -7,7 +7,7 @@ an Output Directory text box prefilled from `DR3el.MEDIA_DIR`, a Batch Size drop
 (5 or 10, default 10), and a New Batch button. The button sends the directories
 and size to the identification server over ZeroMQ. Labels and result messages
 use Jinja2; shared defaults live in `DR3el`, and message names live in `DMessage`.
-The R3el logo is deployed with the server assets. Human review will come later.
+The R3el logo is deployed with the server assets. File actions can be reviewed before TMDB matching.
 
 The control server is a human-operated web application. Starting it, opening a
 page, or refreshing status never sends a batch-start command. Only submitting
@@ -28,8 +28,24 @@ Saving an action updates button readiness without reloading the page. A failed
 or uncertain save disables further edits until the user reloads to read the saved
 state; no save is retried automatically.
 
-Process Batch stays disabled until identification is complete and the nonempty
-batch has no Pending actions. It is a placeholder and does nothing when clicked.
+Match TMDB stays disabled until identification is complete and the nonempty
+batch has no Pending actions. Clicking it searches movies by the saved title and
+year for Approve files. Ignore and Delete files are skipped without file operations.
+The request holds the workspace processing lock; concurrent matching or action
+changes receive a conflict. Results are saved per file as searches finish.
+
+After matching, Match Results links show **1 match**, **No matches**, or
+**N matches**, using TMDB's total result count. **Match failed** links show the
+failure; **Skipped** has no link. The details page shows the queried title/year
+and the downloaded first-page response as formatted JSON. Opening or refreshing
+these pages reads the saved result without querying TMDB. Matching again reuses
+successful queries and retries failures. Changing a file action clears its result.
+Approved files without an identification receive Match failed.
+
+`POST /workspace/match` accepts `batch_id` and completes after matching finishes.
+The browser disables controls while waiting and displays saved results afterward.
+An uncertain response requires reloading to inspect progress; requests are never
+automatically retried. `GET /matches/<batch_id>/<file_id>` displays a saved result.
 Changing an action never executes file operations. `POST /workspace/actions`
 accepts `batch_id`, `file_id`, and `action`, returning saved readiness as JSON.
 
@@ -155,3 +171,20 @@ journalctl -u r3el-control.service -f
 `ControlServer` handles HTTP and request-owned database connections.
 `EventPages` renders templates kept alongside the server. `EventReport`
 resolves category filters, and `EventLogDb` reads through the shared `DbMgr`.
+
+## TMDB credentials
+
+Install and upgrade read `TMDB_TOKEN` and `TMDB_KEY` from `/root/.tmdb`, accepting
+plain or quoted assignments and optional `export` prefixes. The file is parsed as
+data, never executed. Both values are required and installed atomically into
+`/etc/r3el/tmdb.env`, alongside `database.env`, with root ownership and mode 0600.
+The control service loads this file through systemd; uninstall removes the installed
+copy and leaves `/root/.tmdb` alone. Missing or invalid source credentials stop the
+service installer before services are stopped or application modules are replaced.
+
+Movie searches use `TMDB_TOKEN` as a Bearer token. `TMDB_KEY` is retained with the
+credentials. For standalone startup, provide `TMDB_TOKEN` in the environment.
+See TMDB's [movie search](https://developer.themoviedb.org/reference/search-movie)
+and [authentication](https://developer.themoviedb.org/docs/authentication-application)
+documentation. This step uses the title and `year` search parameters; exactly one
+total result establishes a match. No TV search or candidate selection is included.

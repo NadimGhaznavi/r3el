@@ -10,6 +10,8 @@ Provisions r3el at DR3el.BASE_DIR, with credentials in /etc/r3el/database.env.
 Creates the local MariaDB database/account r3el and Linux service user/group
 r3el, without an interactive login or home directory. Existing credentials
 are reused; existing account passwords are not reset.
+Reads TMDB_TOKEN and TMDB_KEY from /root/.tmdb into /etc/r3el/tmdb.env
+with root-only permissions for the control service's movie searches.
 
 MariaDB must already be running and root must have administrative socket
 access. The r3el install-services.sh helper must be present to install and

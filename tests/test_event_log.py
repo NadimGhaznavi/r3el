@@ -38,6 +38,7 @@ from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
 from r3el.entity.Identification import Identification
 from r3el.entity.MediaFileAction import MediaFileAction
+from r3el.entity.TMDBMatch import TMDBMatch
 from r3el.interface.WorkspaceDb import WorkspaceActionConflict
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
@@ -190,6 +191,33 @@ class EventDatabaseTests(unittest.TestCase):
                              [MediaFileAction.PENDING, MediaFileAction.IGNORE, MediaFileAction.PENDING])
         finally:
             WorkspaceSchema(self.db).apply()
+
+    def test_tmdb_results_survive_reload_and_upgrade_and_action_changes_clear_them(self):
+        workspace = WorkspaceDb(self.db)
+        batch = self.workspace_batch()
+        workspace.create(batch, self.event(), self.event())
+        item = batch.files[0]
+        item.state = MediaFileState.IDENTIFIED
+        item.identification = Identification('Film', 2000, 10)
+        item.action = MediaFileAction.APPROVE
+        workspace.save_file(batch.id, item, self.event())
+        result = TMDBMatch('Film', 2000, response={'total_results': 1, 'results': [{'id': 42}]})
+        with workspace.processing():
+            workspace.save_match(batch.id, item.id, result)
+        WorkspaceSchema(self.db).apply()
+        reader = DbMgr()
+        try:
+            self.assertEqual(WorkspaceDb(reader).snapshot().files[0].tmdb_match, result)
+            with workspace.matching(), self.assertRaises(RuntimeError):
+                WorkspaceDb(reader).save_action(batch.id, item.id, MediaFileAction.DELETE)
+            with workspace.processing():
+                WorkspaceDb(reader).save_action(batch.id, item.id, MediaFileAction.APPROVE)
+        finally:
+            reader.close()
+        self.assertEqual(workspace.save_action(batch.id, item.id, MediaFileAction.APPROVE)
+                         .files[0].tmdb_match, result)
+        self.assertIsNone(workspace.save_action(batch.id, item.id, MediaFileAction.IGNORE)
+                          .files[0].tmdb_match)
 
     def test_workspace_issues_and_exclusive_processing(self):
         first = WorkspaceDb(self.db)

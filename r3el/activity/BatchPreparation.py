@@ -1,4 +1,4 @@
-"""Determine whether the saved batch decisions are ready for execution."""
+"""Determine whether the saved batch decisions are ready for TMDB matching."""
 
 from r3el.entity.MediaFile import MediaFileState
 from r3el.entity.MediaFileAction import MediaFileAction

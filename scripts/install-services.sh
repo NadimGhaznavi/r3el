@@ -33,6 +33,7 @@ PY
 getent passwd r3el >/dev/null || fail "Run install.sh first to create the r3el account."
 getent group r3el >/dev/null || fail "Missing r3el group; run install.sh first."
 
+python3 -B "$checkout_dir/scripts/install-tmdb.py"
 python3 -B "$checkout_dir/scripts/install-qwen.py"
 
 if [[ ! -x $install_dir/.venv/bin/python ]]; then
@@ -86,6 +87,8 @@ modules=(
     activity/WorkspaceSchema.py interface/WorkspaceDb.py
     entity/MediaFile.py entity/MediaFileBatch.py
     entity/MediaFileAction.py activity/BatchPreparation.py
+    entity/TMDBMatch.py interface/TMDB.py app/BatchMatching.py
+    server/templates/match.html
 )
 # Stop previous services before replacing their modules. Batches are started manually.
 for unit in r3el-server.service r3el-control.service; do
