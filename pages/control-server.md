@@ -31,8 +31,9 @@ state; no save is retried automatically.
 Process Batch is enabled as soon as identification is complete for a nonempty
 batch, even with Pending actions. Clicking it steps through the files and searches
 movies by the saved title and year for Pending and Approve files. Ignore and Delete files are skipped without file operations.
-The request holds the workspace processing lock; concurrent matching or action
-changes receive a conflict. Results are saved per file as searches finish.
+The background worker holds the workspace processing lock; action changes
+receive a conflict while it runs. Duplicate submissions for the active batch
+return the same job instead of starting more work. Results are saved per file as searches finish.
 
 After matching, Match Results links show **1 match**, **No matches**, or
 **N matches**, using TMDB's total result count. **Match failed** links show the
@@ -58,10 +59,16 @@ successful queries and retries failures. Changing a file action clears its resul
 Pending and Approve files without an identification receive Match failed. Missing
 identifications and lookup failures do not stop processing the remaining files.
 
-`POST /workspace/match` accepts `batch_id` and completes after matching finishes.
-The browser disables controls while waiting and displays saved results afterward.
-An uncertain response requires reloading to inspect progress; requests are never
-automatically retried. `GET /matches/<batch_id>/<file_id>` displays a saved result.
+`POST /workspace/match` accepts `batch_id` and promptly returns HTTP 202 with
+`accepted: true` and a `job_id`. `GET /workspace/match/status/<job_id>` reports
+`running`, `completed`, or `failed`. The browser polls status and saved file
+progress every two seconds, then reloads on completion. Reloading the page during
+processing resumes polling without submitting another job. Errors stop polling
+and ask the user to inspect saved results. The worker owns its database connection
+and continues independently of browser connections; shutdown waits for it to finish.
+Job status is held in memory for the latest job. After a service restart an old
+job ID returns 404; saved file results remain available and processing can be retried.
+`GET /matches/<batch_id>/<file_id>` displays a saved result.
 Changing an action never executes file operations. `POST /workspace/actions`
 accepts `batch_id`, `file_id`, and `action`, returning saved readiness as JSON.
 

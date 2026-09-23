@@ -9,7 +9,8 @@ import shutil
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
-from threading import Thread
+from threading import Event, Thread
+import time
 from urllib.parse import urlencode
 
 import zmq
@@ -178,19 +179,42 @@ class ControlServerTests(unittest.TestCase):
         self.db.close.assert_called_once()
 
     @patch('r3el.server.ControlServer.BatchMatching.run')
-    def test_matching_runs_only_on_explicit_post(self, run):
+    def test_matching_returns_before_work_finishes_and_reports_progress(self, run):
+        entered, release = Event(), Event()
+
+        def execute(batch_id):
+            entered.set()
+            self.assertTrue(release.wait(5))
+
+        run.side_effect = execute
         self.workspace.return_value = MediaFileBatch('batch-1', 5, '/tmp')
         self.request('/')
-        self.request('/')
         run.assert_not_called()
-        status, _, body = self.request('/workspace/match', 'POST', 'batch_id=batch-1',
-            {'Content-Type': 'application/x-www-form-urlencoded'})
-        self.assertEqual(status, 200)
-        self.assertEqual(json.loads(body), {'completed': True})
-        run.assert_called_once_with('batch-1')
-        run.side_effect = WorkspaceActionConflict('not ready')
-        self.assertEqual(self.request('/workspace/match', 'POST', 'batch_id=batch-1',
-            {'Content-Type': 'application/x-www-form-urlencoded'})[0], 409)
+        try:
+            status, _, body = self.request('/workspace/match', 'POST', 'batch_id=batch-1',
+                {'Content-Type': 'application/x-www-form-urlencoded'})
+            self.assertEqual(status, 202)
+            job_id = json.loads(body)['job_id']
+            self.assertTrue(entered.wait(2))
+            status_url = '/workspace/match/status/' + job_id
+            self.assertEqual(json.loads(self.request(status_url)[2])['status'], 'running')
+            duplicate = self.request('/workspace/match', 'POST', 'batch_id=batch-1',
+                {'Content-Type': 'application/x-www-form-urlencoded'})
+            self.assertEqual(json.loads(duplicate[2])['job_id'], job_id)
+            self.assertEqual(self.request('/workspace/match', 'POST', 'batch_id=other',
+                {'Content-Type': 'application/x-www-form-urlencoded'})[0], 409)
+            self.assertIn('pollMatching("' + job_id + '")', self.request('/')[2])
+            self.assertEqual(self.request('/health')[0], 200)
+            run.assert_called_once_with('batch-1')
+        finally:
+            release.set()
+        deadline = time.monotonic() + 2
+        while json.loads(self.request(status_url)[2])['status'] == 'running':
+            self.assertLess(time.monotonic(), deadline)
+            time.sleep(0.01)
+        self.assertEqual(json.loads(self.request(status_url)[2])['status'], 'completed')
+        self.assertNotIn('pollMatching("' + job_id + '")', self.request('/')[2])
+        self.assertEqual(self.request('/workspace/match/status/unknown')[0], 404)
 
     @patch('r3el.server.ControlServer.BatchMatching.run')
     def test_invalid_matching_requests_do_not_run(self, run):
