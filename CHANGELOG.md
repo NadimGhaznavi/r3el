@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Send the `focus` prompt after `current_date` during filename identification, treating plausible filename titles and four-digit years as authoritative without checking remembered filmography.
+
 ## [0.6.1] - 2026-09-23 @ 18:46
 
 ### Fixed
