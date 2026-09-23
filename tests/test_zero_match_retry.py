@@ -124,3 +124,33 @@ class ZeroMatchRetryTests(unittest.TestCase):
             identification=json.dumps(asdict(self.item.identification)), issues='[]', attempts=self.item.attempts,
             action=self.item.action, retries=self.item.retries, tmdb_match=json.dumps(asdict(self.item.tmdb_match))))
         self.assertEqual(item, self.item)
+
+
+class FreshRetryConversationTests(unittest.TestCase):
+    @patch('r3el.app.RetryIdentification.RetryIdentification._record_submission', return_value=1)
+    @patch('r3el.app.RetryIdentification.LLM.from_environment')
+    def test_real_mcp_retries_send_only_fresh_filename_prompts(self, factory, record_submission):
+        from r3el.activity.EventWriter import EventWriter
+        from r3el.app.RetryIdentification import RetryIdentification
+
+        requests = []
+        async def complete(payload):
+            requests.append(deepcopy(payload))
+            return json.dumps({'choices': [{'message': {'tool_calls': [{
+                'id': 'identify', 'function': {'name': 'submit_identification',
+                    'arguments': json.dumps({'title': 'Actual Movie', 'year': 2025, 'confidence': 10})}}]}}]})
+        factory.return_value.complete = complete
+        item = MediaFile('file', '/tmp/Actual.Movie.2025.mkv', MediaFileState.IDENTIFIED,
+                         Identification('Creative Title', 2025, 10))
+        log = EventWriter(Mock(return_value=1), {'batch_id': 'batch', 'item_id': 'file', 'filename': item.filename})
+        for _ in range(2):
+            item.tmdb_match = TMDBMatch(item.identification.title, 2025,
+                                       response={'total_results': 0, 'results': []})
+            RetryIdentification(Mock()).run(item, log)
+        self.assertEqual(item.retries, 2)
+        self.assertEqual(requests[0]['messages'], requests[1]['messages'])
+        self.assertEqual(len(requests[0]['messages']), 4)
+        self.assertTrue(all(message['role'] == 'user' for message in requests[0]['messages']))
+        self.assertNotIn('Creative Title', json.dumps(requests))
+        self.assertNotIn('total_results', json.dumps(requests))
+        self.assertIn(item.filename, json.dumps(requests))

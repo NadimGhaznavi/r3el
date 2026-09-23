@@ -61,6 +61,18 @@ successful queries and retries failures. Changing a file action clears its resul
 Pending and Approve files without an identification receive Match failed. Missing
 identifications and lookup failures do not stop processing the remaining files.
 
+A zero-result TMDB search automatically starts a fresh filename-identification
+conversation with the normal current-date, focus, filename, and submission prompts.
+Previous identifications and search failures are not included in the LLM messages.
+The new title/year is searched again, even when it is identical to the previous
+answer. The **Retries** column tracks up to three additional identifications after
+the initial one. If the third retry still has no matches, the file becomes
+`unresolved_llm` and later Process Batch requests leave it exhausted. The batch
+continues to other files. API failures do not count as zero-result searches.
+Retry counts and outcomes are checkpointed with their events and survive restarts;
+install/upgrade applies the new `media_files.retries` column. Form-correction
+attempts within an identification conversation remain a separate counter.
+
 `POST /workspace/match` accepts `batch_id` and promptly returns HTTP 202 with
 `accepted: true` and a `job_id`. `GET /workspace/match/status/<job_id>` reports
 `running`, `completed`, or `failed`. The browser polls status and saved file
