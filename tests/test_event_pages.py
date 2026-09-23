@@ -58,6 +58,35 @@ class EventPagesTests(unittest.TestCase):
             if error:
                 self.assertIn('&lt;connection error&gt;', body)
 
+    def test_multiple_choice_events_render_without_identification_fields(self):
+        cases = (
+            ('submission_accepted', 'MultipleChoiceHandler', {'status': 'ok', 'selected_number': 2}, 'Selected number: 2'),
+            ('submission_accepted', 'MultipleChoiceHandler', {'status': 'ok', 'selected_number': 0}, 'no confident choice'),
+            ('submission_rejected', 'MultipleChoiceHandler', {'status': 'rejected', 'reason': '<invalid>'}, 'Reason: &lt;invalid&gt;'),
+            ('submission_rejected', 'MovieSelection', {'reason': '<bad call>'}, 'Reason: &lt;bad call&gt;'),
+            ('tool_received', 'MultipleChoiceHandler', {'number': 2}, 'Tool received. Number: 2'),
+            ('tool_received', 'MultipleChoiceHandler', {}, 'Tool received. Number: —'),
+            ('tool_started', 'MovieSelection', {'function': {'arguments': '{"number": 2}'}}, 'Tool started. Number: 2'),
+            ('tool_completed', 'MovieSelection', {'status': 'ok', 'selected_number': 2}, 'Tool completed. Status: ok'),
+        )
+        for name, source, data, expected in cases:
+            with self.subTest(name=name, data=data):
+                self.event.update(name=name, source_name=source, category='Prompt',
+                    subcategory='SubmissionHandler', content=json.dumps({
+                        'context': {'filename': '<movie>.mkv', 'attempt_id': 'selection-id'}, 'data': data}))
+                body = self.render()
+                self.assertIn(expected, body)
+                self.assertIn('Filename: &lt;movie&gt;.mkv', body)
+                self.assertNotIn('Attempts:', body)
+
+    def test_identification_submission_summary_still_renders(self):
+        self.event.update(name='submission_accepted', source_name='SubmissionHandler',
+            content=json.dumps({'context': {'filename': 'Movie.mkv', 'attempt': 1},
+                               'data': {'identification': {'title': 'Movie', 'year': 2020, 'confidence': 10}}}))
+        body = self.render()
+        self.assertIn('Attempts: 1', body)
+        self.assertIn('Title: Movie, Year: 2020, Confidence: 10', body)
+
     def test_default_indents_json_and_escapes_values(self):
         self.event['name'] = 'default_test_event'
         self.event['content'] = json.dumps({'title': '<b>Film 🎬</b>'})

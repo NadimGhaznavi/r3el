@@ -1,1 +1,5 @@
+{% if event.source_name in ('MovieSelection', 'MultipleChoiceHandler') %}
+{% include 'messages/multiple_choice.html' %}
+{% else %}
 <a href="/events/{{ event.event_id }}">Submission accepted. Attempts: {{ message.payload.context.attempt }}, Filename: {{ message.payload.context.filename }}, Title: {{ message.payload.data.identification.title }}, Year: {{ message.payload.data.identification.year }}, Confidence: {{ message.payload.data.identification.confidence }}.</a>
+{% endif %}
