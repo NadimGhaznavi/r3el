@@ -32,11 +32,12 @@ class DEventName:
         Categories.Batch.LIFECYCLE: (BATCH_STARTED, BATCH_RESUMED, BATCH_COMPLETED, BATCH_FAILED, BATCH_CANCELLED),
         Categories.Batch.DISCOVERY: (FILES_RETRIEVED,),
         Categories.Identification.CONVERSATION: (
-            ITEM_STARTED, ATTEMPT_STARTED, ATTEMPT_FAILED, ATTEMPT_CANCELLED,
-            PROMPT_SENT, REPLY_RECEIVED),
-        Categories.Identification.TOOL: (TOOL_STARTED, TOOL_RECEIVED, TOOL_COMPLETED),
-        Categories.Identification.VALIDATION: (SUBMISSION_REJECTED, SUBMISSION_ACCEPTED),
-        Categories.Identification.RESULT: (ITEM_COMPLETED,),
+            ITEM_STARTED, ATTEMPT_FAILED, ATTEMPT_CANCELLED),
+        Categories.Identification.VALIDATION: (SUBMISSION_REJECTED,),
+        Categories.Prompt.LLM_PROMPT: (PROMPT_SENT,),
+        Categories.Prompt.SUBMISSION_HANDLER: (TOOL_RECEIVED, SUBMISSION_ACCEPTED),
+        Categories.Prompt.TOOL_CONVERSATION: (ATTEMPT_STARTED, REPLY_RECEIVED, TOOL_STARTED, TOOL_COMPLETED),
+        Categories.Batch.BATCH_IDENTIFICATION: (ITEM_COMPLETED,),
     }
     PARENTS = {name: parent for parent, names in CHILDREN.items() for name in names}
     ALL = tuple(PARENTS)
