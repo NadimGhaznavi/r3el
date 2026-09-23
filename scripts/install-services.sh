@@ -89,6 +89,8 @@ modules=(
     entity/MediaFileAction.py activity/BatchPreparation.py
     entity/TMDBMatch.py interface/TMDB.py app/BatchMatching.py
     server/templates/match.html
+    entity/TMDBReference.py interface/TMDBReferenceDb.py
+    activity/TMDBReferenceSchema.py activity/TMDBReferenceRefresh.py server/MatchResults.py
 )
 # Stop previous services before replacing their modules. Batches are started manually.
 for unit in r3el-server.service r3el-control.service; do
@@ -113,9 +115,14 @@ environment = os.environ.copy()
 for line in Path('/etc/r3el/database.env').read_text().splitlines():
     key, value = line.split('=', 1)
     environment[key] = value
+for line in Path('/etc/r3el/tmdb.env').read_text().splitlines():
+    key, value = line.split('=', 1)
+    environment[key] = value
 subprocess.run([sys.executable, '-B', '-m', 'r3el.activity.EventSchema'],
                cwd=sys.argv[1], env=environment, check=True)
 subprocess.run([sys.executable, '-B', '-m', 'r3el.activity.WorkspaceSchema'],
+               cwd=sys.argv[1], env=environment, check=True)
+subprocess.run([sys.executable, '-B', '-m', 'r3el.activity.TMDBReferenceRefresh'],
                cwd=sys.argv[1], env=environment, check=True)
 PYSCHEMA
 

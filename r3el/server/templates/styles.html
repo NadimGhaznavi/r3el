@@ -49,5 +49,41 @@
   .reasoning code { font-size: .9em; }
   .reasoning blockquote { margin-left: 0; padding-left: 1rem; border-left: 3px solid #526474; }
   .reasoning table { display: block; overflow-x: auto; }
+  .match-query { line-height: 1.7; overflow-wrap: anywhere; }
+  .tmdb-match { max-width: 70rem; border: 1px solid #344351; border-radius: .65rem; overflow: hidden; background: #18232e; margin: 1.5rem 0; }
+  .match-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding: 1rem 1.5rem; border-bottom: 1px solid #344351; background: #1b2935; }
+  .match-header h2 { margin: 0; font-size: .9rem; letter-spacing: .12em; }
+  .match-status { border: 1px solid currentColor; border-radius: 2rem; padding: .3rem .8rem; font-size: .85rem; }
+  .match-status-resolved { color: #8dd9b1; background: #18372d; }
+  .match-status-unresolved { color: #f4d17b; }
+  .match-status-failed { color: #ffaba4; }
+  .match-explanation { padding: 0 1.5rem; line-height: 1.6; }
+  .movie-card { display: grid; grid-template-columns: minmax(10rem, 15rem) minmax(0, 1fr); }
+  .movie-card + .movie-card { border-top: 1px solid #344351; }
+  .movie-poster { background: #111820; padding: 1.5rem; display: flex; justify-content: center; align-items: flex-start; }
+  .movie-poster img { display: block; width: 100%; height: auto; border-radius: .3rem; }
+  .movie-poster > span { color: #aabac8; text-align: center; padding: 3rem 0; }
+  .movie-info { padding: 1.7rem 2rem; min-width: 0; overflow-wrap: anywhere; }
+  .movie-info h3 { font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.2; margin: 0 0 .5rem; }
+  .movie-subtitle { margin: 0 0 1.5rem; color: #aabac8; }
+  .movie-rating-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: .5rem 1rem; }
+  .movie-rating { font-weight: 700; color: #f4d17b; font-size: 1.15rem; }
+  .movie-id { margin-left: auto; font-size: .9rem; }
+  .movie-genres { color: #8dd9cb; line-height: 1.6; margin: 1.5rem 0 1rem; }
+  .movie-overview { line-height: 1.7; white-space: pre-line; }
+  .movie-facts { margin: 1.5rem 0 0; font-size: .9rem; line-height: 1.6; }
+  .movie-facts dt { color: #aabac8; }
+  .match-json { max-width: 70rem; padding: 1rem 1.5rem; border: 1px solid #344351; border-radius: .4rem; }
+  .match-json summary { cursor: pointer; color: #aabac8; }
+  .match-json pre { margin-top: 1rem; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  @media (max-width: 600px) {
+    .movie-card { grid-template-columns: 1fr; }
+    .movie-poster img { max-width: 12rem; }
+    .movie-info { padding: 1.5rem; }
+    .movie-id { margin-left: 0; }
+    .movie-facts { gap: .25rem; }
+    .movie-facts dd { margin-bottom: .6rem; }
+  }
   @media (max-width: 600px) { main, .masthead { padding: 1rem; } dl { grid-template-columns: 1fr; } }
 </style>

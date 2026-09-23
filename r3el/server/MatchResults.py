@@ -1,0 +1,50 @@
+"""Prepare saved TMDB search data for the movie result cards."""
+
+from datetime import date
+import re
+
+from r3el.entity.TMDBMatch import TMDBMatch
+from r3el.entity.TMDBReference import TMDBReference
+
+
+class MatchResults:
+    def __init__(self, reference: TMDBReference) -> None:
+        self._genres = {genre.id: genre.name for genre in reference.genres}
+        self._languages = {language.code: language.english_name for language in reference.languages}
+
+    def prepare(self, match: TMDBMatch) -> dict:
+        if match.error is not None:
+            return dict(status='Match failed', tone='failed', explanation=match.error, movies=[], total=0)
+        total = match.response['total_results']
+        return dict(
+            status='Resolved' if total == 1 else 'No matches' if total == 0 else 'Ambiguous',
+            tone='resolved' if total == 1 else 'unresolved',
+            explanation=('Exactly one movie matches the queried title and year.' if total == 1 else
+                         'No movies match the queried title and year.' if total == 0 else
+                         f'{total:,} movies found. No movie has been selected.'),
+            movies=[self._movie(movie) for movie in match.response['results']], total=total,
+        )
+
+    def _movie(self, movie: dict) -> dict:
+        # Search results may omit optional metadata; interpret it at this presentation boundary.
+        try:
+            released = date.fromisoformat(movie.get('release_date') or '')
+        except ValueError:
+            released = None
+        poster = movie.get('poster_path')
+        poster_url = ('https://image.tmdb.org/t/p/w500' + poster
+                      if poster and re.fullmatch(r'/[A-Za-z0-9_-]+\.(?:jpg|png|webp)', poster) else None)
+        language = movie.get('original_language')
+        score, votes = movie.get('vote_average'), movie.get('vote_count')
+        return dict(
+            title=movie.get('title') or movie.get('original_title') or 'Untitled movie',
+            original_title=movie.get('original_title') or 'Not available',
+            year=released.year if released else 'Year unknown',
+            release_date=f'{released:%B} {released.day}, {released.year}' if released else 'Not available',
+            language=self._languages.get(language, language or 'Unknown'),
+            genres=[self._genres.get(genre, f'Genre {genre}') for genre in movie.get('genre_ids', [])],
+            overview=movie.get('overview') or 'No overview available.',
+            rating=f'{score:.2f}' if score is not None and votes else 'Not rated',
+            votes=f'{votes:,}' if votes is not None else None,
+            id=movie['id'], url=f'https://www.themoviedb.org/movie/{movie["id"]}', poster_url=poster_url,
+        )

@@ -14,6 +14,7 @@ from r3el.entity.MediaFile import MediaFileState
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.server.ReplyReasoning import ReplyReasoning
+from r3el.server.MatchResults import MatchResults
 
 
 class EventPages:
@@ -71,6 +72,8 @@ class EventPages:
         return reasoning.split('\n', 1)[0][:20].rstrip('\r') + '...'
 
     def render(self, template: str, **values) -> bytes:
+        if template == 'match.html':
+            values['result'] = MatchResults(values['reference']).prepare(values['match'])
         if template == 'control.html':
             workspace = values['workspace']
             values['process_ready'] = workspace is not None and BatchPreparation.ready(workspace)
