@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-09-23 @ 19:21
+
 ### Added
 
 - Show files as Pending with disabled action menus while multiple TMDB results are being resolved, retaining the matches link. Refresh the file table during Process Batch and restore review controls when selection finishes.
