@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-09-23 @ 19:05
+
 ### Added
 
 - Dedicated event previews for `multiple_choice` and `current_date` prompts, showing the search title/year and candidate count or current date, with filename and links to full details. Preserve readable previews for older plain-text prompts.
