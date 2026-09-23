@@ -54,7 +54,8 @@ class MovieSelectionTests(unittest.TestCase):
         self.reply(2)
         result = MovieSelection(self.llm).run(self.match, self.log)
         self.assertEqual(result.selected_number, 2)
-        self.assertEqual(result.response, self.match.response)
+        self.assertEqual(result.response['total_results'], 1)
+        self.assertEqual(result.response['results'], [self.match.response['results'][1]])
         messages = self.llm.complete.call_args.args[0]['messages']
         self.assertIn('current_date', json.loads(messages[0]['content'])['data'])
         example = json.loads(messages[1]['content'])
@@ -82,7 +83,8 @@ class MovieSelectionTests(unittest.TestCase):
         restored = TMDBMatch(**json.loads(json.dumps(asdict(result))))
         prepared = MatchResults(TMDBReference([], [])).prepare(restored)
         self.assertEqual(prepared['status'], 'Resolved')
-        self.assertEqual([movie['selected'] for movie in prepared['movies']], [False, True])
+        self.assertEqual([movie['selected'] for movie in prepared['movies']], [True])
+        self.assertEqual(prepared['movies'][0]['id'], 99)
 
     def test_no_choice_and_invalid_replies_remain_ambiguous(self):
         for content in (0, 3, -1, 2.0, '2', 'Movie', '2 because it matches', None, True):

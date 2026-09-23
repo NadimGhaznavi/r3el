@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-09-23 @ 19:40
+
+### Updated
+
+- Trust successful LLM selections: keep only the chosen TMDB movie in the workspace result and show only that movie through the 1 match link. Older saved selections also display only their chosen movie.
+
 ## [0.6.6] - 2026-09-23 @ 19:31
 
 ### Fixed

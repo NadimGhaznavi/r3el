@@ -15,6 +15,14 @@ class TMDBMatch:
     selection_pending: bool = False
 
     @property
+    def resolved_response(self) -> dict | None:
+        """Keep only the chosen movie, including for older saved multi-result searches."""
+        if not self.selected_number or self.response is None or self.response['total_results'] == 1:
+            return self.response
+        movie = self.response['results'][self.selected_number - 1]
+        return dict(self.response, results=[movie], total_results=1, total_pages=1, page=1)
+
+    @property
     def label(self) -> str:
         if self.skipped:
             return 'Skipped'
