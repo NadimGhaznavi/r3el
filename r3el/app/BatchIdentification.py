@@ -74,7 +74,7 @@ class BatchIdentification:
     async def _identify(self, batch: MediaFileBatch, item: MediaFile) -> None:
         context = {'batch_id': batch.id, 'item_id': item.id, 'filename': item.filename}
         log = EventWriter(self._record, context, batch.started_event_id)
-        log.parent_event_id = log.write(Categories.Identification.CONVERSATION,
+        log.parent_event_id = log.write(Categories.Batch.BATCH_IDENTIFICATION,
                                        Names.ITEM_STARTED, {}, source='BatchIdentification')
         if self._files.is_hidden(item.filename):
             item.state = MediaFileState.UNRESOLVED_HIDDEN_FILE

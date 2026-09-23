@@ -74,7 +74,7 @@ class ToolConversation:
                         message, call, arguments = self._tool_call(body)
                     except ValueError as error:
                         reason = str(error)
-                        attempt_log.write(Categories.Identification.VALIDATION, Names.SUBMISSION_REJECTED,
+                        attempt_log.write(Categories.Prompt.SUBMISSION_HANDLER, Names.SUBMISSION_REJECTED,
                                           {'reason': reason}, source='ToolConversation')
                     else:
                         messages.append(message)
@@ -98,11 +98,11 @@ class ToolConversation:
                         attempt_log.write(Categories.Prompt.LLM_PROMPT, Names.PROMPT_SENT,
                                           feedback, source=prompt.source_name)
             except asyncio.CancelledError:
-                attempt_log.write(Categories.Identification.CONVERSATION, Names.ATTEMPT_CANCELLED,
+                attempt_log.write(Categories.Prompt.TOOL_CONVERSATION, Names.ATTEMPT_CANCELLED,
                                   {}, source='ToolConversation', level='WARNING')
                 raise
             except Exception as error:
-                attempt_log.write(Categories.Identification.CONVERSATION, Names.ATTEMPT_FAILED,
+                attempt_log.write(Categories.Prompt.TOOL_CONVERSATION, Names.ATTEMPT_FAILED,
                                   {'error': str(error)}, source='ToolConversation', level='ERROR')
                 raise
             finally:

@@ -309,7 +309,7 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('value="BatchIdentification" selected', body)
 
     def test_bad_filters_are_client_errors(self):
-        for query in ('category=Unknown', 'subcategory=Unknown', 'category=Server&subcategory=Tool',
+        for query in ('category=Unknown', 'category=Identification', 'subcategory=Unknown', 'category=Server&subcategory=Tool',
                       'category=Server&name=tool_received', 'subcategory=BatchIdentification&name=tool_received',
                       'category=Server&category=Batch', 'refresh=-1', 'other=value',
                       'name=unknown', 'name=tool_started&name=tool_received'):
@@ -341,17 +341,17 @@ class ControlServerTests(unittest.TestCase):
     def test_dropdowns_follow_selected_branch(self):
         for query, expected_subcategories, expected_events in (
             ('category=Batch', {'Lifecycle', 'Discovery', 'BatchIdentification'},
-             {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'files_retrieved', 'item_completed'}),
+             {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'files_retrieved', 'item_started', 'item_completed'}),
             ('category=Batch&subcategory=BatchIdentification',
-             {'Lifecycle', 'Discovery', 'BatchIdentification'}, {'item_completed'}),
+             {'Lifecycle', 'Discovery', 'BatchIdentification'}, {'item_started', 'item_completed'}),
             ('category=Prompt&subcategory=ToolConversation',
-             {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'attempt_started', 'reply_received', 'tool_started', 'tool_completed'}),
+             {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'attempt_started', 'attempt_failed', 'attempt_cancelled', 'reply_received', 'tool_started', 'tool_completed'}),
             ('category=Prompt&subcategory=SubmissionHandler',
-             {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'tool_received', 'submission_accepted'}),
+             {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'tool_received', 'submission_accepted', 'submission_rejected'}),
             ('category=Prompt&subcategory=LLMPrompt',
              {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'prompt_sent'}),
             ('subcategory=Lifecycle',
-             {'Lifecycle', 'Discovery', 'BatchIdentification', 'Conversation', 'Validation', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt'},
+             {'Lifecycle', 'Discovery', 'BatchIdentification', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt'},
              {'started', 'stopped', 'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled'}),
         ):
             with self.subTest(query=query):

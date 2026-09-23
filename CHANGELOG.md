@@ -9,12 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Summary
+
+- Update EventLog categories and sub-categories.
+
+### Updated
+
+- Reclassify `attempt_failed` and `attempt_cancelled` as Prompt / ToolConversation, and both sources of `submission_rejected` as Prompt / SubmissionHandler. Remove the unused Identification event category.
+- Reclassify `BatchIdentification - item_started` events as Batch / BatchIdentification.
+
 ## [0.4.1] - 2026-09-23 @ 02:26
+
+### Summary
+
+- Update EventLog categories and sub-categories.
 
 ### Updated
 
 - Reclassify `prompt_sent` events as Prompt / LLMPrompt.
-
 - Reclassify `ToolConversation - attempt_started` events as Prompt / ToolConversation.
 - Reclassify `LLM - reply_received` events as Prompt / ToolConversation.
 - Reclassify `ToolConversation - tool_started` events as Prompt / ToolConversation.
