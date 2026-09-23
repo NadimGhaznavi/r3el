@@ -68,8 +68,18 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 self.respond(200, Path(__file__).with_name('static').joinpath('r3el.png').read_bytes(), 'image/png')
                 return
             if url.path == '/':
-                result = DMessage.ACCEPTED if url.query == 'result=' + DMessage.ACCEPTED else None
-                self.respond_control(result=result)
+                try:
+                    query = parse_qs(url.query, keep_blank_values=True, max_num_fields=2)
+                    if set(query) - {'result', 'refresh'} or any(len(v) != 1 for v in query.values()):
+                        raise ValueError('Use result and refresh once each.')
+                    refresh = query.get('refresh', ['0'])[0]
+                    if refresh not in ('0', '5', '30', '60'):
+                        raise ValueError('Refresh must be 0, 5, 30, or 60 seconds.')
+                except ValueError as error:
+                    self.send_error(400, str(error))
+                    return
+                result = DMessage.ACCEPTED if query.get('result') == [DMessage.ACCEPTED] else None
+                self.respond_control(result=result, refresh=int(refresh))
                 return
             if url.path == '/health':
                 self.respond(200, b'{"status":"ok","service":"r3el-control"}', 'application/json')
@@ -129,7 +139,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 return
             self.respond(200, body)
 
-        def respond_control(self, status: int = 200, **values):
+        def respond_control(self, status: int = 200, refresh: int = 0, **values):
             try:
                 db = DbMgr()
                 try:
@@ -143,7 +153,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             job = matching.current()
             active_job = (job if workspace is not None and job is not None
                           and job['batch_id'] == workspace.id and job['status'] == 'running' else None)
-            self.respond(status, pages.render('control.html', workspace=workspace, refresh=0,
+            self.respond(status, pages.render('control.html', workspace=workspace, refresh=refresh,
                                              matching_job=active_job, **values))
 
         def do_POST(self):
@@ -162,7 +172,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 if not 0 < length <= DR3el.MAX_CONTROL_BODY_BYTES:
                     raise ValueError('Invalid form length.')
                 fields = parse_qs(self.rfile.read(length).decode('utf-8'),
-                                  keep_blank_values=True, max_num_fields=3)
+                                  keep_blank_values=True, max_num_fields=4)
                 if any(len(values) != 1 for values in fields.values()):
                     raise ValueError('Repeated form field.')
                 payload = {name: values[0] for name, values in fields.items()}
@@ -173,6 +183,9 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     self.save_file_action(payload)
                     return
                 else:
+                    refresh = payload.pop('refresh', '0')
+                    if refresh not in ('0', '5', '30', '60'):
+                        raise ValueError('Invalid refresh interval.')
                     payload['batch_size'] = int(payload['batch_size'])
                     parameters = BatchConfiguration.resolve(payload)
             except (KeyError, ValueError):
@@ -193,7 +206,8 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             if response['status'] == DMessage.ACCEPTED:
                 # Refreshing the result page must not submit the batch again.
                 self.send_response(303)
-                self.send_header('Location', '/?result=' + DMessage.ACCEPTED)
+                self.send_header('Location', '/?result=' + DMessage.ACCEPTED
+                                 + ('&refresh=' + refresh if refresh != '0' else ''))
                 self.send_header('Content-Length', '0')
                 self.send_header('Cache-Control', 'no-store')
                 self.end_headers()
