@@ -18,11 +18,11 @@
         <td>{{ file.identification.title if file.identification is not none else '—' }}</td>
         <td>{{ file.identification.year if file.identification is not none else '—' }}</td>
         <td>{{ file.identification.confidence if file.identification is not none else '—' }}</td>
-        <td>{{ status_labels[file.state] if file.state else 'Not available' }}</td>
+        <td>{{ 'Pending' if file.pending else status_labels[file.state] if file.state else 'Not available' }}</td>
         <td>
           <select class="file-action" aria-label="Action for {{ file.filename }}"
                   data-file-id="{{ file.id }}" data-saved-action="{{ file.action }}"
-                  {% if file.state == file_states.PENDING %}disabled{% else %}data-action-editable{% endif %}>
+                  {% if file.pending %}disabled{% else %}data-action-editable{% endif %}>
             {% for action, label in action_labels.items() %}
             <option value="{{ action }}"{% if file.action == action %} selected{% endif %}>{{ label }}</option>
             {% endfor %}
@@ -43,7 +43,7 @@
   </table>
 </div>
 <p class="note">Reload the page to update the batch status.</p>
-<p class="note">Actions save when changed. Pending files can be reviewed once identification finishes.</p>
+<p class="note">Actions save when changed. Pending files can be reviewed once identification or movie selection finishes.</p>
 <p role="status" id="action-feedback">
   <span id="action-saving" hidden>Saving action...</span>
   <span id="action-saved" hidden>Action saved.</span>
@@ -97,6 +97,25 @@
     actionMenus.forEach(select => { select.disabled = true; });
     processBatch.disabled = true;
     document.getElementById('match-running').hidden = false;
+    let watching = true;
+    let refreshTimer;
+    async function refreshFiles() {
+      try {
+        const response = await fetch('/', {cache: 'no-store'});
+        if (response.ok && watching) {
+          const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+          const table = page.querySelector('.workspace-files');
+          if (table && watching) {
+            table.querySelectorAll('select').forEach(select => { select.disabled = true; });
+            document.querySelector('.workspace-files').replaceWith(table);
+          }
+        }
+      } catch {
+        // Keep the last visible snapshot if a progress read fails.
+      }
+      if (watching) refreshTimer = window.setTimeout(refreshFiles, 2000);
+    }
+    refreshTimer = window.setTimeout(refreshFiles, 2000);
     try {
       const response = await fetch({{ settings.MATCH_TMDB_URL | tojson }}, {
         method: 'POST',
@@ -109,6 +128,9 @@
     } catch {
       document.getElementById('match-running').hidden = true;
       document.getElementById('match-error').hidden = false;
+    } finally {
+      watching = false;
+      window.clearTimeout(refreshTimer);
     }
   });
 </script>

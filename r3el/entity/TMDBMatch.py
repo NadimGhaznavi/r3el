@@ -12,6 +12,7 @@ class TMDBMatch:
     skipped: bool = False
     selected_number: int | None = None
     selection_error: str | None = None
+    selection_pending: bool = False
 
     @property
     def label(self) -> str:

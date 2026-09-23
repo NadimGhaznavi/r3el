@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Show files as Pending with disabled action menus while multiple TMDB results are being resolved, retaining the matches link. Refresh the file table during Process Batch and restore review controls when selection finishes.
+
+- Reload the Control page once, two seconds after New Batch is accepted, to show the discovered files without resubmitting the batch.
+
+- Send an `example` prompt before the multiple-choice query, prefaced with “Here is an example.” and containing the Batman JSON example of a `submit_multiple_choice` call.
+
 ## [0.6.3] - 2026-09-23 @ 19:05
 
 ### Added

@@ -36,3 +36,8 @@ class MediaFile:
     @property
     def filename(self) -> str:
         return Path(self.path).name
+
+    @property
+    def pending(self) -> bool:
+        return (self.state == MediaFileState.PENDING
+                or (self.tmdb_match is not None and self.tmdb_match.selection_pending))

@@ -125,11 +125,14 @@ class WorkspaceDb:
             if not batches:
                 raise WorkspaceActionConflict('The batch is no longer in the workspace.')
             files = self._db.query(
-                'SELECT state FROM media_files WHERE batch_id = %s AND file_id = %s FOR UPDATE',
+                'SELECT state, tmdb_match FROM media_files WHERE batch_id = %s AND file_id = %s FOR UPDATE',
                 (batch_id, file_id),
             )
             if not files or files[0]['state'] == MediaFileState.PENDING:
                 raise WorkspaceActionConflict('The file is missing or identification has not finished.')
+            match = TMDBMatch(**json.loads(files[0]['tmdb_match'])) if files[0]['tmdb_match'] is not None else None
+            if match is not None and match.selection_pending:
+                raise WorkspaceActionConflict('Movie selection has not finished for this file.')
             self._db.execute(
                 'UPDATE media_files SET tmdb_match = IF(action = %s, tmdb_match, NULL), action = %s '
                 'WHERE batch_id = %s AND file_id = %s', (action, action, batch_id, file_id))
