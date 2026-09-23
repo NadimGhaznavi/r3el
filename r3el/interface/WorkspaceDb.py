@@ -80,6 +80,7 @@ class WorkspaceDb:
             identification=Identification(**identification) if identification is not None else None,
             issues=[MediaFileIssue(**issue) for issue in json.loads(row['issues'])],
             attempts=row['attempts'], action=MediaFileAction(row['action']),
+            retries=row['retries'],
             tmdb_match=TMDBMatch(**json.loads(row['tmdb_match'])) if row['tmdb_match'] is not None else None,
         )
 
@@ -107,12 +108,15 @@ class WorkspaceDb:
     def save_file(self, batch_id: str, item: MediaFile, event: LogEvent) -> None:
         with self._db.transaction():
             self._db.execute(
-                'UPDATE media_files SET state = %s, identification = %s, issues = %s, attempts = %s, action = %s '
+                'UPDATE media_files SET state = %s, identification = %s, issues = %s, attempts = %s, action = %s, '
+                'retries = %s, tmdb_match = %s '
                 'WHERE batch_id = %s AND file_id = %s',
                 (item.state,
                  json.dumps(asdict(item.identification), allow_nan=False) if item.identification else None,
                  json.dumps([asdict(issue) for issue in item.issues], allow_nan=False),
-                 item.attempts, item.action, batch_id, item.id),
+                 item.attempts, item.action, item.retries,
+                 json.dumps(asdict(item.tmdb_match), allow_nan=False) if item.tmdb_match is not None else None,
+                 batch_id, item.id),
             )
             self._events.record_in_transaction(event)
 

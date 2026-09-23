@@ -152,6 +152,30 @@ class EventDatabaseTests(unittest.TestCase):
         finally:
             reader.close()
 
+    def test_retry_checkpoint_is_atomic_and_upgrade_preserves_count(self):
+        workspace = WorkspaceDb(self.db)
+        batch = self.workspace_batch()
+        batch.started_event_id = workspace.create(batch, self.event(), self.event())
+        item = batch.files[0]
+        item.state = MediaFileState.IDENTIFIED
+        item.identification = Identification('Film', 2000, 10)
+        item.retries = 2
+        item.tmdb_match = TMDBMatch('Film', 2000, response={'total_results': 0, 'results': []},
+                                    selection_pending=True)
+        with self.assertRaises(pymysql.IntegrityError):
+            workspace.save_file(batch.id, item, self.event(message=None))
+        self.assertEqual(workspace.load().files[0].retries, 0)
+        self.assertIsNone(workspace.load().files[0].tmdb_match)
+        workspace.save_file(batch.id, item, self.event())
+        WorkspaceSchema(self.db).apply()
+        restored = workspace.load().files[0]
+        self.assertEqual(restored.retries, 2)
+        self.assertTrue(restored.pending)
+        item.identification = Identification('Correct Film', 2000, 10)
+        item.tmdb_match = None
+        workspace.save_file(batch.id, item, self.event())
+        self.assertEqual(workspace.load().files[0], item)
+
     def test_workspace_action_changes_persist_without_changing_identification(self):
         workspace = WorkspaceDb(self.db)
         batch = self.workspace_batch()

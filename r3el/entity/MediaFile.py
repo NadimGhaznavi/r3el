@@ -32,6 +32,7 @@ class MediaFile:
     attempts: int = 0
     action: MediaFileAction = MediaFileAction.PENDING
     tmdb_match: TMDBMatch | None = None
+    retries: int = 0
 
     @property
     def filename(self) -> str:

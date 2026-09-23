@@ -153,6 +153,7 @@ class BatchMatchingTests(unittest.TestCase):
         self.assertEqual(failed_event.level, 'ERROR')
         self.assertEqual(failed_event.parent_event_id, 123)
         self.assertEqual(json.loads(failed_event.message)['data']['error'], 'TMDB returned HTTP 429.')
+        self.files[0].retries = 3
         runner.run('batch')
         self.assertEqual(self.files[0].tmdb_match.label, 'No matches')
         self.assertEqual(self.record.call_count, 2)
