@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add 20, 50, and 100 to the batch-size dropdown and accepted batch request sizes, keeping 10 as the default.
+
 - Retry filename identification in a fresh LLM conversation when TMDB returns zero movies, then search again with the new title/year. Persist and display up to three retries per file; exhausted files become `unresolved_llm` and do not restart on later Process Batch requests. Install/upgrade adds the retry counter to the workspace schema.
 
 ## [0.6.7] - 2026-09-23 @ 19:40

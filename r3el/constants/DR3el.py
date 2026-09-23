@@ -11,7 +11,7 @@ class DR3el:
     FILM_DIR: Final[str] = "/exports/disk1/archive/film"
     MEDIA_DIR: Final[str] = "/exports/disk1/archive/media"
     BATCH_SIZE: Final[int] = 10
-    BATCH_SIZES: Final[tuple[int, ...]] = (5, 10)
+    BATCH_SIZES: Final[tuple[int, ...]] = (5, 10, 20, 50, 100)
     NEW_BATCH_URL: Final[str] = "/batches"
     FILE_ACTION_URL: Final[str] = "/workspace/actions"
     MATCH_TMDB_URL: Final[str] = "/workspace/match"

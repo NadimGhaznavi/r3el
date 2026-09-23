@@ -24,7 +24,7 @@ Sender names identify message roles; they are not authentication credentials.
 
 `BatchControl` sends this message. `BatchControlHandler` uses `BatchConfiguration`
 to validate exactly these parameters: absolute directory paths and an integer
-batch size from `DR3el.BATCH_SIZES` (5 or 10). The input directory must be readable
+batch size from `DR3el.BATCH_SIZES` (5, 10, 20, 50, or 100). The input directory must be readable
 by the R3el service when processing starts. The output directory is retained for
 future file operations; identification does not write there.
 

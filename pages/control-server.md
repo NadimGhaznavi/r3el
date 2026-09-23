@@ -4,7 +4,7 @@
 MariaDB event log while the identification service is running or stopped and
 does not require Qwen. When the workspace is empty, the landing page provides a Media Directory text box prefilled from `DR3el.FILM_DIR`,
 an Output Directory text box prefilled from `DR3el.MEDIA_DIR`, a Batch Size dropdown
-(5 or 10, default 10), and a New Batch button. The button sends the directories
+(5, 10, 20, 50, or 100, default 10), and a New Batch button. The button sends the directories
 and size to the identification server over ZeroMQ. Labels and result messages
 use Jinja2; shared defaults live in `DR3el`, and message names live in `DMessage`.
 The R3el logo is deployed with the server assets. File actions can be reviewed before TMDB matching.
