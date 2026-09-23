@@ -72,16 +72,16 @@ modules=(
     app/Prompt.py
     app/BatchControlHandler.py app/BatchProcessor.py app/BatchRunner.py app/MessageHandler.py
     interface/BatchConfiguration.py interface/BatchControl.py entity/BatchRequest.py constants/DMessage.py
-    app/BatchIdentification.py app/ToolConversation.py
+    app/BatchIdentification.py app/ToolConversation.py app/MovieSelection.py app/MultipleChoiceHandler.py
     app/SubmissionHandler.py app/ValidateIdentification.py
     app/prompts/CurrentDate.py app/prompts/FileContext.py app/prompts/SubmitIdentificationPrompt.py
-    app/prompts/InvalidIdentification.py
+    app/prompts/InvalidIdentification.py app/prompts/MultipleChoice.py
     app/tools/__main__.py app/tools/server.py
-    app/tools/SubmitIdentification.py
-    interface/LLM.py interface/IdentificationTools.py
+    app/tools/SubmitIdentification.py app/tools/SubmitMultipleChoice.py
+    interface/LLM.py interface/IdentificationTools.py interface/MCPTools.py
     entity/Identification.py activity/EventWriter.py constants/DZMQ.py
     zmq/ZMQClient.py zmq/ZMQServer.py zmq/ZMQMsg.py
-    constants/DR3el.py constants/DDbMgr.py constants/DEventCategory.py constants/DEventName.py
+    constants/DR3el.py constants/DLlama.py constants/DDbMgr.py constants/DEventCategory.py constants/DEventName.py
     entity/EventCategory.py entity/LogEvent.py
     interface/DbMgr.py interface/EventLogDb.py interface/FileMgr.py
     activity/EventSchema.py activity/EventReport.py activity/ServerLifecycle.py
