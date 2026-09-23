@@ -133,7 +133,7 @@ class ControlServerTests(unittest.TestCase):
                 controls = re.search(r'<section.*?</section>', body, re.S).group(0)
                 self.assertNotIn('<select', controls)
                 self.assertIn('class="file-action"', body)
-                self.assertNotIn('<form', body)
+                self.assertNotIn('aria-label="New batch"', body)
                 self.assertNotIn('http-equiv="refresh"', body)
                 header = re.search(r'<header.*?</header>', body, re.S).group(0)
                 self.assertRegex(header, r'Last updated: <time datetime="[^"]+">[0-9-]+ [0-9:]+ UTC</time>')
@@ -297,6 +297,28 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('type="button" disabled', body)
         self.assertNotIn('http-equiv="refresh"', body)
 
+    def test_control_refresh_options_and_invalid_values(self):
+        for seconds in (0, 5, 30, 60):
+            status, _, body = self.request(f'/?refresh={seconds}')
+            self.assertEqual(status, 200)
+            self.assertIn(f'<option value="{seconds}" selected>', body)
+            self.assertEqual('http-equiv="refresh"' in body, seconds != 0)
+            if seconds:
+                self.assertIn(f'http-equiv="refresh" content="{seconds}"', body)
+        for query in ('refresh=2', 'refresh=-1', 'refresh=5&refresh=30', 'other=value'):
+            self.assertEqual(self.request('/?' + query)[0], 400)
+
+    @patch('r3el.server.ControlServer.BatchControl.new_batch')
+    def test_new_batch_retains_refresh_in_redirect_and_one_time_reload(self, new_batch):
+        new_batch.return_value = {'status': DMessage.ACCEPTED}
+        status, headers, _ = self.post_batch(refresh='30')
+        self.assertEqual(status, 303)
+        self.assertEqual(headers['Location'], '/?result=accepted&refresh=30')
+        body = self.request(headers['Location'])[2]
+        self.assertIn('window.location.replace("/?refresh=30"), 2000', body)
+        self.assertIn('http-equiv="refresh" content="30"', body)
+        new_batch.assert_called_once_with(BatchRequest('/tmp/input', '/tmp/output', 5))
+
     def post_batch(self, **values):
         fields = dict(input_directory='/tmp/input', output_directory='/tmp/output', batch_size='5')
         fields.update(values)
@@ -312,7 +334,7 @@ class ControlServerTests(unittest.TestCase):
         self.assertEqual(headers['Location'], '/?result=accepted')
         body = self.request(headers['Location'])[2]
         self.assertIn('Batch accepted.', body)
-        self.assertIn("window.setTimeout(() => window.location.replace('/'), 2000);", body)
+        self.assertIn('window.setTimeout(() => window.location.replace("/"), 2000);', body)
         new_batch.assert_called_once()
         self.workspace.assert_called_once()
         self.db.close.assert_called_once()
