@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-23 @ 18:37
+
 ### Added
 
 - Submit multiple-choice selections through the `submit_multiple_choice(number)` MCP tool and an attempt-bound ZeroMQ handler, with integer/range validation and duplicate rejection. Share MCP discovery and transport with identification.
