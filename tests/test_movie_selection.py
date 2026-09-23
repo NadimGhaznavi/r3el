@@ -57,7 +57,16 @@ class MovieSelectionTests(unittest.TestCase):
         self.assertEqual(result.response, self.match.response)
         messages = self.llm.complete.call_args.args[0]['messages']
         self.assertIn('current_date', json.loads(messages[0]['content'])['data'])
-        prompt = messages[1]['content']
+        example = json.loads(messages[1]['content'])
+        self.assertEqual(example['instructions'], 'Here is an example.')
+        self.assertEqual(example['data']['examples'], [{
+            'query': {'title': 'Batman', 'year': 2022},
+            'candidates': [
+                {'number': 1, 'title': 'Batman: The Audio Adventures'},
+                {'number': 2, 'title': 'The Batman', 'overview': 'Two years of stalking the streets...'}],
+            'output': {'name': 'submit_multiple_choice', 'arguments': {'number': 2}},
+        }])
+        prompt = messages[2]['content']
         data = json.loads(prompt)['data']
         self.assertEqual(data['query'], {'title': 'Movie', 'year': 2020})
         self.assertEqual(data['candidates'], [
@@ -66,9 +75,10 @@ class MovieSelectionTests(unittest.TestCase):
         self.assertIn('A traveler returns home.', prompt)
         self.assertNotIn('2020-02-03', prompt)
         events = [call.args[0] for call in self.record.call_args_list]
-        self.assertEqual(events[1].source_name, 'multiple_choice')
+        self.assertEqual(events[1].source_name, 'example')
         self.assertEqual(events[1].classification.subcategory, 'LLMPrompt')
-        self.assertEqual(events[2].name, 'reply_received')
+        self.assertEqual(events[2].source_name, 'multiple_choice')
+        self.assertEqual(events[3].name, 'reply_received')
         restored = TMDBMatch(**json.loads(json.dumps(asdict(result))))
         prepared = MatchResults(TMDBReference([], [])).prepare(restored)
         self.assertEqual(prepared['status'], 'Resolved')

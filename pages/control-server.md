@@ -65,8 +65,10 @@ automatically retried. `GET /matches/<batch_id>/<file_id>` displays a saved resu
 Changing an action never executes file operations. `POST /workspace/actions`
 accepts `batch_id`, `file_id`, and `action`, returning saved readiness as JSON.
 
-The control page never refreshes automatically. Reload it in the browser to update
-the table and timestamp, including after submitting a batch.
+After New Batch is accepted, the control page reloads once after two seconds to
+show the discovered files. It returns to `/`, removing the acceptance flag so the
+reload does not repeat or resubmit the batch. Reload manually for later updates
+to the table and timestamp.
 “Last updated” at the top right reports the page's latest workspace read in UTC,
 not the time the file last changed. Pending files stay Pending until an outcome
 is saved. Reads use the shared workspace interface without taking the processor's
