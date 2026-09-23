@@ -9,6 +9,9 @@ class DMessage:
     MCP_IDENTIFICATION: Final[str] = 'mcp-identification'
     IDENTIFICATION: Final[str] = 'identification'
     SUBMIT_IDENTIFICATION: Final[str] = 'submit_identification'
+    MULTIPLE_CHOICE: Final[str] = 'multiple_choice'
+    MCP_MULTIPLE_CHOICE: Final[str] = 'mcp-multiple-choice'
+    SUBMIT_MULTIPLE_CHOICE: Final[str] = 'submit_multiple_choice'
     BATCH: Final[str] = 'batch'
     NEW_BATCH: Final[str] = 'new_batch'
 

@@ -16,13 +16,19 @@ class MatchResults:
         if match.error is not None:
             return dict(status='Match failed', tone='failed', explanation=match.error, movies=[], total=0)
         total = match.response['total_results']
+        selected = bool(match.selected_number)
+        movies = [dict(self._movie(movie), selected=number == match.selected_number)
+                  for number, movie in enumerate(match.response['results'], 1)]
         return dict(
-            status='Resolved' if total == 1 else 'No matches' if total == 0 else 'Ambiguous',
-            tone='resolved' if total == 1 else 'unresolved',
-            explanation=('Exactly one movie matches the queried title and year.' if total == 1 else
+            status='Resolved' if selected or total == 1 else 'No matches' if total == 0 else 'Ambiguous',
+            tone='resolved' if selected or total == 1 else 'unresolved',
+            explanation=(f'The LLM selected candidate {match.selected_number}.' if selected else
+                         match.selection_error if match.selection_error else
+                         'The LLM could not confidently select a title.' if match.selected_number == 0 else
+                         'Exactly one movie matches the queried title and year.' if total == 1 else
                          'No movies match the queried title and year.' if total == 0 else
                          f'{total:,} movies found. No movie has been selected.'),
-            movies=[self._movie(movie) for movie in match.response['results']], total=total,
+            movies=movies, total=total,
         )
 
     def _movie(self, movie: dict) -> dict:

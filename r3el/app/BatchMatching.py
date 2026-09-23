@@ -5,12 +5,14 @@ from dataclasses import asdict
 
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.activity.EventWriter import EventWriter
+from r3el.app.MovieSelection import MovieSelection
 from r3el.constants.DEventCategory import DEventCategory as Categories
 from r3el.constants.DEventName import DEventName as Names
 from r3el.entity.LogEvent import LogEvent
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.entity.TMDBMatch import TMDBMatch
 from r3el.interface.TMDB import TMDB, TMDBError
+from r3el.interface.LLM import LLM
 from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict
 
 
@@ -37,7 +39,9 @@ class BatchMatching:
                 elif (item.tmdb_match is not None and item.tmdb_match.response is not None
                       and item.tmdb_match.title == title and item.tmdb_match.year == year):
                     # Repeated submissions reuse completed queries; failed searches can be retried.
-                    continue
+                    result = item.tmdb_match
+                    if result.response['total_results'] <= 1 or result.selected_number is not None:
+                        continue
                 elif identification is None:
                     result = TMDBMatch(title, year, error='No identified title and year available.')
                 else:
@@ -56,3 +60,10 @@ class BatchMatching:
                     dict(asdict(result), outcome=result.label), source='TMDB',
                     level='ERROR' if result.error is not None else 'INFO')
                 self._workspace.save_match(batch.id, item.id, result, event)
+                if (result.response is not None and not result.skipped and result.error is None
+                        and result.response['total_results'] > 1 and result.selected_number is None):
+                    result = MovieSelection(LLM.from_environment()).run(result, log)
+                    event = log.prepare(Categories.TMDB.RESULT, Names.TMDB_RESULT,
+                                        dict(asdict(result), outcome=result.label), source='MovieSelection',
+                                        level='ERROR' if result.selection_error else 'INFO')
+                    self._workspace.save_match(batch.id, item.id, result, event)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start or stop the R3el stack in dependency order.
+# Start or stop R3el's services in dependency order.
 set -euo pipefail
 
 usage() {
@@ -20,13 +20,10 @@ fi
 if [[ $1 == start ]]; then
     printf 'Starting r3el-control.service.\n'
     "${system_admin[@]}" systemctl start r3el-control.service
-    printf 'Starting qwen-server.service; waiting 5 seconds.\n'
-    "${system_admin[@]}" systemctl start qwen-server.service
-    sleep 5
     printf 'Starting r3el-server.service.\n'
     "${system_admin[@]}" systemctl start r3el-server.service
 else
-    for unit in r3el-server.service qwen-server.service r3el-control.service; do
+    for unit in r3el-server.service r3el-control.service; do
         printf 'Stopping %s.\n' "$unit"
         "${system_admin[@]}" systemctl stop "$unit"
     done

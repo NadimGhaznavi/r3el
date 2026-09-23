@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-23 @ 18:37
+
+### Added
+
+- Submit multiple-choice selections through the `submit_multiple_choice(number)` MCP tool and an attempt-bound ZeroMQ handler, with integer/range validation and duplicate rejection. Share MCP discovery and transport with identification.
+
+- Ask the LLM to resolve multiple TMDB results with a `multiple_choice` prompt containing numbered candidate titles and roughly two lines of each overview, ending at a sentence boundary. Save and display the selection, retain the original response, and retry failed selections without repeating successful searches.
+
+### Updated
+
+- Limit `scripts/services.sh` to starting and stopping R3el's control and batch services. Leave Qwen managed separately and remove the Qwen startup delay.
+
 ## [0.5.3] - 2026-09-23 @ 18:05
 
 ### Added

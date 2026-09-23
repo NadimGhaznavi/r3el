@@ -39,7 +39,17 @@ After matching, Match Results links show **1 match**, **No matches**, or
 failure; **Skipped** has no link. The details page shows the queried title/year and a movie card for each downloaded
 candidate: poster, title/year, language, rating/votes, genres, overview, release date,
 original title, and a link to the movie on TMDB. A single total result is Resolved;
-multiple results remain Ambiguous with no candidate selected. Missing metadata has
+multiple results trigger a `multiple_choice` LLM prompt with numbered candidate
+titles and overview excerpts (about 160 characters, extended to the end of the
+sentence). The model calls `submit_multiple_choice(number)` through MCP. A temporary
+loopback ZeroMQ listener validates the integer against the server-owned attempt
+and candidate count, rejecting stale or duplicate submissions. Only the number
+is exposed as a tool argument. A valid choice is saved and marked Resolved;
+0 means no confident choice. Plain-text numbers are not accepted as submissions.
+Invalid replies and connection failures leave the result Ambiguous and can be retried
+without repeating the TMDB search. Selection uses the downloaded first page.
+The control service uses `R3EL_LLM_URL` from `/etc/r3el/server.env`, defaulting to
+the local Qwen service. Missing metadata has
 explicit placeholders. The layout stacks on small screens. Saved JSON remains
 available in a collapsed details section. When only the first page of a larger
 result set is downloaded, the page states how many results are shown. Opening or refreshing
@@ -168,12 +178,12 @@ custom presentation; `reply_received` adds formatted reasoning above that payloa
 
 ## Standalone startup
 
-To start or stop the whole installed stack, use `scripts/services.sh start`
+To start or stop the installed R3el services, use `scripts/services.sh start`
 or `scripts/services.sh stop` from the checkout or installation directory.
-The helper uses sudo when needed. Startup runs control, Qwen, waits five
-seconds, then starts the R3el batch server. Shutdown reverses that order
-without delays. A failed command stops the script and returns an error.
-The five-second delay is not a model health check. The server starts idle with its MCP/ZeroMQ listener; see [Running identification](one-batch-identification.md).
+The helper uses sudo when needed. Startup runs control, then the R3el batch
+server. Shutdown reverses that order. Qwen is managed separately; this script
+does not start or stop it. A failed command stops the script and returns an error.
+The server starts idle with its MCP/ZeroMQ listener; see [Running identification](one-batch-identification.md).
 
 With dependencies installed, the event schema initialized, and `DB_HOST`,
 `DB_USER`, `DB_PASSWORD`, and `DB_NAME` in the environment:
