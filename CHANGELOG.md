@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-23 @ 05:33
+
 ### Added
 
 - Store TMDB movie genres and languages in shared database catalogs, including stable IDs/codes and English/native language names. Install and upgrade refresh both catalogs atomically, retaining existing IDs for future media references.
