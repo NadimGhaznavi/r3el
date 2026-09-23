@@ -401,8 +401,11 @@ class ControlServerTests(unittest.TestCase):
              {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'tool_received', 'submission_accepted', 'submission_rejected'}),
             ('category=Prompt&subcategory=LLMPrompt',
              {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'prompt_sent'}),
+            ('category=TMDB', {'Search', 'Result'}, {'tmdb_search', 'tmdb_result'}),
+            ('category=TMDB&subcategory=Search', {'Search', 'Result'}, {'tmdb_search'}),
+            ('category=TMDB&subcategory=Result', {'Search', 'Result'}, {'tmdb_result'}),
             ('subcategory=Lifecycle',
-             {'Lifecycle', 'Discovery', 'BatchIdentification', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt'},
+             {'Lifecycle', 'Discovery', 'BatchIdentification', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt', 'Search', 'Result'},
              {'started', 'stopped', 'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled'}),
         ):
             with self.subTest(query=query):

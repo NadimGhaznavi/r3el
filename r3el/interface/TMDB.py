@@ -26,7 +26,7 @@ class TMDB:
         return cls(token)
 
     def search(self, title: str, year: int) -> dict:
-        payload = self._get(self.URL, {'query': title, 'year': year, 'page': 1})
+        payload = self._get(self.URL, self.search_parameters(title, year))
         if (not isinstance(payload, dict)
                 or type(payload.get('total_results')) is not int
                 or payload['total_results'] < 0
@@ -38,6 +38,10 @@ class TMDB:
                 or (payload['total_results'] == 1 and len(payload['results']) != 1)):
             raise TMDBError('TMDB returned an invalid search response.')
         return payload
+
+    @staticmethod
+    def search_parameters(title: str, year: int) -> dict:
+        return {'query': title, 'primary_release_year': year, 'page': 1}
 
     def reference(self) -> TMDBReference:
         genres = self._get('https://api.themoviedb.org/3/genre/movie/list', {'language': 'en'})

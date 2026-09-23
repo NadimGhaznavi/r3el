@@ -39,6 +39,25 @@ class EventPagesTests(unittest.TestCase):
                 self.assertIn('<a href="/events/42"><pre>' + 'x' * 1200 + ending + '</pre></a>', body)
                 self.assertNotIn('Full event</a>', body)
 
+    def test_tmdb_search_and_result_summaries_link_to_escaped_details(self):
+        self.event.update(category='TMDB', subcategory='Search', name='tmdb_search', source_name='TMDB',
+            content=json.dumps({'context': {'filename': '<movie>.mkv'}, 'data': {
+                'parameters': {'query': '<Superman>', 'primary_release_year': 2025, 'page': 1}}}))
+        body = self.render()
+        self.assertIn('<a href="/events/42">TMDB search.', body)
+        self.assertIn('Title: &lt;Superman&gt;, Primary release year: 2025.', body)
+        self.assertIn('Filename: &lt;movie&gt;.mkv', body)
+        self.event.update(subcategory='Result', name='tmdb_result')
+        for outcome, error in (('1 match', None), ('No matches', None), ('7 matches', None),
+                               ('Match failed', '<connection error>')):
+            self.event['content'] = json.dumps({'context': {'filename': '<movie>.mkv'},
+                                                'data': {'outcome': outcome, 'error': error}})
+            body = self.render()
+            self.assertIn('<a href="/events/42">TMDB result.', body)
+            self.assertIn(outcome, body)
+            if error:
+                self.assertIn('&lt;connection error&gt;', body)
+
     def test_default_indents_json_and_escapes_values(self):
         self.event['name'] = 'default_test_event'
         self.event['content'] = json.dumps({'title': '<b>Film 🎬</b>'})

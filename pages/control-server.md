@@ -96,6 +96,22 @@ emphasis, code blocks, tables, and line breaks). The full logged payload remains
 below a JSON heading. Embedded HTML is escaped and unsafe link schemes are blocked.
 Replies without reasoning show an explicit empty-state message. Times are UTC.
 
+## TMDB events
+
+Movie matching records `tmdb_search` under **TMDB / Search** before each API
+request, including filename, title, `primary_release_year`, page, and endpoint.
+`tmdb_result` uses **TMDB / Result** and links to its search event. Its details
+contain the complete response or error, queried title/year, and outcome.
+Search events link to the batch's start event; both events carry batch/file IDs.
+Credentials and authorization headers are never included.
+
+Result events commit in the same transaction as the saved workspace result.
+Expected search failures use ERROR severity; zero or multiple results remain INFO.
+If configuration or identification is missing, a failure result links directly to
+the batch because no search was sent. Ignore/Delete files and reused saved results
+do not create search/result events. Each actual retry gets its own event pair.
+Opening saved result pages does not generate matching events.
+
 ## Message templates
 
 The Message column uses Jinja templates in `r3el/server/templates/messages/`.
@@ -121,6 +137,8 @@ Each custom template owns the entire Message cell. Its whole message links to
 | `item_started` | `Filename: …` using `context.filename`. |
 | `item_completed` | `Filename: …` using `context.filename`. |
 | `batch_failed` | Only `data.error`. |
+| `tmdb_search` | Linked filename, title, and primary release year; full details include query parameters. |
+| `tmdb_result` | Linked filename and match count or failure; full details include the response or error. |
 | `batch_cancelled` | `Batch cancelled`. |
 
 `batch_resumed` and other events without a custom template use the default.
@@ -191,7 +209,7 @@ Movie searches use `TMDB_TOKEN` as a Bearer token. `TMDB_KEY` is retained with t
 credentials. For standalone startup, provide `TMDB_TOKEN` in the environment.
 See TMDB's [movie search](https://developer.themoviedb.org/reference/search-movie)
 and [authentication](https://developer.themoviedb.org/docs/authentication-application)
-documentation. This step uses the title and `year` search parameters; exactly one
+documentation. This step uses the title and `primary_release_year` search parameters; exactly one
 total result establishes a match. No TV search or candidate selection is included.
 
 ## Shared TMDB catalogs
