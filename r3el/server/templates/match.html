@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Match Results{% endblock %}
+{% block content %}
+<h1>Match Results</h1>
+<p>{{ file.filename }}</p>
+<p>Query: {{ match.title if match.title is not none else '—' }} ({{ match.year if match.year is not none else '—' }}) · Movies</p>
+<p>{{ match.label }}</p>
+{% if match.error %}<p>{{ match.error }}</p>{% endif %}
+{% if match.response is not none %}<h2>JSON</h2><pre>{{ response_json }}</pre>{% endif %}
+<p><a href="/">Back to batch</a></p>
+{% endblock %}

@@ -6,7 +6,7 @@ usage() {
     cat <<'HELP'
 Usage: sudo scripts/uninstall.sh
 
-Deletes DR3el.BASE_DIR, /etc/r3el/database.env, the local MariaDB database
+Deletes DR3el.BASE_DIR, /etc/r3el/database.env, /etc/r3el/tmdb.env, the local MariaDB database
 and account r3el, and the Linux service user/group r3el.
 All data in that database and installation directory is deleted.
 Stops, disables, and removes r3el-server.service and r3el-control.service.
@@ -69,6 +69,7 @@ SQL
 
 rm -rf -- "$install_dir"
 rm -f -- "$credentials_file"
+rm -f -- "$config_dir/tmdb.env"
 if [[ -d "$config_dir" ]]; then
     rmdir --ignore-fail-on-non-empty -- "$config_dir"
 fi

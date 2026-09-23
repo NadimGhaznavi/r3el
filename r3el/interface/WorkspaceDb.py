@@ -9,6 +9,7 @@ from r3el.entity.LogEvent import LogEvent
 from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
 from r3el.entity.MediaFileAction import MediaFileAction
+from r3el.entity.TMDBMatch import TMDBMatch
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
 
@@ -21,6 +22,10 @@ class WorkspaceActionConflict(ValueError):
     """The requested file is unavailable for a preparation decision."""
 
 
+class WorkspaceBusy(RuntimeError):
+    """Another operation owns the workspace."""
+
+
 class WorkspaceDb:
     def __init__(self, db: DbMgr) -> None:
         self._db = db
@@ -31,18 +36,25 @@ class WorkspaceDb:
         with self._db.transaction():
             return self.load()
 
-    @contextmanager
     def processing(self):
         """One processor per database; connection loss releases the lock."""
+        return self._exclusive('workspace')
+
+    def matching(self):
+        """Freeze preparation decisions while matching, but not during identification."""
+        return self._exclusive('tmdb')
+
+    @contextmanager
+    def _exclusive(self, name: str):
         acquired = self._db.query(
-            "SELECT GET_LOCK(CONCAT(DATABASE(), ':workspace'), 0) AS acquired",
+            "SELECT GET_LOCK(CONCAT(DATABASE(), ':', %s), 0) AS acquired", (name,),
         )[0]['acquired']
         if acquired != 1:
-            raise RuntimeError('The workspace is already being processed or its lock is unavailable.')
+            raise WorkspaceBusy('The workspace is already being processed or its lock is unavailable.')
         try:
             yield
         finally:
-            self._db.query("SELECT RELEASE_LOCK(CONCAT(DATABASE(), ':workspace'))")
+            self._db.query("SELECT RELEASE_LOCK(CONCAT(DATABASE(), ':', %s))", (name,))
 
     def load(self) -> MediaFileBatch | None:
         """Load the retained batch in order, within a snapshot or processing lock."""
@@ -68,6 +80,7 @@ class WorkspaceDb:
             identification=Identification(**identification) if identification is not None else None,
             issues=[MediaFileIssue(**issue) for issue in json.loads(row['issues'])],
             attempts=row['attempts'], action=MediaFileAction(row['action']),
+            tmdb_match=TMDBMatch(**json.loads(row['tmdb_match'])) if row['tmdb_match'] is not None else None,
         )
 
     def create(self, batch: MediaFileBatch, started: LogEvent, discovered: LogEvent) -> int:
@@ -105,7 +118,7 @@ class WorkspaceDb:
 
     def save_action(self, batch_id: str, file_id: str, action: MediaFileAction) -> MediaFileBatch:
         """Save a user choice after the file's identification checkpoint is committed."""
-        with self._db.transaction():
+        with self.matching(), self._db.transaction():
             batches = self._db.query(
                 'SELECT batch_id FROM media_file_batches WHERE batch_id = %s FOR UPDATE', (batch_id,),
             )
@@ -117,9 +130,18 @@ class WorkspaceDb:
             )
             if not files or files[0]['state'] == MediaFileState.PENDING:
                 raise WorkspaceActionConflict('The file is missing or identification has not finished.')
-            self._db.execute('UPDATE media_files SET action = %s WHERE batch_id = %s AND file_id = %s',
-                             (action, batch_id, file_id))
+            self._db.execute(
+                'UPDATE media_files SET tmdb_match = IF(action = %s, tmdb_match, NULL), action = %s '
+                'WHERE batch_id = %s AND file_id = %s', (action, action, batch_id, file_id))
             return self.load()
+
+    def save_match(self, batch_id: str, file_id: str, result: TMDBMatch) -> None:
+        """Checkpoint one result while the caller owns the processing lock."""
+        with self._db.transaction():
+            self._db.execute(
+                'UPDATE media_files SET tmdb_match = %s WHERE batch_id = %s AND file_id = %s',
+                (json.dumps(asdict(result), allow_nan=False), batch_id, file_id),
+            )
 
     def save_batch_state(self, batch_id: str, state: MediaFileBatchState, event: LogEvent) -> None:
         with self._db.transaction():

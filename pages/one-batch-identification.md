@@ -11,8 +11,9 @@ An explicit `--run-batch` option retains the one-batch diagnostic workflow descr
 With `--run-batch` and an empty workspace, R3el scans regular files directly inside `DR3el.FILM_DIR`,
 selects up to `DR3el.BATCH_SIZE` names alphabetically, saves the selection,
 identifies each, and exits. Subdirectories and symbolic links are excluded.
-It leaves source files untouched. It does not yet perform TMDB matching,
-create a persistent review queue, or move files into `MEDIA_DIR`.
+Identification leaves source files untouched. TMDB matching is a separate Control
+page action after file actions are resolved. Identification does not select a
+TMDB candidate or move files into `MEDIA_DIR`.
 
 ## Components
 

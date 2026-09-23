@@ -14,6 +14,7 @@ class DR3el:
     BATCH_SIZES: Final[tuple[int, ...]] = (5, 10)
     NEW_BATCH_URL: Final[str] = "/batches"
     FILE_ACTION_URL: Final[str] = "/workspace/actions"
+    MATCH_TMDB_URL: Final[str] = "/workspace/match"
     AUTO_APPROVE_CONFIDENCE: Final[int] = 10
     MAX_CONTROL_BODY_BYTES: Final[int] = 16384
     CONTROL_LOGO_URL: Final[str] = "/static/r3el.png"

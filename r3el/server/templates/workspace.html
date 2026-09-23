@@ -10,7 +10,7 @@
 } %}
 <div class="table-wrap">
   <table class="workspace-files" aria-label="Current batch files">
-    <thead><tr><th scope="col">Filename</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
+    <thead><tr><th scope="col">Filename</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Status</th><th scope="col">Action</th>{% if has_match_results %}<th scope="col">Match Results</th>{% endif %}</tr></thead>
     <tbody>
       {% for file in workspace.files %}
       <tr>
@@ -28,9 +28,16 @@
             {% endfor %}
           </select>
         </td>
+        {% if has_match_results %}
+        <td class="match-result">
+          {% if file.tmdb_match is none %}—
+          {% elif file.tmdb_match.skipped %}Skipped
+          {% else %}<a href="/matches/{{ workspace.id }}/{{ file.id }}">{{ file.tmdb_match.label }}</a>{% endif %}
+        </td>
+        {% endif %}
       </tr>
       {% else %}
-      <tr><td colspan="6">No files in this batch.</td></tr>
+      <tr><td colspan="{{ 7 if has_match_results else 6 }}">No files in this batch.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -42,11 +49,15 @@
   <span id="action-saved" hidden>Action saved.</span>
   <span id="action-error" hidden>Could not confirm the saved action. Reload the page to check the workspace before continuing.</span>
 </p>
-<button id="process-batch" type="button"{% if not process_ready %} disabled{% endif %} aria-describedby="process-note">Process Batch</button>
-<p class="note" id="process-note">Choose an action for every file after identification finishes. Process Batch is a placeholder and does not execute actions yet.</p>
+<button id="match-tmdb" type="button"{% if not process_ready %} disabled{% endif %} aria-describedby="match-note">Match TMDB</button>
+<p class="note" id="match-note">Choose an action for every file after identification finishes. Match TMDB searches movies for approved files; Ignore and Delete are skipped.</p>
+<p role="status" id="match-feedback">
+  <span id="match-running" hidden>Matching TMDB...</span>
+  <span id="match-error" hidden>Could not confirm matching finished. Reload the page to check saved results before trying again.</span>
+</p>
 <script>
   const actionMenus = [...document.querySelectorAll('[data-action-editable]')];
-  const processBatch = document.getElementById('process-batch');
+  const processBatch = document.getElementById('match-tmdb');
   const feedback = [...document.querySelectorAll('#action-feedback span')];
   const saving = document.getElementById('action-saving');
   const saved = document.getElementById('action-saved');
@@ -67,6 +78,10 @@
         if (!response.ok) throw new Error();
         const result = await response.json();
         if (result.saved !== true) throw new Error();
+        if (menu.dataset.savedAction !== menu.value) {
+          const matchCell = menu.closest('tr').querySelector('.match-result');
+          if (matchCell) matchCell.textContent = '—';
+        }
         menu.dataset.savedAction = menu.value;
         processBatch.disabled = result.ready !== true;
         feedback.forEach(message => { message.hidden = message !== saved; });
@@ -77,4 +92,23 @@
       }
     });
   }
+
+  processBatch.addEventListener('click', async () => {
+    actionMenus.forEach(select => { select.disabled = true; });
+    processBatch.disabled = true;
+    document.getElementById('match-running').hidden = false;
+    try {
+      const response = await fetch({{ settings.MATCH_TMDB_URL | tojson }}, {
+        method: 'POST',
+        body: new URLSearchParams({batch_id: {{ workspace.id | tojson }}})
+      });
+      if (!response.ok) throw new Error();
+      const result = await response.json();
+      if (result.completed !== true) throw new Error();
+      window.location.assign('/');
+    } catch {
+      document.getElementById('match-running').hidden = true;
+      document.getElementById('match-error').hidden = false;
+    }
+  });
 </script>

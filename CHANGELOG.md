@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Summary
+
+- Added *The Movie Database* (TMDB) matching.
+
+### Added
+
+- Match approved movie identifications against TMDB by title and year, retaining the existing batch readiness rule and skipping Ignore/Delete files.
+- Persist per-file responses and expose a Match Results column linking to formatted JSON, with distinct unmatched, ambiguous, failed, and skipped outcomes. Repeated matching reuses successful queries and retries failures; action changes clear saved results.
+- Import TMDB_TOKEN and TMDB_KEY from /root/.tmdb during install/upgrade into root-only /etc/r3el/tmdb.env; the control service uses the token for movie searches.
+
+### Updated
+
+- Replace the Process Batch placeholder with Match TMDB. Serialize matching and action changes through the workspace lock; save results as each file completes without moving or deleting files.
+
 ## [0.4.2] - 2026-09-23 @ 02:35
 
 ### Summary
