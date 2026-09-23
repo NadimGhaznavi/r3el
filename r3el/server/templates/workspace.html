@@ -22,7 +22,7 @@
         <td>
           <select class="file-action" aria-label="Action for {{ file.filename }}"
                   data-file-id="{{ file.id }}" data-saved-action="{{ file.action }}"
-                  {% if file.pending %}disabled{% else %}data-action-editable{% endif %}>
+                  {% if file.pending or matching_job %}disabled{% else %}data-action-editable{% endif %}>
             {% for action, label in action_labels.items() %}
             <option value="{{ action }}"{% if file.action == action %} selected{% endif %}>{{ label }}</option>
             {% endfor %}
@@ -49,7 +49,7 @@
   <span id="action-saved" hidden>Action saved.</span>
   <span id="action-error" hidden>Could not confirm the saved action. Reload the page to check the workspace before continuing.</span>
 </p>
-<button id="match-tmdb" type="button"{% if not process_ready %} disabled{% endif %} aria-describedby="match-note">Process Batch</button>
+<button id="match-tmdb" type="button"{% if not process_ready or matching_job %} disabled{% endif %} aria-describedby="match-note">Process Batch</button>
 <p class="note" id="match-note">After identification finishes, process the batch without choosing every action first. Pending and Approve files with a title and year are searched on TMDB; Ignore and Delete are skipped. Files without an identification or with failed lookups do not stop the batch.</p>
 <p role="status" id="match-feedback">
   <span id="match-running" hidden>Processing batch...</span>
@@ -93,29 +93,44 @@
     });
   }
 
-  processBatch.addEventListener('click', async () => {
-    actionMenus.forEach(select => { select.disabled = true; });
+  function showMatching() {
+    document.querySelectorAll('.file-action').forEach(select => { select.disabled = true; });
     processBatch.disabled = true;
     document.getElementById('match-running').hidden = false;
-    let watching = true;
-    let refreshTimer;
-    async function refreshFiles() {
-      try {
-        const response = await fetch('/', {cache: 'no-store'});
-        if (response.ok && watching) {
-          const page = new DOMParser().parseFromString(await response.text(), 'text/html');
-          const table = page.querySelector('.workspace-files');
-          if (table && watching) {
-            table.querySelectorAll('select').forEach(select => { select.disabled = true; });
-            document.querySelector('.workspace-files').replaceWith(table);
-          }
-        }
-      } catch {
-        // Keep the last visible snapshot if a progress read fails.
+    document.getElementById('match-error').hidden = true;
+  }
+
+  function matchingFailed() {
+    document.getElementById('match-running').hidden = true;
+    document.getElementById('match-error').hidden = false;
+  }
+
+  async function pollMatching(jobId) {
+    try {
+      const response = await fetch('/workspace/match/status/' + encodeURIComponent(jobId), {cache: 'no-store'});
+      if (!response.ok) throw new Error();
+      const job = await response.json();
+      if (job.status === 'completed') {
+        window.location.replace('/');
+        return;
       }
-      if (watching) refreshTimer = window.setTimeout(refreshFiles, 2000);
+      if (job.status !== 'running') throw new Error();
+      const pageResponse = await fetch('/', {cache: 'no-store'});
+      if (!pageResponse.ok) throw new Error();
+      const page = new DOMParser().parseFromString(await pageResponse.text(), 'text/html');
+      const table = page.querySelector('.workspace-files');
+      if (table) {
+        table.querySelectorAll('select').forEach(select => { select.disabled = true; });
+        document.querySelector('.workspace-files').replaceWith(table);
+      }
+      window.setTimeout(() => pollMatching(jobId), 2000);
+    } catch {
+      matchingFailed();
     }
-    refreshTimer = window.setTimeout(refreshFiles, 2000);
+  }
+
+  processBatch.addEventListener('click', async () => {
+    showMatching();
     try {
       const response = await fetch({{ settings.MATCH_TMDB_URL | tojson }}, {
         method: 'POST',
@@ -123,14 +138,15 @@
       });
       if (!response.ok) throw new Error();
       const result = await response.json();
-      if (result.completed !== true) throw new Error();
-      window.location.assign('/');
+      if (result.accepted !== true) throw new Error();
+      pollMatching(result.job_id);
     } catch {
-      document.getElementById('match-running').hidden = true;
-      document.getElementById('match-error').hidden = false;
-    } finally {
-      watching = false;
-      window.clearTimeout(refreshTimer);
+      matchingFailed();
     }
   });
+
+  {% if matching_job %}
+  showMatching();
+  pollMatching({{ matching_job.id | tojson }});
+  {% endif %}
 </script>

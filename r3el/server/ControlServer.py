@@ -16,6 +16,7 @@ import zmq
 from r3el.activity.EventReport import EventReport
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.app.BatchMatching import BatchMatching
+from r3el.app.MatchingJobs import MatchingJobs
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.constants.DMessage import DMessage
 from r3el.constants.DR3el import DR3el
@@ -42,6 +43,20 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
     pages = EventPages()
     batches = BatchControl(endpoint)
 
+    def execute_match(batch_id: str) -> None:
+        db = DbMgr()
+        try:
+            BatchMatching(WorkspaceDb(db), EventLogDb(db).record).run(batch_id)
+        finally:
+            db.close()
+
+    matching = MatchingJobs(execute_match)
+
+    class ControlHTTPServer(ThreadingHTTPServer):
+        def server_close(self):
+            super().server_close()
+            matching.close()
+
     class Handler(BaseHTTPRequestHandler):
         def setup(self):
             super().setup()
@@ -58,6 +73,14 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 return
             if url.path == '/health':
                 self.respond(200, b'{"status":"ok","service":"r3el-control"}', 'application/json')
+                return
+            job_path = re.fullmatch(r'/workspace/match/status/([A-Za-z0-9-]{1,36})', url.path)
+            if job_path:
+                job = matching.current()
+                if job is None or job['id'] != job_path.group(1):
+                    self.respond(404, b'{"status":"unknown"}', 'application/json')
+                else:
+                    self.respond(200, json.dumps(job).encode(), 'application/json')
                 return
             match = re.fullmatch(r'/matches/([A-Za-z0-9-]{1,36})/([A-Za-z0-9-]{1,36})', url.path)
             if match:
@@ -117,7 +140,11 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 logging.exception('Unable to read the workspace')
                 self.respond(503, pages.render('workspace_error.html', refresh=0))
                 return
-            self.respond(status, pages.render('control.html', workspace=workspace, refresh=0, **values))
+            job = matching.current()
+            active_job = (job if workspace is not None and job is not None
+                          and job['batch_id'] == workspace.id and job['status'] == 'running' else None)
+            self.respond(status, pages.render('control.html', workspace=workspace, refresh=0,
+                                             matching_job=active_job, **values))
 
         def do_POST(self):
             if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL):
@@ -206,20 +233,11 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                          'application/json')
 
         def match_batch(self, batch_id: str):
-            try:
-                db = DbMgr()
-                try:
-                    BatchMatching(WorkspaceDb(db), EventLogDb(db).record).run(batch_id)
-                finally:
-                    db.close()
-            except (WorkspaceActionConflict, WorkspaceBusy):
-                self.respond(409, b'{"completed":false}', 'application/json')
+            job = matching.submit(batch_id)
+            if job is None:
+                self.respond(409, b'{"accepted":false}', 'application/json')
                 return
-            except pymysql.MySQLError:
-                logging.exception('Unable to save TMDB matching results')
-                self.respond(503, b'{"completed":false}', 'application/json')
-                return
-            self.respond(200, b'{"completed":true}', 'application/json')
+            self.respond(202, json.dumps({'accepted': True, 'job_id': job['id']}).encode(), 'application/json')
 
         def respond_match(self, batch_id: str, file_id: str):
             try:
@@ -252,7 +270,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             self.end_headers()
             self.wfile.write(body)
 
-    return ThreadingHTTPServer((host, port), Handler)
+    return ControlHTTPServer((host, port), Handler)
 
 
 def main() -> None:

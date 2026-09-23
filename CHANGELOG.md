@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Run Process Batch in a background worker and return HTTP 202 promptly, avoiding an open browser request during slow TMDB/LLM work. Poll job status and file progress, resume polling after a page reload, and reuse an active job on duplicate submissions.
+
 ## [0.6.5] - 2026-09-23 @ 19:21
 
 ### Added

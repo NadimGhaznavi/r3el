@@ -75,6 +75,7 @@ class EventPages:
         if template == 'match.html':
             values['result'] = MatchResults(values['reference']).prepare(values['match'])
         if template == 'control.html':
+            values.setdefault('matching_job', None)
             workspace = values['workspace']
             values['process_ready'] = workspace is not None and BatchPreparation.ready(workspace)
             values['has_match_results'] = workspace is not None and any(
