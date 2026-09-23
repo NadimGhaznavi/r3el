@@ -56,9 +56,13 @@ class MovieSelectionTests(unittest.TestCase):
         self.assertEqual(result.selected_number, 2)
         self.assertEqual(result.response, self.match.response)
         messages = self.llm.complete.call_args.args[0]['messages']
-        self.assertTrue(messages[0]['content'].startswith('Current date:'))
+        self.assertIn('current_date', json.loads(messages[0]['content'])['data'])
         prompt = messages[1]['content']
-        self.assertEqual(prompt.split('\n\n')[1], '1. "Movie Extra"\n   Overview: "A traveler returns home."\n2. "Movie"')
+        data = json.loads(prompt)['data']
+        self.assertEqual(data['query'], {'title': 'Movie', 'year': 2020})
+        self.assertEqual(data['candidates'], [
+            {'number': 1, 'title': 'Movie Extra', 'overview': 'A traveler returns home.'},
+            {'number': 2, 'title': 'Movie', 'overview': ''}])
         self.assertIn('A traveler returns home.', prompt)
         self.assertNotIn('2020-02-03', prompt)
         events = [call.args[0] for call in self.record.call_args_list]

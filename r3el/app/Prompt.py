@@ -2,8 +2,9 @@ import json
 
 
 class Prompt:
-    def __init__(self, content: str):
-        self._content = content
+    def __init__(self, content: str, *, data: dict | None = None):
+        self._content = (content if data is None else json.dumps(
+            {'instructions': content, 'data': data}, ensure_ascii=False, allow_nan=False))
 
     def to_json(self) -> str:
         return json.dumps({"role": "user", "content": self._content}, ensure_ascii=False)

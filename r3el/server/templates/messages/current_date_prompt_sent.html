@@ -1,0 +1,6 @@
+{% if message.payload.data.content.startswith('{') %}
+{% set prompt = message.payload.data.content | from_json %}
+<a href="/events/{{ event.event_id }}">Current date: {{ prompt.data.current_date }}. Filename: {{ message.payload.context.filename }}.</a>
+{% else %}
+<a href="/events/{{ event.event_id }}">{{ message.payload.data.content }} Filename: {{ message.payload.context.filename }}.</a>
+{% endif %}

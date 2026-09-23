@@ -1,3 +1,5 @@
+import json
+from datetime import date
 import unittest
 
 from r3el.app.ValidateIdentification import ValidateIdentification
@@ -23,6 +25,27 @@ class IdentificationTests(unittest.TestCase):
     def test_prompts_request_integer_confidence(self):
         for prompt in (FileContext('Film.mkv'), SubmitIdentificationPrompt()):
             self.assertIn('integer from 0 to 10', prompt.to_json())
+
+    def test_prompt_data_is_json_and_preserves_special_characters(self):
+        from r3el.app.prompts.CurrentDate import CurrentDate
+        from r3el.app.prompts.InvalidIdentification import InvalidIdentification
+        from r3el.app.prompts.MultipleChoice import MultipleChoice
+
+        filename = 'Amélie "Movie"\n2026.mkv'
+        reason = 'Invalid "year"\nTry again.'
+        for prompt, data in (
+            (FileContext(filename), {'filename': filename}),
+            (CurrentDate(), {'current_date': date.today().isoformat()}),
+            (InvalidIdentification(reason), {'reason': reason}),
+            (MultipleChoice('Movie', 2026, [(filename, 'A "quoted" story.')]),
+             {'query': {'title': 'Movie', 'year': 2026}, 'candidates': [
+                 {'number': 1, 'title': filename, 'overview': 'A "quoted" story.'}]}),
+        ):
+            with self.subTest(prompt=prompt.source_name):
+                message = json.loads(prompt.to_json())
+                content = json.loads(message['content'])
+                self.assertEqual(content['data'], data)
+                self.assertIsInstance(content['instructions'], str)
 
     def test_basic_invalid_fields(self):
         good = {'title': 'Example', 'year': 2001, 'confidence': 8}

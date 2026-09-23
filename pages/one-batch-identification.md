@@ -40,6 +40,14 @@ The model supplies only the form values. R3el assigns the batch, item, and
 attempt identifiers outside the model's control. The listener resolves the
 attempt identifier to the active server-owned context.
 
+Prompts that supply data use a JSON object with separate `instructions` and
+`data` fields in the message content. Dates, filenames, and validation reasons
+remain structured values. TMDB selection uses the same format, with a `query`
+object and a `candidates` array containing `number`, `title`, and `overview`.
+Overview excerpts still extend through the sentence ending after roughly 160
+characters; missing overviews are empty strings. Instruction-only prompts such
+as `focus` retain their wording.
+
 ## Results and logging
 
 See [Persistent workspace](file-states.md) for states and batch-summary counters.

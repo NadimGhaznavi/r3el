@@ -37,8 +37,12 @@
   .level-error, .level-critical { color: #ffaba4; }
   .level-warning { color: #f4d17b; }
   pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85rem; line-height: 1.5; margin: 0; }
-  .preview { min-width: 18rem; max-width: 45rem; }
-  .preview pre { max-height: 9rem; overflow: auto; }
+  .event-log { table-layout: fixed; }
+  .event-log th, .event-log td { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .event-log select { min-width: 0; max-width: 100%; }
+  .event-log .preview a, .event-log .preview pre {
+    display: block; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
   dl { display: grid; grid-template-columns: max-content 1fr; gap: .6rem 1.5rem; }
   dd { margin: 0; overflow-wrap: anywhere; }
   .message { padding: 1.2rem; background: #1b2935; border-radius: .4rem; }
