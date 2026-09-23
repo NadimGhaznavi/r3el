@@ -76,6 +76,7 @@ class EventPages:
             values['result'] = MatchResults(values['reference']).prepare(values['match'])
             values['response_json'] = json.dumps(values['match'].resolved_response, ensure_ascii=False, indent=2)
         if template == 'control.html':
+            values['control_url'] = '/?refresh=' + str(values['refresh']) if values['refresh'] else '/'
             values.setdefault('matching_job', None)
             workspace = values['workspace']
             values['process_ready'] = workspace is not None and BatchPreparation.ready(workspace)

@@ -112,7 +112,7 @@
       if (!response.ok) throw new Error();
       const job = await response.json();
       if (job.status === 'completed') {
-        window.location.replace('/');
+        window.location.replace({{ control_url | tojson }});
         return;
       }
       if (job.status !== 'running') throw new Error();

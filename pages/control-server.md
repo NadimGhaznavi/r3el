@@ -88,8 +88,10 @@ accepts `batch_id`, `file_id`, and `action`, returning saved readiness as JSON.
 
 After New Batch is accepted, the control page reloads once after two seconds to
 show the discovered files. It returns to `/`, removing the acceptance flag so the
-reload does not repeat or resubmit the batch. Reload manually for later updates
-to the table and timestamp.
+reload does not repeat or resubmit the batch. The Refresh dropdown offers Manual
+(the default), 5 seconds, 30 seconds, and 1 minute, with Apply / refresh and Reset
+controls like the event log. The selected interval stays in the URL and is retained
+after New Batch acceptance and Process Batch completion.
 “Last updated” at the top right reports the page's latest workspace read in UTC,
 not the time the file last changed. Pending files stay Pending until an outcome
 is saved. Reads use the shared workspace interface without taking the processor's
