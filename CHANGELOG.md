@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.11] - 2026-09-23 @ 19:59
+
 ### Added
 
 - Add Manual, 5-second, 30-second, and 1-minute refresh options to the Control page, retaining the selected interval after starting or processing a batch.
