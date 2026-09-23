@@ -8,6 +8,7 @@ User=r3el
 Group=r3el
 WorkingDirectory=@APP@
 EnvironmentFile=/etc/r3el/database.env
+EnvironmentFile=/etc/r3el/tmdb.env
 ExecStart="@APP@/.venv/bin/python" -B -u -m r3el.server.ControlServer
 Restart=on-failure
 RestartSec=3

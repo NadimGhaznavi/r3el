@@ -17,6 +17,7 @@ import zmq
 from r3el.constants.DMessage import DMessage
 from r3el.entity.BatchRequest import BatchRequest
 from r3el.entity.MediaFileAction import MediaFileAction
+from r3el.entity.TMDBMatch import TMDBMatch
 from r3el.interface.WorkspaceDb import WorkspaceActionConflict
 from r3el.entity.MediaFile import MediaFile, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
@@ -131,7 +132,7 @@ class ControlServerTests(unittest.TestCase):
                 header = re.search(r'<header.*?</header>', body, re.S).group(0)
                 self.assertRegex(header, r'Last updated: <time datetime="[^"]+">[0-9-]+ [0-9:]+ UTC</time>')
 
-    def test_process_placeholder_requires_completed_identification_and_saved_actions(self):
+    def test_tmdb_matching_requires_completed_identification_and_saved_actions(self):
         batch = MediaFileBatch('batch-1', 5, '/tmp', files=[
             MediaFile('file-1', '/tmp/a.mkv', state=MediaFileState.IDENTIFIED,
                       action=MediaFileAction.APPROVE)])
@@ -147,14 +148,14 @@ class ControlServerTests(unittest.TestCase):
             with self.subTest(state=state, action=action):
                 batch.state, batch.files[0].action = state, action
                 body = self.request('/')[2]
-                button = re.search(r'<button id="process-batch"[^>]*>', body).group(0)
+                button = re.search(r'<button id="match-tmdb"[^>]*>', body).group(0)
                 self.assertEqual('disabled' not in button, enabled)
                 self.assertIn('type="button"', button)
                 self.assertNotIn('onclick', button)
                 self.assertIn(f'<option value="{action}" selected>', body)
         batch.files = []
         self.assertIn('type="button" disabled', re.search(
-            r'<button id="process-batch"[^>]*>', self.request('/')[2]).group(0))
+            r'<button id="match-tmdb"[^>]*>', self.request('/')[2]).group(0))
 
     @patch('r3el.server.ControlServer.WorkspaceDb.save_action')
     def test_action_change_is_saved_and_reports_readiness(self, save):
@@ -169,6 +170,51 @@ class ControlServerTests(unittest.TestCase):
         self.assertEqual(json.loads(body), {'saved': True, 'ready': True})
         save.assert_called_once_with('batch-1', 'file-1', MediaFileAction.DELETE)
         self.db.close.assert_called_once()
+
+    @patch('r3el.server.ControlServer.BatchMatching.run')
+    def test_matching_runs_only_on_explicit_post(self, run):
+        self.workspace.return_value = MediaFileBatch('batch-1', 5, '/tmp')
+        self.request('/')
+        self.request('/')
+        run.assert_not_called()
+        status, _, body = self.request('/workspace/match', 'POST', 'batch_id=batch-1',
+            {'Content-Type': 'application/x-www-form-urlencoded'})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), {'completed': True})
+        run.assert_called_once_with('batch-1')
+        run.side_effect = WorkspaceActionConflict('not ready')
+        self.assertEqual(self.request('/workspace/match', 'POST', 'batch_id=batch-1',
+            {'Content-Type': 'application/x-www-form-urlencoded'})[0], 409)
+
+    @patch('r3el.server.ControlServer.BatchMatching.run')
+    def test_invalid_matching_requests_do_not_run(self, run):
+        for body in ('batch_id=', 'batch_id=../bad', 'batch_id=one&batch_id=two', 'file_id=one'):
+            self.assertEqual(self.request('/workspace/match', 'POST', body,
+                {'Content-Type': 'application/x-www-form-urlencoded'})[0], 400)
+        self.assertEqual(self.request('/workspace/match', 'POST', 'batch_id=batch-1',
+            {'Content-Type': 'application/x-www-form-urlencoded', 'Origin': 'https://elsewhere.invalid'})[0], 403)
+        run.assert_not_called()
+
+    @patch('r3el.interface.TMDB.httpx.get')
+    def test_saved_results_are_linked_escaped_and_never_refetched(self, get):
+        item = MediaFile('file-1', '/tmp/a.mkv', tmdb_match=TMDBMatch('<script>', 2020,
+            response={'total_results': 1, 'results': [{'id': 42, 'title': '<script>alert(1)</script>'}]}))
+        self.workspace.return_value = MediaFileBatch('batch-1', 5, '/tmp', files=[item])
+        body = self.request('/')[2]
+        self.assertIn('Match Results', body)
+        self.assertIn('href="/matches/batch-1/file-1">1 match</a>', body)
+        for _ in range(2):
+            status, _, body = self.request('/matches/batch-1/file-1')
+            self.assertEqual(status, 200)
+            self.assertIn('&lt;script&gt;', body)
+            self.assertNotIn('<script>', body)
+            self.assertIn('\n  &#34;total_results&#34;: 1,', body)
+        self.assertEqual(self.request('/matches/old-batch/file-1')[0], 404)
+        self.assertEqual(self.request('/matches/batch-1/missing')[0], 404)
+        item.tmdb_match = TMDBMatch(None, None, skipped=True)
+        self.assertNotIn('href="/matches/', self.request('/')[2])
+        self.assertEqual(self.request('/matches/batch-1/file-1')[0], 404)
+        get.assert_not_called()
 
     @patch('r3el.server.ControlServer.WorkspaceDb.save_action')
     def test_invalid_and_stale_actions_are_rejected(self, save):

@@ -15,6 +15,7 @@ import zmq
 
 from r3el.activity.EventReport import EventReport
 from r3el.activity.BatchPreparation import BatchPreparation
+from r3el.app.BatchMatching import BatchMatching
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.constants.DMessage import DMessage
 from r3el.constants.DR3el import DR3el
@@ -22,7 +23,7 @@ from r3el.interface.BatchConfiguration import BatchConfiguration
 from r3el.interface.BatchControl import BatchControl
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
-from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict
+from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict, WorkspaceBusy
 from r3el.server.EventPages import EventPages
 
 
@@ -56,6 +57,10 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 return
             if url.path == '/health':
                 self.respond(200, b'{"status":"ok","service":"r3el-control"}', 'application/json')
+                return
+            match = re.fullmatch(r'/matches/([A-Za-z0-9-]{1,36})/([A-Za-z0-9-]{1,36})', url.path)
+            if match:
+                self.respond_match(*match.groups())
                 return
             if url.path != '/events' and not re.fullmatch(r'/events/[0-9]{1,20}', url.path):
                 self.send_error(404, 'Page not found')
@@ -114,7 +119,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             self.respond(status, pages.render('control.html', workspace=workspace, refresh=0, **values))
 
         def do_POST(self):
-            if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL):
+            if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL):
                 self.send_error(404)
                 return
             # Browser form submissions must originate from this control server.
@@ -133,16 +138,23 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 if any(len(values) != 1 for values in fields.values()):
                     raise ValueError('Repeated form field.')
                 payload = {name: values[0] for name, values in fields.items()}
-                if self.path == DR3el.FILE_ACTION_URL:
+                if self.path == DR3el.MATCH_TMDB_URL:
+                    if set(payload) != {'batch_id'} or not re.fullmatch(r'[A-Za-z0-9-]{1,36}', payload['batch_id']):
+                        raise ValueError('Supply a valid batch_id.')
+                elif self.path == DR3el.FILE_ACTION_URL:
                     self.save_file_action(payload)
                     return
-                payload['batch_size'] = int(payload['batch_size'])
-                parameters = BatchConfiguration.resolve(payload)
+                else:
+                    payload['batch_size'] = int(payload['batch_size'])
+                    parameters = BatchConfiguration.resolve(payload)
             except (KeyError, ValueError):
-                if self.path == DR3el.FILE_ACTION_URL:
+                if self.path in (DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL):
                     self.respond(400, b'{"saved":false}', 'application/json')
                     return
                 self.respond_control(400, result=DMessage.INVALID_PARAMETERS)
+                return
+            if self.path == DR3el.MATCH_TMDB_URL:
+                self.match_batch(payload['batch_id'])
                 return
             try:
                 response = batches.new_batch(parameters)
@@ -182,7 +194,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     batch = WorkspaceDb(db).save_action(payload['batch_id'], payload['file_id'], action)
                 finally:
                     db.close()
-            except WorkspaceActionConflict:
+            except (WorkspaceActionConflict, WorkspaceBusy):
                 self.respond(409, b'{"saved":false}', 'application/json')
                 return
             except pymysql.MySQLError:
@@ -191,6 +203,42 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 return
             self.respond(200, json.dumps({'saved': True, 'ready': BatchPreparation.ready(batch)}).encode(),
                          'application/json')
+
+        def match_batch(self, batch_id: str):
+            try:
+                db = DbMgr()
+                try:
+                    BatchMatching(WorkspaceDb(db)).run(batch_id)
+                finally:
+                    db.close()
+            except (WorkspaceActionConflict, WorkspaceBusy):
+                self.respond(409, b'{"completed":false}', 'application/json')
+                return
+            except pymysql.MySQLError:
+                logging.exception('Unable to save TMDB matching results')
+                self.respond(503, b'{"completed":false}', 'application/json')
+                return
+            self.respond(200, b'{"completed":true}', 'application/json')
+
+        def respond_match(self, batch_id: str, file_id: str):
+            try:
+                db = DbMgr()
+                try:
+                    workspace = WorkspaceDb(db).snapshot()
+                finally:
+                    db.close()
+            except pymysql.MySQLError:
+                logging.exception('Unable to read TMDB matching results')
+                self.respond(503, pages.render('workspace_error.html', refresh=0))
+                return
+            item = next((item for item in workspace.files if item.id == file_id), None) \
+                if workspace is not None and workspace.id == batch_id else None
+            if item is None or item.tmdb_match is None or item.tmdb_match.skipped:
+                self.send_error(404, 'Match results not found')
+                return
+            self.respond(200, pages.render('match.html', file=item, match=item.tmdb_match,
+                         response_json=json.dumps(item.tmdb_match.response, ensure_ascii=False, indent=2),
+                         refresh=0))
 
         def respond(self, status: int, body: bytes, content_type: str = 'text/html; charset=utf-8'):
             self.send_response(status)

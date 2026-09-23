@@ -15,6 +15,7 @@ processing survives a restart.
 | `identification` | Accepted title, year, and integer confidence from 0 to 10. |
 | `issues` | Current problems as `{code, message}` entries; empty when clear. |
 | `attempts` | Attempts used for the saved outcome. |
+| `tmdb_match` | Saved query, movie search response, failure, or skipped outcome; null before matching. |
 
 | State | Meaning |
 | --- | --- |
@@ -44,17 +45,21 @@ become Approve, and all others become Pending. It preserves rows and identificat
 data. Apply the workspace schema through the usual install/upgrade flow.
 
 `BatchPreparation.ready` requires a nonempty identification-complete batch, no
-pending identification rows, and no Pending actions. The Process Batch button is
-enabled only then. It is currently a placeholder: clicking it does not move,
-delete, or otherwise process files. Approve/Ignore/Delete record intent only.
+pending identification rows, and no Pending actions. The Match TMDB button is
+enabled only then. Approve files are queried by title/year; Ignore and Delete
+files are skipped. Results are checkpointed in `media_files.tmdb_match` as JSON.
+Exactly one total result is a match; zero is unmatched and more than one ambiguous.
+Failures remain distinct from zero-result responses. Action changes clear the
+saved result; repeated matching reuses successful responses and retries failures.
+Matching never moves or deletes files.
 
 Later stages are proposed:
 
 `identified → review_ready → approved → completed`
 
-TMDB matching produces `review_ready`; human review chooses `approved` or
-`rejected`; batch finalization executes approved operations. These stages
-and the selected TMDB record are not implemented yet.
+TMDB results currently persist separately from identification state. A later
+review stage can introduce `review_ready` and a selected candidate; finalization
+will execute approved operations. These later stages are not implemented yet.
 
 ## MediaFileBatch
 
