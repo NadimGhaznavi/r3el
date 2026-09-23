@@ -16,6 +16,7 @@ processing survives a restart.
 | `issues` | Current problems as `{code, message}` entries; empty when clear. |
 | `attempts` | Attempts used for the saved outcome. |
 | `tmdb_match` | Saved query, movie search response, failure, or skipped outcome; null before matching. |
+| `retries` | Persisted count of fresh identifications triggered by zero TMDB results, from 0 to 3. |
 
 | State | Meaning |
 | --- | --- |
@@ -49,7 +50,8 @@ pending identification rows. Process Batch is enabled immediately at that point,
 including when actions are still Pending. Pending and Approve files with an
 identification are queried by title/year; Ignore and Delete
 files are skipped. Results are checkpointed in `media_files.tmdb_match` as JSON.
-Exactly one total result is a match; zero is unmatched. Multiple results trigger
+Exactly one total result is a match; zero triggers a fresh identification and
+search, up to three retries. Continued zero results mark the file `unresolved_llm`. Multiple results trigger
 a `multiple_choice` prompt containing candidate numbers, titles, and short overview excerpts ending at a
 sentence boundary. The LLM
 selection is saved as `selected_number` (1-based; 0 means no confident choice),

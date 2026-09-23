@@ -4,7 +4,7 @@
 MariaDB event log while the identification service is running or stopped and
 does not require Qwen. When the workspace is empty, the landing page provides a Media Directory text box prefilled from `DR3el.FILM_DIR`,
 an Output Directory text box prefilled from `DR3el.MEDIA_DIR`, a Batch Size dropdown
-(5 or 10, default 10), and a New Batch button. The button sends the directories
+(5, 10, 20, 50, or 100, default 10), and a New Batch button. The button sends the directories
 and size to the identification server over ZeroMQ. Labels and result messages
 use Jinja2; shared defaults live in `DR3el`, and message names live in `DMessage`.
 The R3el logo is deployed with the server assets. File actions can be reviewed before TMDB matching.
@@ -60,6 +60,18 @@ these pages reads the saved result without querying TMDB. Matching again reuses
 successful queries and retries failures. Changing a file action clears its result.
 Pending and Approve files without an identification receive Match failed. Missing
 identifications and lookup failures do not stop processing the remaining files.
+
+A zero-result TMDB search automatically starts a fresh filename-identification
+conversation with the normal current-date, focus, filename, and submission prompts.
+Previous identifications and search failures are not included in the LLM messages.
+The new title/year is searched again, even when it is identical to the previous
+answer. The **Retries** column tracks up to three additional identifications after
+the initial one. If the third retry still has no matches, the file becomes
+`unresolved_llm` and later Process Batch requests leave it exhausted. The batch
+continues to other files. API failures do not count as zero-result searches.
+Retry counts and outcomes are checkpointed with their events and survive restarts;
+install/upgrade applies the new `media_files.retries` column. Form-correction
+attempts within an identification conversation remain a separate counter.
 
 `POST /workspace/match` accepts `batch_id` and promptly returns HTTP 202 with
 `accepted: true` and a `job_id`. `GET /workspace/match/status/<job_id>` reports

@@ -134,8 +134,10 @@ class MovieSelectionTests(unittest.TestCase):
         self.assertFalse(checkpoints[1].args[2].selection_pending)
         self.assertEqual(checkpoints[1].args[2].selected_number, 2)
 
-        # Zero and single results do not require another LLM call.
+        # Exhausted zero results and single results need no further selection call.
         for candidates in ([], [{'id': 99, 'title': 'Movie'}]):
+            item.state = MediaFileState.IDENTIFIED
+            item.retries = 3
             item.tmdb_match = None
             tmdb.return_value.search.return_value = {'total_results': len(candidates), 'results': candidates}
             runner.run('batch')
