@@ -1,4 +1,4 @@
-"""Match approved identifications and checkpoint downloaded TMDB results."""
+"""Match available identifications and checkpoint downloaded TMDB results."""
 
 from collections.abc import Callable
 from dataclasses import asdict
@@ -23,7 +23,7 @@ class BatchMatching:
         with self._workspace.processing(), self._workspace.matching():
             batch = self._workspace.load()
             if batch is None or batch.id != batch_id or not BatchPreparation.ready(batch):
-                raise WorkspaceActionConflict('Resolve every file action after identification finishes.')
+                raise WorkspaceActionConflict('Processing requires a nonempty batch with identification finished.')
             client = None
             for item in batch.files:
                 log = EventWriter(self._record,

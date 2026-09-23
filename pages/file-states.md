@@ -45,11 +45,13 @@ become Approve, and all others become Pending. It preserves rows and identificat
 data. Apply the workspace schema through the usual install/upgrade flow.
 
 `BatchPreparation.ready` requires a nonempty identification-complete batch, no
-pending identification rows, and no Pending actions. The Match TMDB button is
-enabled only then. Approve files are queried by title/year; Ignore and Delete
+pending identification rows. Process Batch is enabled immediately at that point,
+including when actions are still Pending. Pending and Approve files with an
+identification are queried by title/year; Ignore and Delete
 files are skipped. Results are checkpointed in `media_files.tmdb_match` as JSON.
 Exactly one total result is a match; zero is unmatched and more than one ambiguous.
-Failures remain distinct from zero-result responses. Action changes clear the
+Missing identifications and failed lookups are recorded as failures and do not
+stop processing the remaining files. Failures remain distinct from zero-result responses. Action changes clear the
 saved result; repeated matching reuses successful responses and retries failures.
 Matching never moves or deletes files.
 

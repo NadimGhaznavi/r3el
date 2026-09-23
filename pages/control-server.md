@@ -28,9 +28,9 @@ Saving an action updates button readiness without reloading the page. A failed
 or uncertain save disables further edits until the user reloads to read the saved
 state; no save is retried automatically.
 
-Match TMDB stays disabled until identification is complete and the nonempty
-batch has no Pending actions. Clicking it searches movies by the saved title and
-year for Approve files. Ignore and Delete files are skipped without file operations.
+Process Batch is enabled as soon as identification is complete for a nonempty
+batch, even with Pending actions. Clicking it steps through the files and searches
+movies by the saved title and year for Pending and Approve files. Ignore and Delete files are skipped without file operations.
 The request holds the workspace processing lock; concurrent matching or action
 changes receive a conflict. Results are saved per file as searches finish.
 
@@ -45,7 +45,8 @@ available in a collapsed details section. When only the first page of a larger
 result set is downloaded, the page states how many results are shown. Opening or refreshing
 these pages reads the saved result without querying TMDB. Matching again reuses
 successful queries and retries failures. Changing a file action clears its result.
-Approved files without an identification receive Match failed.
+Pending and Approve files without an identification receive Match failed. Missing
+identifications and lookup failures do not stop processing the remaining files.
 
 `POST /workspace/match` accepts `batch_id` and completes after matching finishes.
 The browser disables controls while waiting and displays saved results afterward.

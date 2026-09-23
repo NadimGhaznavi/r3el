@@ -110,7 +110,7 @@ class BatchMatchingTests(unittest.TestCase):
         runner = BatchMatching(self.workspace, self.record)
         for state, action, batch_id in (
             (MediaFileBatchState.PROCESSING, MediaFileAction.APPROVE, 'batch'),
-            (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.PENDING, 'batch'),
+            (MediaFileBatchState.FAILED, MediaFileAction.PENDING, 'batch'),
             (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.APPROVE, 'old-batch'),
         ):
             self.batch.state, self.files[0].action = state, action
@@ -122,6 +122,25 @@ class BatchMatchingTests(unittest.TestCase):
         factory.assert_not_called()
         self.workspace.save_match.assert_not_called()
         self.record.assert_not_called()
+
+    @patch('r3el.app.BatchMatching.TMDB.from_environment')
+    def test_pending_actions_process_available_identifications_and_continue_after_failures(self, factory):
+        self.files[0].action = MediaFileAction.PENDING
+        self.files.insert(0, MediaFile('unresolved', '/tmp/unknown.mkv',
+                                      state=MediaFileState.UNRESOLVED_LLM))
+        self.files.append(MediaFile('next', '/tmp/next.mkv', MediaFileState.IDENTIFIED,
+                                    Identification('Next Movie', 2021, 5)))
+        factory.return_value.search.side_effect = [TMDBError('TMDB returned HTTP 429.'),
+                                                   {'total_results': 1, 'results': [{'id': 42}]}]
+
+        BatchMatching(self.workspace, self.record).run('batch')
+
+        self.assertEqual([item.tmdb_match.label for item in self.files],
+                         ['Match failed', 'Match failed', 'Skipped', 'Skipped', '1 match'])
+        self.assertEqual([call.args for call in factory.return_value.search.call_args_list],
+                         [('Movie', 2020), ('Next Movie', 2021)])
+        self.assertEqual(self.files[-1].action, MediaFileAction.PENDING)
+        self.assertEqual(self.workspace.save_match.call_count, 5)
 
     @patch('r3el.app.BatchMatching.TMDB.from_environment')
     def test_failed_queries_are_saved_and_can_be_retried(self, factory):

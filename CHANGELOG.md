@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Updated
 
+- Enable Process Batch as soon as identification finishes, without requiring every file action to be resolved. Search TMDB for Pending and Approve files with an identification, skip Ignore/Delete, and continue past missing identifications or failed lookups.
+
 - Query TMDB movies with `primary_release_year` instead of `year`, using the LLM's identified year.
 
 ## [0.5.1] - 2026-09-23 @ 05:33
