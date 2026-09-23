@@ -65,7 +65,7 @@ existing match-count link remains available. Its filename identification and
 saved action are preserved. Selection completion clears the flag, including
 failed or uncertain choices; interrupted selections can be retried with Process
 Batch using the saved candidates. Process Batch updates the file table every two
-seconds while its request is running.
+seconds while its background job is running.
 
 Matching never moves or deletes files.
 
