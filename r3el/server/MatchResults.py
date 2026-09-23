@@ -15,10 +15,10 @@ class MatchResults:
     def prepare(self, match: TMDBMatch) -> dict:
         if match.error is not None:
             return dict(status='Match failed', tone='failed', explanation=match.error, movies=[], total=0)
-        total = match.response['total_results']
+        response = match.resolved_response
+        total = response['total_results']
         selected = bool(match.selected_number)
-        movies = [dict(self._movie(movie), selected=number == match.selected_number)
-                  for number, movie in enumerate(match.response['results'], 1)]
+        movies = [dict(self._movie(movie), selected=selected) for movie in response['results']]
         return dict(
             status='Resolved' if selected or total == 1 else 'No matches' if total == 0 else 'Ambiguous',
             tone='resolved' if selected or total == 1 else 'unresolved',

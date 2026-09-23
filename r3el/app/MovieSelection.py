@@ -72,7 +72,8 @@ class MovieSelection:
                 return replace(match, selection_error=result.get('reason', 'Movie selection submission failed.'))
             log.write(Categories.Prompt.SUBMISSION_HANDLER, Names.SUBMISSION_ACCEPTED,
                       result, source='MultipleChoiceHandler')
-            return replace(match, selected_number=result['selected_number'], selection_error=None)
+            selected = replace(match, selected_number=result['selected_number'], selection_error=None)
+            return replace(selected, response=selected.resolved_response)
 
     @staticmethod
     def _tool_call(body: str) -> tuple[dict, dict]:

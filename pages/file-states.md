@@ -54,7 +54,8 @@ a `multiple_choice` prompt containing candidate numbers, titles, and short overv
 sentence boundary. The LLM
 selection is saved as `selected_number` (1-based; 0 means no confident choice),
 with failures stored separately in `selection_error`. A valid selection resolves
-the match while retaining the complete downloaded TMDB response. Old saved
+the match and keeps only the chosen movie in the saved workspace response.
+The original search response remains in the event log. Old saved
 responses without a selection are processed on the next Process Batch request.
 Missing identifications and failed lookups are recorded as failures and do not
 stop processing the remaining files. Failures remain distinct from zero-result responses. Action changes clear the

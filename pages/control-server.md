@@ -46,7 +46,9 @@ sentence). The model calls `submit_multiple_choice(number)` through MCP. A tempo
 loopback ZeroMQ listener validates the integer against the server-owned attempt
 and candidate count, rejecting stale or duplicate submissions. Only the number
 is exposed as a tool argument. A valid choice is saved and marked Resolved;
-0 means no confident choice. Plain-text numbers are not accepted as submissions.
+0 means no confident choice. After a successful selection, the **1 match** link
+shows only the chosen movie, including in its saved JSON; other candidates are
+discarded from the workspace result. Plain-text numbers are not accepted as submissions.
 Invalid replies and connection failures leave the result Ambiguous and can be retried
 without repeating the TMDB search. Selection uses the downloaded first page.
 The control service uses `R3EL_LLM_URL` from `/etc/r3el/server.env`, defaulting to

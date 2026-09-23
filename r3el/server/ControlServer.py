@@ -258,7 +258,6 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 return
             self.respond(200, pages.render('match.html', file=item, match=item.tmdb_match,
                          reference=reference,
-                         response_json=json.dumps(item.tmdb_match.response, ensure_ascii=False, indent=2),
                          refresh=0))
 
         def respond(self, status: int, body: bytes, content_type: str = 'text/html; charset=utf-8'):
