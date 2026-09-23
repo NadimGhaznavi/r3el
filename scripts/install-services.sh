@@ -60,6 +60,8 @@ modules=(
     server/templates/messages/attempt_failed.html
     server/templates/messages/reply_received.html
     server/templates/messages/prompt_sent.html
+    server/templates/messages/multiple_choice_prompt_sent.html
+    server/templates/messages/current_date_prompt_sent.html
     server/templates/messages/tool_completed.html
     server/templates/messages/tool_started.html
     server/templates/messages/submission_accepted.html

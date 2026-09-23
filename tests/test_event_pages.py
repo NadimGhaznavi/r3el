@@ -87,6 +87,39 @@ class EventPagesTests(unittest.TestCase):
         self.assertIn('Attempts: 1', body)
         self.assertIn('Title: Movie, Year: 2020, Confidence: 10', body)
 
+    def test_structured_prompt_summaries_show_fields_and_link_to_details(self):
+        from r3el.app.prompts.CurrentDate import CurrentDate
+        from r3el.app.prompts.MultipleChoice import MultipleChoice
+        from datetime import date
+
+        for prompt, expected in (
+            (CurrentDate(), f'Current date: {date.today().isoformat()}.'),
+            (MultipleChoice('<Superman>', 2025, [('Superman', 'A hero.'), ('Other', '')]),
+             'Title: &lt;Superman&gt;, Year: 2025, Candidates: 2.'),
+        ):
+            with self.subTest(source=prompt.source_name):
+                self.event.update(name='prompt_sent', source_name=prompt.source_name,
+                    content=json.dumps({'context': {'filename': '<movie>.mkv'},
+                                        'data': json.loads(prompt.to_json())}))
+                body = self.render()
+                self.assertIn('<a href="/events/42">', body)
+                self.assertIn(expected, body)
+                self.assertIn('Filename: &lt;movie&gt;.mkv', body)
+                self.assertNotIn('&#34;instructions&#34;', body)
+                self.assertNotIn('<Superman>', body)
+
+    def test_legacy_prompt_summaries_remain_readable(self):
+        for source, content, expected in (
+            ('current_date', 'Current date: 2026-09-23. Your internal training knowledge may be older than this date.',
+             'Current date: 2026-09-23.'),
+            ('multiple_choice', 'We are searching The Movie Database with a title, Superman, and a year, 2025.',
+             'Multiple choice prompt.'),
+        ):
+            self.event.update(name='prompt_sent', source_name=source,
+                content=json.dumps({'context': {'filename': 'Movie.mkv'},
+                                    'data': {'role': 'user', 'content': content}}))
+            self.assertIn(expected, self.render())
+
     def test_default_indents_json_and_escapes_values(self):
         self.event['name'] = 'default_test_event'
         self.event['content'] = json.dumps({'title': '<b>Film 🎬</b>'})
