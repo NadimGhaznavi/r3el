@@ -11,11 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Updated
 
-- Reclassify `LLM - reply_received` events as Tool / ToolConversation.
-- Reclassify `ToolConversation - tool_started` events as Tool / ToolConversation.
-- Reclassify `SubmissionHandler - tool_received` events as Tool / SubmissionHandler.
-- Reclassify `SubmissionHandler - submission_accepted` events as Tool / SubmissionHandler.
-- Reclassify `ToolConversation - tool_completed` events as Tool / ToolConversation.
+- Reclassify `prompt_sent` events as Prompt / LLMPrompt.
+
+- Reclassify `ToolConversation - attempt_started` events as Prompt / ToolConversation.
+- Reclassify `LLM - reply_received` events as Prompt / ToolConversation.
+- Reclassify `ToolConversation - tool_started` events as Prompt / ToolConversation.
+- Reclassify `SubmissionHandler - tool_received` events as Prompt / SubmissionHandler.
+- Reclassify `SubmissionHandler - submission_accepted` events as Prompt / SubmissionHandler.
+- Reclassify `ToolConversation - tool_completed` events as Prompt / ToolConversation.
 - Reclassify `BatchIdentification - item_completed` events as Batch / BatchIdentification.
 
 ## [0.4.0] - 2026-09-22 @ 02:59

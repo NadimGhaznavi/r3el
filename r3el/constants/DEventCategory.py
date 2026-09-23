@@ -19,14 +19,15 @@ class DEventCategory:
         CONVERSATION = EventCategory(NAME, "Conversation")
         VALIDATION = EventCategory(NAME, "Validation")
 
-    class Tool:
-        NAME = "Tool"
+    class Prompt:
+        NAME = "Prompt"
         TOOL_CONVERSATION = EventCategory(NAME, "ToolConversation")
         SUBMISSION_HANDLER = EventCategory(NAME, "SubmissionHandler")
+        LLM_PROMPT = EventCategory(NAME, "LLMPrompt")
 
     ALL = (Server.LIFECYCLE, Batch.LIFECYCLE, Batch.DISCOVERY, Batch.BATCH_IDENTIFICATION,
            Identification.CONVERSATION,
-           Identification.VALIDATION, Tool.TOOL_CONVERSATION, Tool.SUBMISSION_HANDLER)
+           Identification.VALIDATION, Prompt.TOOL_CONVERSATION, Prompt.SUBMISSION_HANDLER, Prompt.LLM_PROMPT)
     CHILDREN = {}
     for classification in ALL:
         CHILDREN.setdefault(classification.category, []).append(classification.subcategory)

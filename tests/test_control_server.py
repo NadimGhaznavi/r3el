@@ -318,24 +318,24 @@ class ControlServerTests(unittest.TestCase):
         self.db.query.assert_not_called()
 
     def test_event_filter_applies_before_limit_with_other_filters(self):
-        status, _, body = self.request('/events?category=Tool&subcategory=SubmissionHandler&name=tool_received&refresh=30')
+        status, _, body = self.request('/events?category=Prompt&subcategory=SubmissionHandler&name=tool_received&refresh=30')
         self.assertEqual(status, 200)
         sql, params = self.db.query.call_args.args
         self.assertIn('e.name = %s', sql)
         self.assertLess(sql.index('e.name = %s'), sql.index('LIMIT %s'))
-        self.assertEqual(params, ('Tool', 'SubmissionHandler', 'tool_received', 500))
+        self.assertEqual(params, ('Prompt', 'SubmissionHandler', 'tool_received', 500))
         self.assertIn('value="tool_received" selected', body)
         self.assertIn('value="submission_accepted"', body)
 
     def test_event_selection_fills_missing_parents(self):
-        for query in ('name=tool_received', 'category=Tool&name=tool_received',
+        for query in ('name=tool_received', 'category=Prompt&name=tool_received',
                       'subcategory=SubmissionHandler&name=tool_received'):
             with self.subTest(query=query):
                 status, _, body = self.request('/events?' + query)
                 self.assertEqual(status, 200)
                 self.assertEqual(self.db.query.call_args.args[1],
-                                 ('Tool', 'SubmissionHandler', 'tool_received', 500))
-                for choice in ('Tool', 'SubmissionHandler', 'tool_received'):
+                                 ('Prompt', 'SubmissionHandler', 'tool_received', 500))
+                for choice in ('Prompt', 'SubmissionHandler', 'tool_received'):
                     self.assertIn(f'value="{choice}" selected', body)
 
     def test_dropdowns_follow_selected_branch(self):
@@ -344,12 +344,14 @@ class ControlServerTests(unittest.TestCase):
              {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'files_retrieved', 'item_completed'}),
             ('category=Batch&subcategory=BatchIdentification',
              {'Lifecycle', 'Discovery', 'BatchIdentification'}, {'item_completed'}),
-            ('category=Tool&subcategory=ToolConversation',
-             {'ToolConversation', 'SubmissionHandler'}, {'reply_received', 'tool_started', 'tool_completed'}),
-            ('category=Tool&subcategory=SubmissionHandler',
-             {'ToolConversation', 'SubmissionHandler'}, {'tool_received', 'submission_accepted'}),
+            ('category=Prompt&subcategory=ToolConversation',
+             {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'attempt_started', 'reply_received', 'tool_started', 'tool_completed'}),
+            ('category=Prompt&subcategory=SubmissionHandler',
+             {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'tool_received', 'submission_accepted'}),
+            ('category=Prompt&subcategory=LLMPrompt',
+             {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'prompt_sent'}),
             ('subcategory=Lifecycle',
-             {'Lifecycle', 'Discovery', 'BatchIdentification', 'Conversation', 'Validation', 'ToolConversation', 'SubmissionHandler'},
+             {'Lifecycle', 'Discovery', 'BatchIdentification', 'Conversation', 'Validation', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt'},
              {'started', 'stopped', 'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled'}),
         ):
             with self.subTest(query=query):
