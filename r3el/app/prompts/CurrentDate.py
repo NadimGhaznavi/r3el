@@ -8,8 +8,8 @@ from r3el.app.Prompt import Prompt
 class CurrentDate(Prompt):
     def __init__(self) -> None:
         super().__init__(
-            f"Current date: {date.today().isoformat()}. "
-            "Your internal training knowledge may be older than this date."
+            "Your internal training knowledge may be older than this date.",
+            data={'current_date': date.today().isoformat()},
         )
 
     @property

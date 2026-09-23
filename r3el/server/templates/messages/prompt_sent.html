@@ -1,1 +1,5 @@
-{% if event.source_name in ['FileContext', 'SubmitIdentificationPrompt', 'InvalidIdentification'] %}<a href="/events/{{ event.event_id }}">Prompt sent. Filename: {{ message.payload.context.filename }}, Prompt: {{ message.payload.data.content | prompt_preview }}</a>{% else %}{% include 'messages/default.html' %}{% endif %}
+{% if event.source_name == 'multiple_choice' %}
+{% include 'messages/multiple_choice_prompt_sent.html' %}
+{% elif event.source_name == 'current_date' %}
+{% include 'messages/current_date_prompt_sent.html' %}
+{% elif event.source_name in ['FileContext', 'SubmitIdentificationPrompt', 'InvalidIdentification'] %}<a href="/events/{{ event.event_id }}">Prompt sent. Filename: {{ message.payload.context.filename }}, Prompt: {{ message.payload.data.content | prompt_preview }}</a>{% else %}{% include 'messages/default.html' %}{% endif %}

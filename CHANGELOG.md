@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-09-23 @ 19:05
+
+### Added
+
+- Dedicated event previews for `multiple_choice` and `current_date` prompts, showing the search title/year and candidate count or current date, with filename and links to full details. Preserve readable previews for older plain-text prompts.
+
+### Updated
+
+- Keep event-log rows on one line within the table width, truncating overflowing text with an ellipsis while retaining full event details.
+
+- Send LLM prompt data as structured JSON with separate instructions and data: TMDB queries and numbered candidates with overview excerpts, filenames, current dates, and validation feedback.
+
 ## [0.6.2] - 2026-09-23 @ 18:54
 
 ### Added
