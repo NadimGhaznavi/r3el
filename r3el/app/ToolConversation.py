@@ -52,13 +52,13 @@ class ToolConversation:
         for prompt in (FileContext(self._log.context['filename']), SubmitIdentificationPrompt()):
             message = json.loads(prompt.to_json())
             messages.append(message)
-            self._log.write(Categories.Identification.CONVERSATION, Names.PROMPT_SENT,
+            self._log.write(Categories.Prompt.LLM_PROMPT, Names.PROMPT_SENT,
                             message, source=prompt.source_name)
         reason = ''
         for attempt in range(1, DR3el.MAX_LLM_RETRIES + 2):
             context = {**self._log.context, 'attempt': attempt, 'attempt_id': str(uuid4())}
             attempt_log = EventWriter(self._log.record, context, self._log.parent_event_id)
-            parent = attempt_log.write(Categories.Identification.CONVERSATION,
+            parent = attempt_log.write(Categories.Prompt.TOOL_CONVERSATION,
                                        Names.ATTEMPT_STARTED, {}, source='ToolConversation')
             attempt_log.parent_event_id = parent
             self._handler.register(context, parent)
@@ -68,7 +68,7 @@ class ToolConversation:
                         'messages': messages, 'tools': [tools.definition],
                         'tool_choice': 'required', 'parallel_tool_calls': False, 'stream': False,
                     })
-                    attempt_log.write(Categories.Identification.CONVERSATION, Names.REPLY_RECEIVED,
+                    attempt_log.write(Categories.Prompt.TOOL_CONVERSATION, Names.REPLY_RECEIVED,
                                       body, source='LLM')
                     try:
                         message, call, arguments = self._tool_call(body)
@@ -78,10 +78,10 @@ class ToolConversation:
                                           {'reason': reason}, source='ToolConversation')
                     else:
                         messages.append(message)
-                        attempt_log.write(Categories.Identification.TOOL, Names.TOOL_STARTED,
+                        attempt_log.write(Categories.Prompt.TOOL_CONVERSATION, Names.TOOL_STARTED,
                                           call, source='ToolConversation')
                         result = await tools.submit(arguments)
-                        attempt_log.write(Categories.Identification.TOOL, Names.TOOL_COMPLETED,
+                        attempt_log.write(Categories.Prompt.TOOL_CONVERSATION, Names.TOOL_COMPLETED,
                                           result, source='ToolConversation')
                         if result['status'] == 'ok':
                             return {'status': 'identified', 'attempts': attempt,
@@ -95,7 +95,7 @@ class ToolConversation:
                         prompt = InvalidIdentification(reason)
                         feedback = json.loads(prompt.to_json())
                         messages.append(feedback)
-                        attempt_log.write(Categories.Identification.CONVERSATION, Names.PROMPT_SENT,
+                        attempt_log.write(Categories.Prompt.LLM_PROMPT, Names.PROMPT_SENT,
                                           feedback, source=prompt.source_name)
             except asyncio.CancelledError:
                 attempt_log.write(Categories.Identification.CONVERSATION, Names.ATTEMPT_CANCELLED,

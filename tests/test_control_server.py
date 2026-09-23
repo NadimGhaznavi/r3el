@@ -51,7 +51,7 @@ class ControlServerTests(unittest.TestCase):
         self.db = Mock()
         self.factory.return_value = self.db
         self.event = dict(event_id=42, occurred_at=datetime(2026, 9, 20, 14, 30),
-                          category='Identification', subcategory='Result', name='item_completed',
+                          category='Batch', subcategory='BatchIdentification', name='item_completed',
                           log_level='INFO', source_name='BatchIdentification', process_id='item-123',
                           parent_event_id=41, app_version='0.1.0',
                           content=json.dumps({'context': {'filename': '<script>alert(1)</script> 🎬'},
@@ -300,17 +300,17 @@ class ControlServerTests(unittest.TestCase):
         self.db.close.assert_called_once()
 
     def test_filters_reach_database_before_limit_and_refresh_is_retained(self):
-        status, _, body = self.request('/events?category=Identification&subcategory=Result&refresh=5')
+        status, _, body = self.request('/events?category=Batch&subcategory=BatchIdentification&refresh=5')
         self.assertEqual(status, 200)
         sql, params = self.db.query.call_args.args
         self.assertIn('e.category = %s AND e.subcategory = %s', sql)
-        self.assertEqual(params, ('Identification', 'Result', 500))
+        self.assertEqual(params, ('Batch', 'BatchIdentification', 500))
         self.assertIn('http-equiv="refresh" content="5"', body)
-        self.assertIn('value="Result" selected', body)
+        self.assertIn('value="BatchIdentification" selected', body)
 
     def test_bad_filters_are_client_errors(self):
         for query in ('category=Unknown', 'subcategory=Unknown', 'category=Server&subcategory=Tool',
-                      'category=Server&name=tool_received', 'subcategory=Result&name=tool_received',
+                      'category=Server&name=tool_received', 'subcategory=BatchIdentification&name=tool_received',
                       'category=Server&category=Batch', 'refresh=-1', 'other=value',
                       'name=unknown', 'name=tool_started&name=tool_received'):
             with self.subTest(query=query):
@@ -318,34 +318,40 @@ class ControlServerTests(unittest.TestCase):
         self.db.query.assert_not_called()
 
     def test_event_filter_applies_before_limit_with_other_filters(self):
-        status, _, body = self.request('/events?category=Identification&subcategory=Tool&name=tool_received&refresh=30')
+        status, _, body = self.request('/events?category=Prompt&subcategory=SubmissionHandler&name=tool_received&refresh=30')
         self.assertEqual(status, 200)
         sql, params = self.db.query.call_args.args
         self.assertIn('e.name = %s', sql)
         self.assertLess(sql.index('e.name = %s'), sql.index('LIMIT %s'))
-        self.assertEqual(params, ('Identification', 'Tool', 'tool_received', 500))
+        self.assertEqual(params, ('Prompt', 'SubmissionHandler', 'tool_received', 500))
         self.assertIn('value="tool_received" selected', body)
-        self.assertIn('value="tool_started"', body)
+        self.assertIn('value="submission_accepted"', body)
 
     def test_event_selection_fills_missing_parents(self):
-        for query in ('name=tool_received', 'category=Identification&name=tool_received',
-                      'subcategory=Tool&name=tool_received'):
+        for query in ('name=tool_received', 'category=Prompt&name=tool_received',
+                      'subcategory=SubmissionHandler&name=tool_received'):
             with self.subTest(query=query):
                 status, _, body = self.request('/events?' + query)
                 self.assertEqual(status, 200)
                 self.assertEqual(self.db.query.call_args.args[1],
-                                 ('Identification', 'Tool', 'tool_received', 500))
-                for choice in ('Identification', 'Tool', 'tool_received'):
+                                 ('Prompt', 'SubmissionHandler', 'tool_received', 500))
+                for choice in ('Prompt', 'SubmissionHandler', 'tool_received'):
                     self.assertIn(f'value="{choice}" selected', body)
 
     def test_dropdowns_follow_selected_branch(self):
         for query, expected_subcategories, expected_events in (
-            ('category=Batch', {'Lifecycle', 'Discovery'},
-             {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'files_retrieved'}),
-            ('category=Identification&subcategory=Result',
-             {'Conversation', 'Tool', 'Validation', 'Result'}, {'item_completed'}),
+            ('category=Batch', {'Lifecycle', 'Discovery', 'BatchIdentification'},
+             {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'files_retrieved', 'item_completed'}),
+            ('category=Batch&subcategory=BatchIdentification',
+             {'Lifecycle', 'Discovery', 'BatchIdentification'}, {'item_completed'}),
+            ('category=Prompt&subcategory=ToolConversation',
+             {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'attempt_started', 'reply_received', 'tool_started', 'tool_completed'}),
+            ('category=Prompt&subcategory=SubmissionHandler',
+             {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'tool_received', 'submission_accepted'}),
+            ('category=Prompt&subcategory=LLMPrompt',
+             {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'prompt_sent'}),
             ('subcategory=Lifecycle',
-             {'Lifecycle', 'Discovery', 'Conversation', 'Tool', 'Validation', 'Result'},
+             {'Lifecycle', 'Discovery', 'BatchIdentification', 'Conversation', 'Validation', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt'},
              {'started', 'stopped', 'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled'}),
         ):
             with self.subTest(query=query):
