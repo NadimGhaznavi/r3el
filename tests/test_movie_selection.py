@@ -128,6 +128,8 @@ class MovieSelectionTests(unittest.TestCase):
         tmdb.return_value.search.assert_called_once_with('Movie', 2020)
         checkpoints = workspace.save_match.call_args_list[-2:]
         self.assertIsNone(checkpoints[0].args[2].selected_number)
+        self.assertTrue(checkpoints[0].args[2].selection_pending)
+        self.assertFalse(checkpoints[1].args[2].selection_pending)
         self.assertEqual(checkpoints[1].args[2].selected_number, 2)
 
         # Zero and single results do not require another LLM call.
@@ -154,3 +156,42 @@ class OverviewExcerptTests(unittest.TestCase):
         self.assertEqual(MultipleChoice._excerpt('No punctuation'), 'No punctuation.')
         quoted = 'A ' + 'very long story ' * 12 + 'ends with “Goodbye.”'
         self.assertEqual(MultipleChoice._excerpt(quoted + ' Omitted.'), quoted)
+
+
+class PendingSelectionTests(unittest.TestCase):
+    def test_pending_selection_disables_menu_and_preserves_matches_link(self):
+        import re
+        from dataclasses import replace
+        from r3el.server.EventPages import EventPages
+
+        match = TMDBMatch('Movie', 2020, response={'total_results': 11, 'results': [{'id': 1}]},
+                          selection_pending=True)
+        item = MediaFile('file', '/tmp/movie.mkv', MediaFileState.IDENTIFIED,
+                         Identification('Movie', 2020, 10), tmdb_match=match)
+        batch = MediaFileBatch('batch', 1, '/tmp', files=[item],
+                              state=MediaFileBatchState.IDENTIFICATION_COMPLETED)
+        for pending, number, label in ((True, None, '11 matches'), (False, 1, '1 match'),
+                                       (False, 0, '11 matches')):
+            item.tmdb_match = replace(match, selection_pending=pending, selected_number=number)
+            body = EventPages().render('control.html', workspace=batch, refresh=0).decode()
+            menu = re.search(r'<select class="file-action".*?>', body, re.S).group(0)
+            self.assertEqual('disabled' in menu, pending)
+            self.assertIn('<td>Pending</td>' if pending else '<td>Identified</td>', body)
+            self.assertIn(f'href="/matches/batch/file">{label}</a>', body)
+
+    @patch('r3el.app.BatchMatching.MovieSelection.run', side_effect=RuntimeError('bug'))
+    def test_unexpected_selection_failure_clears_pending_and_surfaces(self, select):
+        item = MediaFile('file', '/tmp/movie.mkv', MediaFileState.IDENTIFIED,
+                         Identification('Movie', 2020, 10), tmdb_match=TMDBMatch(
+                             'Movie', 2020, response={'total_results': 2, 'results': [{'id': 1}]}))
+        workspace = Mock()
+        workspace.processing.side_effect = nullcontext
+        workspace.matching.side_effect = nullcontext
+        workspace.load.return_value = MediaFileBatch('batch', 1, '/tmp', files=[item],
+            state=MediaFileBatchState.IDENTIFICATION_COMPLETED)
+        with self.assertRaisesRegex(RuntimeError, 'bug'):
+            BatchMatching(workspace, Mock(return_value=1)).run('batch')
+        checkpoints = workspace.save_match.call_args_list
+        self.assertTrue(checkpoints[0].args[2].selection_pending)
+        self.assertFalse(checkpoints[-1].args[2].selection_pending)
+        self.assertEqual(checkpoints[-1].args[2].label, '2 matches')
