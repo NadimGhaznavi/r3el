@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-09-23 @ 17:48
+
 ### Added
 
 - Log movie searches under TMDB / Search and responses or failures under TMDB / Result, with linked filename/query/outcome summaries. Retain the request parameters and full response or error in event details; commit each result event with its workspace checkpoint.
