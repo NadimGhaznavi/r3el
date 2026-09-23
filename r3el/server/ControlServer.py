@@ -209,7 +209,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             try:
                 db = DbMgr()
                 try:
-                    BatchMatching(WorkspaceDb(db)).run(batch_id)
+                    BatchMatching(WorkspaceDb(db), EventLogDb(db).record).run(batch_id)
                 finally:
                     db.close()
             except (WorkspaceActionConflict, WorkspaceBusy):

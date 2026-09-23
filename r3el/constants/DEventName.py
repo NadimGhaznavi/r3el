@@ -25,6 +25,8 @@ class DEventName:
     TOOL_COMPLETED = "tool_completed"
     SUBMISSION_REJECTED = "submission_rejected"
     SUBMISSION_ACCEPTED = "submission_accepted"
+    TMDB_SEARCH = "tmdb_search"
+    TMDB_RESULT = "tmdb_result"
 
     # Every event bucket has exactly one category/subcategory parent.
     CHILDREN = {
@@ -36,6 +38,8 @@ class DEventName:
         Categories.Prompt.TOOL_CONVERSATION: (
             ATTEMPT_STARTED, ATTEMPT_FAILED, ATTEMPT_CANCELLED, REPLY_RECEIVED, TOOL_STARTED, TOOL_COMPLETED),
         Categories.Batch.BATCH_IDENTIFICATION: (ITEM_STARTED, ITEM_COMPLETED),
+        Categories.TMDB.SEARCH: (TMDB_SEARCH,),
+        Categories.TMDB.RESULT: (TMDB_RESULT,),
     }
     PARENTS = {name: parent for parent, names in CHILDREN.items() for name in names}
     ALL = tuple(PARENTS)

@@ -137,7 +137,7 @@ class ControlServerTests(unittest.TestCase):
                 header = re.search(r'<header.*?</header>', body, re.S).group(0)
                 self.assertRegex(header, r'Last updated: <time datetime="[^"]+">[0-9-]+ [0-9:]+ UTC</time>')
 
-    def test_tmdb_matching_requires_completed_identification_and_saved_actions(self):
+    def test_process_batch_is_enabled_after_identification_even_with_pending_actions(self):
         batch = MediaFileBatch('batch-1', 5, '/tmp', files=[
             MediaFile('file-1', '/tmp/a.mkv', state=MediaFileState.IDENTIFIED,
                       action=MediaFileAction.APPROVE)])
@@ -145,7 +145,7 @@ class ControlServerTests(unittest.TestCase):
         for state, action, enabled in (
             (MediaFileBatchState.PROCESSING, MediaFileAction.APPROVE, False),
             (MediaFileBatchState.FAILED, MediaFileAction.APPROVE, False),
-            (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.PENDING, False),
+            (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.PENDING, True),
             (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.APPROVE, True),
             (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.IGNORE, True),
             (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.DELETE, True),
@@ -156,6 +156,7 @@ class ControlServerTests(unittest.TestCase):
                 button = re.search(r'<button id="match-tmdb"[^>]*>', body).group(0)
                 self.assertEqual('disabled' not in button, enabled)
                 self.assertIn('type="button"', button)
+                self.assertIn('>Process Batch</button>', body)
                 self.assertNotIn('onclick', button)
                 self.assertIn(f'<option value="{action}" selected>', body)
         batch.files = []
@@ -401,8 +402,11 @@ class ControlServerTests(unittest.TestCase):
              {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'tool_received', 'submission_accepted', 'submission_rejected'}),
             ('category=Prompt&subcategory=LLMPrompt',
              {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'prompt_sent'}),
+            ('category=TMDB', {'Search', 'Result'}, {'tmdb_search', 'tmdb_result'}),
+            ('category=TMDB&subcategory=Search', {'Search', 'Result'}, {'tmdb_search'}),
+            ('category=TMDB&subcategory=Result', {'Search', 'Result'}, {'tmdb_result'}),
             ('subcategory=Lifecycle',
-             {'Lifecycle', 'Discovery', 'BatchIdentification', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt'},
+             {'Lifecycle', 'Discovery', 'BatchIdentification', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt', 'Search', 'Result'},
              {'started', 'stopped', 'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled'}),
         ):
             with self.subTest(query=query):
