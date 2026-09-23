@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.9] - 2026-09-23 @ 19:55
+
 ### Added
 
 - Add 20, 50, and 100 to the batch-size dropdown and accepted batch request sizes, keeping 10 as the default.
