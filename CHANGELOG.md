@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-09-23 @ 18:05
+
+### Added
+
+- Send `current_date` as the first LLM prompt in each identification conversation, using the current date and reminding the model that its training knowledge may be older. Log it under Prompt / LLMPrompt.
+
 ## [0.5.2] - 2026-09-23 @ 17:48
 
 ### Added
