@@ -6,13 +6,14 @@
    `MediaFile` records, or reload the existing batch.
 2. Identify pending files with Qwen, saving each outcome and its current issues.
 3. Mark the batch `identification_completed` and retain it for action review.
-4. Once every action is resolved, Match TMDB queries approved files by title/year
-   and skips Ignore/Delete files. Save responses and display linked JSON results.
+4. Process Batch queries Pending and Approve files with an identification by
+   title/year and skips Ignore/Delete files. Save results as each file finishes,
+   continuing past missing identifications and lookup failures.
 
 The server starts idle. Explicit diagnostic `--run-batch` resumes unfinished
 identification; completed files are skipped. No new batch starts automatically.
 
-The Control server provides New Batch, saved action choices, Match TMDB, and event reports.
+The Control server provides New Batch, saved action choices, Process Batch, and event reports.
 
 ## Planned
 

@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-09-23 @ 17:48
+
+### Added
+
+- Log movie searches under TMDB / Search and responses or failures under TMDB / Result, with linked filename/query/outcome summaries. Retain the request parameters and full response or error in event details; commit each result event with its workspace checkpoint.
+
+### Updated
+
+- Enable Process Batch as soon as identification finishes, without requiring every file action to be resolved. Search TMDB for Pending and Approve files with an identification, skip Ignore/Delete, and continue past missing identifications or failed lookups.
+
+- Query TMDB movies with `primary_release_year` instead of `year`, using the LLM's identified year.
+
 ## [0.5.1] - 2026-09-23 @ 05:33
 
 ### Added

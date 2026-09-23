@@ -20,8 +20,14 @@ class DEventCategory:
         SUBMISSION_HANDLER = EventCategory(NAME, "SubmissionHandler")
         LLM_PROMPT = EventCategory(NAME, "LLMPrompt")
 
+    class TMDB:
+        NAME = "TMDB"
+        SEARCH = EventCategory(NAME, "Search")
+        RESULT = EventCategory(NAME, "Result")
+
     ALL = (Server.LIFECYCLE, Batch.LIFECYCLE, Batch.DISCOVERY, Batch.BATCH_IDENTIFICATION,
-           Prompt.TOOL_CONVERSATION, Prompt.SUBMISSION_HANDLER, Prompt.LLM_PROMPT)
+           Prompt.TOOL_CONVERSATION, Prompt.SUBMISSION_HANDLER, Prompt.LLM_PROMPT,
+           TMDB.SEARCH, TMDB.RESULT)
     CHILDREN = {}
     for classification in ALL:
         CHILDREN.setdefault(classification.category, []).append(classification.subcategory)

@@ -32,6 +32,8 @@ from r3el.activity.EventReport import EventReport
 from r3el.activity.EventSchema import EventSchema
 from r3el.activity.WorkspaceSchema import WorkspaceSchema
 from r3el.constants.DEventCategory import DEventCategory
+from r3el.constants.DEventName import DEventName
+from r3el.activity.EventWriter import EventWriter
 from r3el.entity.EventCategory import EventCategory
 from r3el.entity.LogEvent import LogEvent
 from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
@@ -206,7 +208,22 @@ class EventDatabaseTests(unittest.TestCase):
         workspace.save_file(batch.id, item, self.event())
         result = TMDBMatch('Film', 2000, response={'total_results': 1, 'results': [{'id': 42}]})
         with workspace.processing():
-            workspace.save_match(batch.id, item.id, result)
+            log = EventWriter(self.events.record, {'batch_id': batch.id, 'item_id': item.id})
+            search_id = log.write(DEventCategory.TMDB.SEARCH, DEventName.TMDB_SEARCH,
+                                  {'query': 'Film', 'primary_release_year': 2000}, source='TMDB')
+            log.parent_event_id = search_id
+            event = log.prepare(DEventCategory.TMDB.RESULT, DEventName.TMDB_RESULT,
+                                result.response, source='TMDB')
+            before = len(self.events.recent())
+            with self.assertRaises(pymysql.IntegrityError):
+                workspace.save_match(batch.id, item.id, result, self.event(message=None))
+            self.assertIsNone(workspace.load().files[0].tmdb_match)
+            self.assertEqual(len(self.events.recent()), before)
+            workspace.save_match(batch.id, item.id, result, event)
+            saved_events = self.events.recent(category='TMDB', subcategory='Result')
+            self.assertEqual(len(saved_events), 1)
+            self.assertEqual(saved_events[0]['parent_event_id'], search_id)
+            self.assertEqual(saved_events[0]['name'], 'tmdb_result')
         WorkspaceSchema(self.db).apply()
         reader = DbMgr()
         try:

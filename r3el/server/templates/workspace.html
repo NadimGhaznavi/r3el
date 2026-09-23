@@ -49,10 +49,10 @@
   <span id="action-saved" hidden>Action saved.</span>
   <span id="action-error" hidden>Could not confirm the saved action. Reload the page to check the workspace before continuing.</span>
 </p>
-<button id="match-tmdb" type="button"{% if not process_ready %} disabled{% endif %} aria-describedby="match-note">Match TMDB</button>
-<p class="note" id="match-note">Choose an action for every file after identification finishes. Match TMDB searches movies for approved files; Ignore and Delete are skipped.</p>
+<button id="match-tmdb" type="button"{% if not process_ready %} disabled{% endif %} aria-describedby="match-note">Process Batch</button>
+<p class="note" id="match-note">After identification finishes, process the batch without choosing every action first. Pending and Approve files with a title and year are searched on TMDB; Ignore and Delete are skipped. Files without an identification or with failed lookups do not stop the batch.</p>
 <p role="status" id="match-feedback">
-  <span id="match-running" hidden>Matching TMDB...</span>
+  <span id="match-running" hidden>Processing batch...</span>
   <span id="match-error" hidden>Could not confirm matching finished. Reload the page to check saved results before trying again.</span>
 </p>
 <script>

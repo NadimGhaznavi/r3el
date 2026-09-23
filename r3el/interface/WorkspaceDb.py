@@ -135,13 +135,16 @@ class WorkspaceDb:
                 'WHERE batch_id = %s AND file_id = %s', (action, action, batch_id, file_id))
             return self.load()
 
-    def save_match(self, batch_id: str, file_id: str, result: TMDBMatch) -> None:
-        """Checkpoint one result while the caller owns the processing lock."""
+    def save_match(self, batch_id: str, file_id: str, result: TMDBMatch,
+                   event: LogEvent | None = None) -> None:
+        """Checkpoint a result and its event together while the caller owns the processing lock."""
         with self._db.transaction():
             self._db.execute(
                 'UPDATE media_files SET tmdb_match = %s WHERE batch_id = %s AND file_id = %s',
                 (json.dumps(asdict(result), allow_nan=False), batch_id, file_id),
             )
+            if event is not None:
+                self._events.record_in_transaction(event)
 
     def save_batch_state(self, batch_id: str, state: MediaFileBatchState, event: LogEvent) -> None:
         with self._db.transaction():

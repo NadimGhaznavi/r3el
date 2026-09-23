@@ -12,7 +12,8 @@ With `--run-batch` and an empty workspace, R3el scans regular files directly ins
 selects up to `DR3el.BATCH_SIZE` names alphabetically, saves the selection,
 identifies each, and exits. Subdirectories and symbolic links are excluded.
 Identification leaves source files untouched. TMDB matching is a separate Control
-page action after file actions are resolved. Identification does not select a
+page action available after identification finishes, without requiring every file
+action to be resolved. Identification does not select a
 TMDB candidate or move files into `MEDIA_DIR`.
 
 ## Components
