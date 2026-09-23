@@ -45,6 +45,25 @@ class MatchResultTests(unittest.TestCase):
         self.assertIn('Showing 1 of 21 results', body)
         self.assertNotIn('✓', body)
 
+    def test_selected_match_shows_only_chosen_movie_in_cards_and_json(self):
+        from dataclasses import replace
+        from r3el.server.MatchResults import MatchResults
+
+        match = TMDBMatch('Movie', 2016, response={'total_results': 11, 'total_pages': 1,
+            'results': [{'id': 123, 'title': 'Discarded candidate'}, self.movie]}, selected_number=2)
+        for saved in (match, replace(match, response=match.resolved_response)):
+            with self.subTest(total=saved.response['total_results']):
+                result = MatchResults(self.reference).prepare(saved)
+                self.assertEqual(result['total'], 1)
+                self.assertEqual([movie['id'] for movie in result['movies']], [333371])
+                body = EventPages().render('match.html', file=MediaFile('file', '/tmp/movie.mkv'),
+                    match=saved, reference=self.reference, refresh=0).decode()
+                self.assertEqual(body.count('class="movie-card"'), 1)
+                self.assertIn('10 Cloverfield Lane', body)
+                self.assertNotIn('Discarded candidate', body)
+                self.assertNotIn('Showing 1 of', body)
+                self.assertIn('Selected by LLM', body)
+
     def test_missing_metadata_empty_results_and_failures(self):
         body = self.render([{'id': 1}])
         for text in ('No poster available', 'No overview available.', 'Year unknown', 'Not rated'):

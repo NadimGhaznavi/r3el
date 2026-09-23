@@ -74,6 +74,7 @@ class EventPages:
     def render(self, template: str, **values) -> bytes:
         if template == 'match.html':
             values['result'] = MatchResults(values['reference']).prepare(values['match'])
+            values['response_json'] = json.dumps(values['match'].resolved_response, ensure_ascii=False, indent=2)
         if template == 'control.html':
             values.setdefault('matching_job', None)
             workspace = values['workspace']
