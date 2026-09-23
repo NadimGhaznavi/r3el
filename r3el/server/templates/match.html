@@ -2,10 +2,39 @@
 {% block title %}Match Results{% endblock %}
 {% block content %}
 <h1>Match Results</h1>
-<p>{{ file.filename }}</p>
-<p>Query: {{ match.title if match.title is not none else '—' }} ({{ match.year if match.year is not none else '—' }}) · Movies</p>
-<p>{{ match.label }}</p>
-{% if match.error %}<p>{{ match.error }}</p>{% endif %}
-{% if match.response is not none %}<h2>JSON</h2><pre>{{ response_json }}</pre>{% endif %}
+<p class="note match-query">{{ file.filename }}<br>Query: {{ match.title if match.title is not none else '—' }} ({{ match.year if match.year is not none else '—' }}) · Movies</p>
+<section class="tmdb-match" aria-labelledby="tmdb-heading">
+  <header class="match-header">
+    <h2 id="tmdb-heading">TMDB MATCH</h2>
+    <span class="match-status match-status-{{ result.tone }}">{% if result.tone == 'resolved' %}<span aria-hidden="true">✓ </span>{% endif %}{{ result.status }}</span>
+  </header>
+  {% if result.tone != 'resolved' %}<p class="match-explanation">{{ result.explanation }}</p>{% endif %}
+  {% for movie in result.movies %}
+  <article class="movie-card" aria-labelledby="movie-{{ loop.index }}">
+    <div class="movie-poster">
+      {% if movie.poster_url %}<img src="{{ movie.poster_url }}" alt="Poster for {{ movie.title }}" width="500" height="750" loading="lazy" referrerpolicy="no-referrer">
+      {% else %}<span>No poster available</span>{% endif %}
+    </div>
+    <div class="movie-info">
+      <h3 id="movie-{{ loop.index }}">{{ movie.title }}</h3>
+      <p class="movie-subtitle">{{ movie.year }} · Movie · {{ movie.language }}</p>
+      <div class="movie-rating-row">
+        <span class="movie-rating"><span aria-hidden="true">★</span> {{ movie.rating }}<span class="sr-only"> out of 10</span></span>
+        {% if movie.votes is not none %}<span class="note">{{ movie.votes }} votes</span>{% endif %}
+        <a class="movie-id" href="{{ movie.url }}">TMDB #{{ movie.id }}</a>
+      </div>
+      <p class="movie-genres">{{ movie.genres | join(' · ') if movie.genres else 'Genres not available' }}</p>
+      <p class="movie-overview">{{ movie.overview }}</p>
+      <dl class="movie-facts">
+        <dt>Release date</dt><dd>{{ movie.release_date }}</dd>
+        <dt>Original title</dt><dd>{{ movie.original_title }}</dd>
+        <dt>Language</dt><dd>{{ movie.language }}</dd>
+      </dl>
+    </div>
+  </article>
+  {% endfor %}
+  {% if result.total > result.movies | length %}<p class="match-explanation note">Showing {{ result.movies | length }} of {{ result.total }} results from the downloaded first page.</p>{% endif %}
+</section>
+{% if match.response is not none %}<details class="match-json"><summary>View saved JSON</summary><pre>{{ response_json }}</pre></details>{% endif %}
 <p><a href="/">Back to batch</a></p>
 {% endblock %}

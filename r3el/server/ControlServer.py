@@ -24,6 +24,7 @@ from r3el.interface.BatchControl import BatchControl
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
 from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict, WorkspaceBusy
+from r3el.interface.TMDBReferenceDb import TMDBReferenceDb
 from r3el.server.EventPages import EventPages
 
 
@@ -225,6 +226,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 db = DbMgr()
                 try:
                     workspace = WorkspaceDb(db).snapshot()
+                    reference = TMDBReferenceDb(db).load()
                 finally:
                     db.close()
             except pymysql.MySQLError:
@@ -237,6 +239,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 self.send_error(404, 'Match results not found')
                 return
             self.respond(200, pages.render('match.html', file=item, match=item.tmdb_match,
+                         reference=reference,
                          response_json=json.dumps(item.tmdb_match.response, ensure_ascii=False, indent=2),
                          refresh=0))
 

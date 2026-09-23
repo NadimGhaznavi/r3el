@@ -36,8 +36,13 @@ changes receive a conflict. Results are saved per file as searches finish.
 
 After matching, Match Results links show **1 match**, **No matches**, or
 **N matches**, using TMDB's total result count. **Match failed** links show the
-failure; **Skipped** has no link. The details page shows the queried title/year
-and the downloaded first-page response as formatted JSON. Opening or refreshing
+failure; **Skipped** has no link. The details page shows the queried title/year and a movie card for each downloaded
+candidate: poster, title/year, language, rating/votes, genres, overview, release date,
+original title, and a link to the movie on TMDB. A single total result is Resolved;
+multiple results remain Ambiguous with no candidate selected. Missing metadata has
+explicit placeholders. The layout stacks on small screens. Saved JSON remains
+available in a collapsed details section. When only the first page of a larger
+result set is downloaded, the page states how many results are shown. Opening or refreshing
 these pages reads the saved result without querying TMDB. Matching again reuses
 successful queries and retries failures. Changing a file action clears its result.
 Approved files without an identification receive Match failed.
@@ -188,3 +193,24 @@ See TMDB's [movie search](https://developer.themoviedb.org/reference/search-movi
 and [authentication](https://developer.themoviedb.org/docs/authentication-application)
 documentation. This step uses the title and `year` search parameters; exactly one
 total result establishes a match. No TV search or candidate selection is included.
+
+## Shared TMDB catalogs
+
+`tmdb_movie_genres` stores TMDB genre IDs and English names. `tmdb_languages`
+stores ISO 639-1 codes, English names, and native names. These catalogs are shared
+application data and remain independent of workspace batches, ready for the future
+browsing interface. The Match Results page reads them through `TMDBReferenceDb`.
+Unknown IDs/codes remain visible as IDs/codes rather than being assigned a guessed name.
+
+Install and upgrade explicitly create the tables, download both catalogs, validate
+them, and upsert them in one transaction. A failed download or database write leaves
+existing catalog records intact. Refreshes preserve IDs no longer returned by TMDB
+so future media references are not broken. No background refresh or page-triggered
+API request occurs. With DB credentials and `TMDB_TOKEN` in the environment, refresh
+manually with `.venv/bin/python -m r3el.activity.TMDBReferenceRefresh`.
+
+The catalogs come from TMDB's [movie genres](https://developer.themoviedb.org/reference/genre-movie-list)
+and [languages](https://developer.themoviedb.org/reference/configuration-languages)
+endpoints. Posters use the saved poster path and TMDB's documented
+[image URL format](https://developer.themoviedb.org/docs/image-basics); the browser
+loads the public image without receiving API credentials.

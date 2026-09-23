@@ -18,6 +18,7 @@ from r3el.constants.DMessage import DMessage
 from r3el.entity.BatchRequest import BatchRequest
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.entity.TMDBMatch import TMDBMatch
+from r3el.entity.TMDBReference import TMDBReference
 from r3el.interface.WorkspaceDb import WorkspaceActionConflict
 from r3el.entity.MediaFile import MediaFile, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
@@ -49,6 +50,10 @@ class ControlServerTests(unittest.TestCase):
         self.workspace_patch = patch('r3el.server.ControlServer.WorkspaceDb.snapshot', return_value=None)
         self.workspace = self.workspace_patch.start()
         self.addCleanup(self.workspace_patch.stop)
+        self.reference_patch = patch('r3el.server.ControlServer.TMDBReferenceDb.load',
+                                     return_value=TMDBReference([], []))
+        self.reference_patch.start()
+        self.addCleanup(self.reference_patch.stop)
         self.db = Mock()
         self.factory.return_value = self.db
         self.event = dict(event_id=42, occurred_at=datetime(2026, 9, 20, 14, 30),
