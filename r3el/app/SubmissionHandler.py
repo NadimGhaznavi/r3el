@@ -45,7 +45,7 @@ class SubmissionHandler:
             prompt = InvalidIdentification(str(error))
             result = {'status': 'rejected', 'reason': str(error),
                       'prompt': json.loads(prompt.to_json()), 'source_name': prompt.source_name}
-            log.write(Categories.Identification.VALIDATION, Names.SUBMISSION_REJECTED,
+            log.write(Categories.Prompt.SUBMISSION_HANDLER, Names.SUBMISSION_REJECTED,
                       result, source='SubmissionHandler')
             return result
         result = {'status': 'ok', 'identification': asdict(identification)}
