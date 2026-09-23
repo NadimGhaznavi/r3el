@@ -19,6 +19,7 @@ class DR3el:
     MAX_CONTROL_BODY_BYTES: Final[int] = 16384
     CONTROL_LOGO_URL: Final[str] = "/static/r3el.png"
     MAX_LLM_RETRIES: Final[int] = 2
+    MAX_IDENTIFICATION_RETRIES: Final[int] = 3
 
     PORT: Final[int] = 42220
 
