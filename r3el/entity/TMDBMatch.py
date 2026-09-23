@@ -10,6 +10,8 @@ class TMDBMatch:
     response: dict | None = None
     error: str | None = None
     skipped: bool = False
+    selected_number: int | None = None
+    selection_error: str | None = None
 
     @property
     def label(self) -> str:
@@ -17,6 +19,8 @@ class TMDBMatch:
             return 'Skipped'
         if self.error is not None:
             return 'Match failed'
+        if self.selected_number:
+            return '1 match'
         count = self.response['total_results']
         if count == 0:
             return 'No matches'

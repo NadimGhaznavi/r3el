@@ -49,7 +49,13 @@ pending identification rows. Process Batch is enabled immediately at that point,
 including when actions are still Pending. Pending and Approve files with an
 identification are queried by title/year; Ignore and Delete
 files are skipped. Results are checkpointed in `media_files.tmdb_match` as JSON.
-Exactly one total result is a match; zero is unmatched and more than one ambiguous.
+Exactly one total result is a match; zero is unmatched. Multiple results trigger
+a `multiple_choice` prompt containing candidate numbers, titles, and short overview excerpts ending at a
+sentence boundary. The LLM
+selection is saved as `selected_number` (1-based; 0 means no confident choice),
+with failures stored separately in `selection_error`. A valid selection resolves
+the match while retaining the complete downloaded TMDB response. Old saved
+responses without a selection are processed on the next Process Batch request.
 Missing identifications and failed lookups are recorded as failures and do not
 stop processing the remaining files. Failures remain distinct from zero-result responses. Action changes clear the
 saved result; repeated matching reuses successful responses and retries failures.

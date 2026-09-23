@@ -8,7 +8,7 @@
     <h2 id="tmdb-heading">TMDB MATCH</h2>
     <span class="match-status match-status-{{ result.tone }}">{% if result.tone == 'resolved' %}<span aria-hidden="true">✓ </span>{% endif %}{{ result.status }}</span>
   </header>
-  {% if result.tone != 'resolved' %}<p class="match-explanation">{{ result.explanation }}</p>{% endif %}
+  {% if result.tone != 'resolved' or match.selected_number %}<p class="match-explanation">{{ result.explanation }}</p>{% endif %}
   {% for movie in result.movies %}
   <article class="movie-card" aria-labelledby="movie-{{ loop.index }}">
     <div class="movie-poster">
@@ -17,6 +17,7 @@
     </div>
     <div class="movie-info">
       <h3 id="movie-{{ loop.index }}">{{ movie.title }}</h3>
+      {% if movie.selected %}<p class="match-status match-status-resolved">Selected by LLM</p>{% endif %}
       <p class="movie-subtitle">{{ movie.year }} · Movie · {{ movie.language }}</p>
       <div class="movie-rating-row">
         <span class="movie-rating"><span aria-hidden="true">★</span> {{ movie.rating }}<span class="sr-only"> out of 10</span></span>
