@@ -1,7 +1,7 @@
 """Match available identifications and checkpoint downloaded TMDB results."""
 
 from collections.abc import Callable
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.activity.EventWriter import EventWriter
@@ -55,14 +55,23 @@ class BatchMatching:
                         result = TMDBMatch(title, year, response=client.search(title, year))
                     except TMDBError as error:
                         result = TMDBMatch(title, year, error=str(error))
+                needs_selection = (result.response is not None and not result.skipped and result.error is None
+                                   and result.response['total_results'] > 1 and result.selected_number is None)
+                if needs_selection:
+                    result = replace(result, selection_pending=True, selection_error=None)
                 event = None if result.skipped else log.prepare(
                     Categories.TMDB.RESULT, Names.TMDB_RESULT,
                     dict(asdict(result), outcome=result.label), source='TMDB',
                     level='ERROR' if result.error is not None else 'INFO')
                 self._workspace.save_match(batch.id, item.id, result, event)
-                if (result.response is not None and not result.skipped and result.error is None
-                        and result.response['total_results'] > 1 and result.selected_number is None):
-                    result = MovieSelection(LLM.from_environment()).run(result, log)
+                if needs_selection:
+                    try:
+                        result = MovieSelection(LLM.from_environment()).run(result, log)
+                    except BaseException:
+                        self._workspace.save_match(batch.id, item.id,
+                                                   replace(result, selection_pending=False), None)
+                        raise
+                    result = replace(result, selection_pending=False)
                     event = log.prepare(Categories.TMDB.RESULT, Names.TMDB_RESULT,
                                         dict(asdict(result), outcome=result.label), source='MovieSelection',
                                         level='ERROR' if result.selection_error else 'INFO')

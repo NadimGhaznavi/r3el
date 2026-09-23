@@ -286,10 +286,13 @@ class ControlServerTests(unittest.TestCase):
         self.assertEqual(status, 303)
         new_batch.assert_called_once_with(BatchRequest('/tmp/input', '/tmp/output', 5))
         self.assertEqual(headers['Location'], '/?result=accepted')
-        self.assertIn('Batch accepted.', self.request(headers['Location'])[2])
+        body = self.request(headers['Location'])[2]
+        self.assertIn('Batch accepted.', body)
+        self.assertIn("window.setTimeout(() => window.location.replace('/'), 2000);", body)
         new_batch.assert_called_once()
         self.workspace.assert_called_once()
         self.db.close.assert_called_once()
+        self.assertNotIn('window.setTimeout', self.request('/')[2])
 
     @patch('r3el.server.ControlServer.BatchControl.new_batch')
     def test_invalid_form_is_not_forwarded(self, new_batch):

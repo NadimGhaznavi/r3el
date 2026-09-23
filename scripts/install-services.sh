@@ -78,7 +78,7 @@ modules=(
     app/BatchIdentification.py app/ToolConversation.py app/MovieSelection.py app/MultipleChoiceHandler.py
     app/SubmissionHandler.py app/ValidateIdentification.py
     app/prompts/CurrentDate.py app/prompts/Focus.py app/prompts/FileContext.py app/prompts/SubmitIdentificationPrompt.py
-    app/prompts/InvalidIdentification.py app/prompts/MultipleChoice.py
+    app/prompts/InvalidIdentification.py app/prompts/MultipleChoice.py app/prompts/Example.py
     app/tools/__main__.py app/tools/server.py
     app/tools/SubmitIdentification.py app/tools/SubmitMultipleChoice.py
     interface/LLM.py interface/IdentificationTools.py interface/MCPTools.py

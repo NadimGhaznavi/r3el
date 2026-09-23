@@ -10,6 +10,7 @@ import httpx
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.MultipleChoiceHandler import MultipleChoiceHandler
 from r3el.app.prompts.CurrentDate import CurrentDate
+from r3el.app.prompts.Example import Example
 from r3el.app.prompts.MultipleChoice import MultipleChoice
 from r3el.constants.DEventCategory import DEventCategory as Categories
 from r3el.constants.DEventName import DEventName as Names
@@ -30,7 +31,7 @@ class MovieSelection:
         candidates = [(movie.get('title') or movie.get('original_title') or '',
                        movie.get('overview') or '') for movie in match.response['results']]
         messages = []
-        for prompt in (CurrentDate(), MultipleChoice(match.title, match.year, candidates)):
+        for prompt in (CurrentDate(), Example(), MultipleChoice(match.title, match.year, candidates)):
             message = json.loads(prompt.to_json())
             messages.append(message)
             log.write(Categories.Prompt.LLM_PROMPT, Names.PROMPT_SENT,

@@ -54,4 +54,9 @@
   </p>
   {% endif %}
 </div>
+{% if result == messages.ACCEPTED %}
+<script>
+  window.setTimeout(() => window.location.replace('/'), 2000);
+</script>
+{% endif %}
 {% endblock %}

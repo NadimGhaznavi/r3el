@@ -59,6 +59,14 @@ responses without a selection are processed on the next Process Batch request.
 Missing identifications and failed lookups are recorded as failures and do not
 stop processing the remaining files. Failures remain distinct from zero-result responses. Action changes clear the
 saved result; repeated matching reuses successful responses and retries failures.
+While an LLM choice is in progress, `selection_pending` is saved with the TMDB
+result. The file displays Pending and its action menu is disabled, while the
+existing match-count link remains available. Its filename identification and
+saved action are preserved. Selection completion clears the flag, including
+failed or uncertain choices; interrupted selections can be retried with Process
+Batch using the saved candidates. Process Batch updates the file table every two
+seconds while its request is running.
+
 Matching never moves or deletes files.
 
 Later stages are proposed:
