@@ -39,6 +39,9 @@ from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
 from r3el.entity.Identification import Identification
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.entity.TMDBMatch import TMDBMatch
+from r3el.entity.TMDBReference import TMDBGenre, TMDBLanguage, TMDBReference
+from r3el.activity.TMDBReferenceSchema import TMDBReferenceSchema
+from r3el.interface.TMDBReferenceDb import TMDBReferenceDb
 from r3el.interface.WorkspaceDb import WorkspaceActionConflict
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
@@ -218,6 +221,25 @@ class EventDatabaseTests(unittest.TestCase):
                          .files[0].tmdb_match, result)
         self.assertIsNone(workspace.save_action(batch.id, item.id, MediaFileAction.IGNORE)
                           .files[0].tmdb_match)
+
+    def test_tmdb_reference_catalogs_persist_refresh_and_rollback_together(self):
+        TMDBReferenceSchema(self.db).apply()
+        catalog = TMDBReference([TMDBGenre(53, 'Thriller')], [TMDBLanguage('fr', 'French', 'Français')])
+        references = TMDBReferenceDb(self.db)
+        references.save(catalog)
+        TMDBReferenceSchema(self.db).apply()
+        reader = DbMgr()
+        try:
+            self.assertEqual(TMDBReferenceDb(reader).load(), catalog)
+        finally:
+            reader.close()
+        with self.assertRaises(pymysql.IntegrityError):
+            references.save(TMDBReference([TMDBGenre(53, 'Changed')], [TMDBLanguage('fr', 'French', None)]))
+        self.assertEqual(references.load(), catalog)
+        references.save(TMDBReference([TMDBGenre(53, 'Updated'), TMDBGenre(18, 'Drama')], []))
+        refreshed = references.load()
+        self.assertEqual(refreshed.genres, [TMDBGenre(18, 'Drama'), TMDBGenre(53, 'Updated')])
+        self.assertEqual(refreshed.languages, catalog.languages)
 
     def test_workspace_issues_and_exclusive_processing(self):
         first = WorkspaceDb(self.db)
