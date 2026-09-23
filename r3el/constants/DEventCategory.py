@@ -12,17 +12,21 @@ class DEventCategory:
         NAME = "Batch"
         LIFECYCLE = EventCategory(NAME, "Lifecycle")
         DISCOVERY = EventCategory(NAME, "Discovery")
+        BATCH_IDENTIFICATION = EventCategory(NAME, "BatchIdentification")
 
     class Identification:
         NAME = "Identification"
         CONVERSATION = EventCategory(NAME, "Conversation")
-        TOOL = EventCategory(NAME, "Tool")
         VALIDATION = EventCategory(NAME, "Validation")
-        RESULT = EventCategory(NAME, "Result")
 
-    ALL = (Server.LIFECYCLE, Batch.LIFECYCLE, Batch.DISCOVERY,
-           Identification.CONVERSATION, Identification.TOOL,
-           Identification.VALIDATION, Identification.RESULT)
+    class Tool:
+        NAME = "Tool"
+        TOOL_CONVERSATION = EventCategory(NAME, "ToolConversation")
+        SUBMISSION_HANDLER = EventCategory(NAME, "SubmissionHandler")
+
+    ALL = (Server.LIFECYCLE, Batch.LIFECYCLE, Batch.DISCOVERY, Batch.BATCH_IDENTIFICATION,
+           Identification.CONVERSATION,
+           Identification.VALIDATION, Tool.TOOL_CONVERSATION, Tool.SUBMISSION_HANDLER)
     CHILDREN = {}
     for classification in ALL:
         CHILDREN.setdefault(classification.category, []).append(classification.subcategory)

@@ -68,7 +68,7 @@ class ToolConversation:
                         'messages': messages, 'tools': [tools.definition],
                         'tool_choice': 'required', 'parallel_tool_calls': False, 'stream': False,
                     })
-                    attempt_log.write(Categories.Identification.CONVERSATION, Names.REPLY_RECEIVED,
+                    attempt_log.write(Categories.Tool.TOOL_CONVERSATION, Names.REPLY_RECEIVED,
                                       body, source='LLM')
                     try:
                         message, call, arguments = self._tool_call(body)
@@ -78,10 +78,10 @@ class ToolConversation:
                                           {'reason': reason}, source='ToolConversation')
                     else:
                         messages.append(message)
-                        attempt_log.write(Categories.Identification.TOOL, Names.TOOL_STARTED,
+                        attempt_log.write(Categories.Tool.TOOL_CONVERSATION, Names.TOOL_STARTED,
                                           call, source='ToolConversation')
                         result = await tools.submit(arguments)
-                        attempt_log.write(Categories.Identification.TOOL, Names.TOOL_COMPLETED,
+                        attempt_log.write(Categories.Tool.TOOL_CONVERSATION, Names.TOOL_COMPLETED,
                                           result, source='ToolConversation')
                         if result['status'] == 'ok':
                             return {'status': 'identified', 'attempts': attempt,

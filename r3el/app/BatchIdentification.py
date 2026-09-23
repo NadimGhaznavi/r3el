@@ -91,7 +91,7 @@ class BatchIdentification:
         item.action = (MediaFileAction.APPROVE if item.identification is not None
                        and item.identification.confidence == DR3el.AUTO_APPROVE_CONFIDENCE
                        else MediaFileAction.PENDING)
-        event = log.prepare(Categories.Identification.RESULT, Names.ITEM_COMPLETED,
+        event = log.prepare(Categories.Batch.BATCH_IDENTIFICATION, Names.ITEM_COMPLETED,
                             self._result(item), source='BatchIdentification')
         self._workspace.save_file(batch.id, item, event)
 
