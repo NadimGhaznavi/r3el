@@ -23,12 +23,28 @@ class QueryTMDBTests(unittest.TestCase):
             {'id': 42, 'title': 'Amélie', 'genre_ids': [35, 10749],
              'extra': {'child': [None, False, {'value': 'nested'}]}}]}
         factory.return_value.search.return_value = response
+        details = {'id': 42, 'runtime': 122, 'genres': [{'id': 35, 'name': 'Comedy'}],
+                   'credits': {'cast': [{'id': 1, 'name': 'Actor'}]}}
+        factory.return_value.details.return_value = details
         for args in (['-r', 'Amélie', '2001'], ['Amélie', '2001', '--raw']):
             with self.subTest(args=args), redirect_stdout(StringIO()) as output:
                 self.assertEqual(query.main(args), 0)
-            self.assertEqual(json.loads(output.getvalue()), response)
+            self.assertEqual(json.loads(output.getvalue()), dict(response, results=[
+                dict(response['results'][0], **details)]))
             self.assertIn('\n  "page": 1', output.getvalue())
             self.assertIn('Amélie', output.getvalue())
+        self.assertEqual(factory.return_value.details.call_args_list,
+                         [unittest.mock.call(42), unittest.mock.call(42)])
+
+    @patch.object(query.TMDBCredentials, 'token', return_value='test-token')
+    @patch.object(query, 'TMDB')
+    def test_raw_details_failure_does_not_print_partial_json(self, factory, token):
+        factory.return_value.search.return_value = {'total_results': 1, 'results': [{'id': 42}]}
+        factory.return_value.details.side_effect = TMDBError('TMDB returned HTTP 404.')
+        with redirect_stdout(StringIO()) as output, redirect_stderr(StringIO()) as errors:
+            self.assertEqual(query.main(['-r', 'Movie', '2005']), 1)
+        self.assertEqual(output.getvalue(), '')
+        self.assertIn('HTTP 404', errors.getvalue())
 
     @patch.object(query.TMDBCredentials, 'token', return_value='test-token')
     @patch.object(query, 'TMDB')
@@ -40,6 +56,7 @@ class QueryTMDBTests(unittest.TestCase):
         with redirect_stdout(output):
             self.assertEqual(query.main(['Superman', '2025']), 0)
         factory.return_value.search.assert_called_once_with('Superman', 2025)
+        factory.return_value.details.assert_not_called()
         for expected in ('1. Superman', 'Showing 1 of 11', '2025-07-09', '7.2/10',
                          'A hero in Metropolis.', 'https://www.themoviedb.org/movie/42'):
             self.assertIn(expected, output.getvalue())

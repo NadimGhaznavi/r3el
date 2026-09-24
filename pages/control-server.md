@@ -296,8 +296,13 @@ sudo scripts/install-cli.sh
 /opt/prod/r3el/bin/query-tmdb "Superman" 2025
 ```
 
-Add `-r` (or `--raw`) to print the complete first-page search response as
-indented JSON, including all fields and nested values:
+Add `-r` (or `--raw`) to fetch the full movie record for each first-page
+search hit and print indented JSON. Each result retains its search fields and
+adds all fields from TMDB movie details, including runtime, budget, revenue,
+genres, production companies, and collection information. It also includes
+credits, keywords, external IDs, alternative titles, release dates, translations,
+images, and videos through TMDB `append_to_response`. Search pagination metadata
+is preserved; this does not crawl reviews, recommendations, or other search pages:
 
 ```bash
 /opt/prod/r3el/bin/query-tmdb -r "Superman" 2025
