@@ -10,6 +10,22 @@ from r3el.entity.BatchStopped import BatchStopped
 
 
 class MatchingJobsTests(unittest.TestCase):
+    def test_manual_requests_are_deduplicated_by_file_and_movie(self):
+        entered, release = Event(), Event()
+        execute = Mock(side_effect=lambda *args, **kwargs: (entered.set(), release.wait(3)))
+        jobs = MatchingJobs(execute)
+        try:
+            job = jobs.submit('batch', file_id='file', movie_id=42)
+            self.assertTrue(entered.wait(1))
+            self.assertEqual(jobs.submit('batch', file_id='file', movie_id=42), job)
+            self.assertIsNone(jobs.submit('batch', file_id='other', movie_id=42))
+            self.assertIsNone(jobs.submit('batch', file_id='file', movie_id=43))
+            self.assertIsNone(jobs.submit('batch'))
+        finally:
+            release.set()
+            jobs.close()
+        execute.assert_called_once_with('batch', file_id='file', movie_id=42)
+
     def test_requested_stop_is_reported_as_cancelled(self):
         jobs = MatchingJobs(Mock(side_effect=BatchStopped()))
         jobs.submit('batch')

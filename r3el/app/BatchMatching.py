@@ -12,6 +12,7 @@ from r3el.app.MovieSelection import MovieSelection
 from r3el.app.RetryIdentification import RetryIdentification
 from r3el.constants.DR3el import DR3el
 from r3el.entity.MediaFile import MediaFile, MediaFileState
+from r3el.entity.CatalogueMovie import CatalogueMovie
 from r3el.entity.MediaFileBatch import MediaFileBatch
 from r3el.entity.MediaFileBatch import MediaFileBatchState
 from r3el.entity.BatchStopped import BatchStopped
@@ -32,6 +33,37 @@ class BatchMatching:
         self._workspace = workspace
         self._record = record
         self._llm = llm
+
+    def match_id(self, batch_id: str, file_id: str, movie_id: int) -> None:
+        with self._workspace.processing(), self._workspace.matching():
+            batch = self._workspace.load()
+            if (batch is None or batch.id != batch_id or batch.state in
+                    (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING)):
+                raise WorkspaceActionConflict('Manual matching requires a finished batch.')
+            item = next((item for item in batch.files if item.id == file_id), None)
+            if (item is None or item.tmdb_match is None or not item.tmdb_match.needs_manual_match
+                    or item.action in (MediaFileAction.IGNORE, MediaFileAction.DELETE)):
+                raise WorkspaceActionConflict('The file no longer needs a manual match.')
+            log = EventWriter(self._record, {'batch_id': batch_id, 'item_id': file_id,
+                                            'filename': item.filename}, batch.started_event_id)
+            try:
+                data = TMDB.from_environment().details(movie_id)
+                movie = TMDBCatalogue.from_details(data, movie_id)
+            except TMDBError as error:
+                result = replace(item.tmdb_match, selection_error=str(error))
+                self._workspace.save_match(batch_id, file_id, result, log.prepare(
+                    Categories.TMDB.RESULT, Names.TMDB_RESULT,
+                    {'outcome': 'Manual match failed', 'movie_id': movie_id, 'error': str(error)},
+                    source='ManualMatch', level='ERROR'))
+                return
+            result = TMDBMatch(item.tmdb_match.title, item.tmdb_match.year,
+                               response={'results': [dict(data, genre_ids=[genre.id for genre in movie.genres])],
+                                         'total_results': 1, 'total_pages': 1, 'page': 1})
+            self._workspace.save_match(batch_id, file_id, result, log.prepare(
+                Categories.TMDB.RESULT, Names.TMDB_RESULT,
+                {'outcome': 'Manual match selected', 'movie_id': movie_id, 'error': None,
+                 'response': result.response}, source='ManualMatch'))
+            self._catalogue(batch, item, result, log, movie=movie)
 
     def run(self, batch_id: str, *, file_ids: list[str] | None = None) -> None:
         try:
@@ -118,7 +150,8 @@ class BatchMatching:
                 self._catalogue(batch, item, result, log)
             self._workspace.check_stop(batch_id)
 
-    def _catalogue(self, batch: MediaFileBatch, item: MediaFile, result: TMDBMatch, log: EventWriter) -> None:
+    def _catalogue(self, batch: MediaFileBatch, item: MediaFile, result: TMDBMatch, log: EventWriter,
+                   *, movie: CatalogueMovie | None = None) -> None:
         if result.catalogue_saved:
             if not result.file_moved or result.discard_files:
                 self._finish_move(batch.id, item.id, result, log)
@@ -138,7 +171,8 @@ class BatchMatching:
                 self._workspace.save_match(batch.id, item.id, result, None)
                 self._finish_move(batch.id, item.id, result, log)
                 return
-            movie = TMDBCatalogue(TMDB.from_environment()).movie(movie_id)
+            if movie is None:
+                movie = TMDBCatalogue(TMDB.from_environment()).movie(movie_id)
             files = CatalogueFiles().prepare(movie, item.path, batch.destination_directory, item.id, log)
         except (TMDBError, OSError, ValueError, httpx.HTTPError) as error:
             self._catalogue_failure(batch.id, item.id, result, error, log)

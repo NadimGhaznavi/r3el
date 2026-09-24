@@ -15,8 +15,12 @@ class TMDBCatalogue:
 
     def movie(self, movie_id: int) -> CatalogueMovie:
         data = self._client.details(movie_id)
+        return self.from_details(data, movie_id)
+
+    @classmethod
+    def from_details(cls, data: dict, movie_id: int) -> CatalogueMovie:
         try:
-            return self._convert(data)
+            return cls._convert(data)
         except (KeyError, TypeError, ValueError, OverflowError):
             raise TMDBError(f'TMDB returned invalid catalogue metadata for movie {movie_id}.') from None
 
