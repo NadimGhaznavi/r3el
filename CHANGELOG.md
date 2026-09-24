@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-09-24 @ 04:56
+
 ### Added
 
 - Add File / Move, Artifact / Download, and DB / Create Record events with linked message templates, filename context, paths, and movie identifiers. Log artwork download/reuse outcomes and failures, commit catalogue events with their records, and report completed or failed file moves.
