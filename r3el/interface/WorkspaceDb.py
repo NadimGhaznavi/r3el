@@ -124,10 +124,12 @@ class WorkspaceDb:
         """Save a user choice after the file's identification checkpoint is committed."""
         with self.matching(), self._db.transaction():
             batches = self._db.query(
-                'SELECT batch_id FROM media_file_batches WHERE batch_id = %s FOR UPDATE', (batch_id,),
+                'SELECT batch_id, state FROM media_file_batches WHERE batch_id = %s FOR UPDATE', (batch_id,),
             )
             if not batches:
                 raise WorkspaceActionConflict('The batch is no longer in the workspace.')
+            if batches[0]['state'] == MediaFileBatchState.MATCHING:
+                raise WorkspaceActionConflict('Automatic matching has not finished.')
             files = self._db.query(
                 'SELECT state, tmdb_match FROM media_files WHERE batch_id = %s AND file_id = %s FOR UPDATE',
                 (batch_id, file_id),

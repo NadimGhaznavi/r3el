@@ -20,9 +20,10 @@ from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict
 
 
 class BatchMatching:
-    def __init__(self, workspace: WorkspaceDb, record: Callable[[LogEvent], int]) -> None:
+    def __init__(self, workspace: WorkspaceDb, record: Callable[[LogEvent], int], llm: LLM | None = None) -> None:
         self._workspace = workspace
         self._record = record
+        self._llm = llm
 
     def run(self, batch_id: str) -> None:
         with self._workspace.processing(), self._workspace.matching():
@@ -57,7 +58,7 @@ class BatchMatching:
                     self._workspace.save_match(batch.id, item.id, result, log.prepare(
                         Categories.TMDB.RESULT, Names.TMDB_RESULT,
                         dict(asdict(result), outcome=result.label), source='TMDB'))
-                    retry = RetryIdentification(self._workspace)
+                    retry = RetryIdentification(self._workspace, self._llm)
                     if item.retries >= DR3el.MAX_IDENTIFICATION_RETRIES:
                         retry.exhausted(item, log)
                         break
@@ -78,7 +79,7 @@ class BatchMatching:
                 self._workspace.save_match(batch.id, item.id, result, event)
                 if needs_selection:
                     try:
-                        result = MovieSelection(LLM.from_environment()).run(result, log)
+                        result = MovieSelection(self._llm or LLM.from_environment()).run(result, log)
                     except BaseException:
                         self._workspace.save_match(batch.id, item.id,
                                                    replace(result, selection_pending=False), None)

@@ -11,6 +11,9 @@ class MediaFileBatchState(StrEnum):
     FAILED = 'failed'
     CANCELLED = 'cancelled'
     IDENTIFICATION_COMPLETED = 'identification_completed'
+    MATCHING = 'matching'
+    MATCHING_COMPLETED = 'matching_completed'
+    MATCHING_FAILED = 'matching_failed'
 
 
 @dataclass

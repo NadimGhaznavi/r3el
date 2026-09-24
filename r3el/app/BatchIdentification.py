@@ -23,7 +23,8 @@ class BatchIdentification:
         self._workspace = workspace
 
     async def run(self, batch_size: int, *, destination_directory: str | None = None,
-                  new_batch: bool = False) -> list[dict]:
+                  new_batch: bool = False,
+                  completion_state: MediaFileBatchState = MediaFileBatchState.IDENTIFICATION_COMPLETED) -> list[dict]:
         with self._workspace.processing():
             batch = self._workspace.load()
             if new_batch and batch is not None:
@@ -40,7 +41,7 @@ class BatchIdentification:
                     if item.state != MediaFileState.PENDING:
                         continue
                     await self._identify(batch, item)
-                self._set_state(batch, MediaFileBatchState.IDENTIFICATION_COMPLETED, Names.BATCH_COMPLETED,
+                self._set_state(batch, completion_state, Names.BATCH_COMPLETED,
                                 {'count': len(batch.files),
                                  'unresolved_llm': sum(item.state == MediaFileState.UNRESOLVED_LLM
                                                        for item in batch.files),

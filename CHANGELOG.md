@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Updated
+
+- New Batch now runs filename identification straight into TMDB matching, multiple-choice selection, and bounded zero-result retries. Track automatic matching/completion/failure states, disable intermediate review controls, and refresh progress without another button press. Install/upgrade adds the batch states and supplies TMDB credentials to the identification service.
+
 ## [0.7.0] - 2026-09-23 @ 20:16
 
 ### Added
