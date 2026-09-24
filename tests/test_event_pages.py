@@ -198,7 +198,7 @@ class EventPagesTests(unittest.TestCase):
                      '[click](javascript:alert%281%29)\n\n'
                      '[safe](https://example.com)')
         body, _ = self.reply_detail(json.dumps({'choices': [{'message': {'reasoning_content': reasoning}}]}))
-        self.assertNotIn('<script>', body)
+        self.assertNotIn('<script>', body.split('<main>', 1)[1].split('</main>', 1)[0])
         self.assertNotIn('<img src=x', body)
         self.assertNotIn('href="javascript:', body)
         self.assertIn('href="https://example.com"', body)

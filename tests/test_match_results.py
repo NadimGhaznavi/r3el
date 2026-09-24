@@ -76,7 +76,7 @@ class MatchResultTests(unittest.TestCase):
         self.movie.update(title='<script>bad</script>', overview='<img src=x onerror=alert(1)>',
                           poster_path='//evil.invalid/p.jpg', release_date='bad-date')
         body = self.render([self.movie])
-        self.assertNotIn('<script>', body)
+        self.assertNotIn('<script>', body.split('<main>', 1)[1].split('</main>', 1)[0])
         self.assertIn('&lt;script&gt;', body)
         self.assertNotIn('src="//evil.invalid', body)
         self.assertIn('No poster available', body)

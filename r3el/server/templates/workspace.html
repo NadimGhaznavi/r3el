@@ -9,11 +9,13 @@
   file_actions.IGNORE: 'Ignore', file_actions.DELETE: 'Delete'
 } %}
 <div class="table-wrap">
-  <table class="workspace-files" data-batch-id="{{ workspace.id }}" data-automatic-processing="{{ 'true' if automatic_processing else 'false' }}" aria-label="Current batch files">
-    <thead><tr><th scope="col">Filename</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Retries</th><th scope="col">Status</th><th scope="col">Action</th>{% if has_match_results %}<th scope="col">Match Results</th>{% endif %}</tr></thead>
+  <table class="workspace-files" data-batch-id="{{ workspace.id }}" data-stop-requested="{{ 'true' if workspace.stop_requested else 'false' }}" data-automatic-processing="{{ 'true' if automatic_processing else 'false' }}" aria-label="Current batch files">
+    <thead><tr><th scope="col">#</th><th scope="col" title="Last saved change (local time)">Updated</th><th scope="col">Filename</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Retries</th><th scope="col">Status</th><th scope="col">Action</th>{% if has_match_results %}<th scope="col">Match Results</th>{% endif %}</tr></thead>
     <tbody>
       {% for file in workspace.files %}
       <tr>
+        <td>{{ loop.index }}</td>
+        <td class="file-updated">{% if file.updated_at %}<time datetime="{{ file.updated_at | utc_iso }}" data-local-time="compact">—</time>{% else %}—{% endif %}</td>
         <td>{{ file.filename }}</td>
         <td>{{ file.identification.title if file.identification is not none else '—' }}</td>
         <td>{{ file.identification.year if file.identification is not none else '—' }}</td>
@@ -38,7 +40,7 @@
         {% endif %}
       </tr>
       {% else %}
-      <tr><td colspan="{{ 8 if has_match_results else 7 }}">No files in this batch.</td></tr>
+      <tr><td colspan="{{ 10 if has_match_results else 9 }}">No files in this batch.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -51,6 +53,9 @@
   <span id="action-error" hidden>Could not confirm the saved action. Reload the page to check the workspace before continuing.</span>
 </p>
 <button id="match-tmdb" type="button"{% if not process_ready or matching_job %} disabled{% endif %} aria-describedby="match-note">Process Batch</button>
+<button id="stop-batch" type="button"{% if not stop_ready %} disabled{% endif %} aria-describedby="stop-note">Stop Batch</button>
+<p class="note" id="stop-note">Stop finishes the current operation and preserves completed work.</p>
+<p role="status" id="stop-feedback"></p>
 <p class="note" id="match-note">New Batch runs identification and TMDB matching automatically. Process Batch can retry matching afterward. Ignore and Delete files are skipped.</p>
 <p role="status" id="match-feedback">
   <span id="match-running" hidden>Processing batch...</span>
@@ -64,6 +69,8 @@
   let revision = 0;
   let refreshSequence = 0;
   const processBatch = document.getElementById('match-tmdb');
+  const stopBatch = document.getElementById('stop-batch');
+  let stopRequested = {{ workspace.stop_requested | tojson }};
   const feedback = [...document.querySelectorAll('#action-feedback span')];
   const saving = document.getElementById('action-saving');
   const saved = document.getElementById('action-saved');
@@ -121,8 +128,14 @@
     if (matchingInProgress) updated.querySelectorAll('select').forEach(select => { select.disabled = true; });
     table.replaceWith(updated);
     processBatch.disabled = matchingInProgress || page.getElementById('match-tmdb').disabled;
+    stopRequested = updated.dataset.stopRequested === 'true';
+    stopBatch.disabled = page.getElementById('stop-batch').disabled;
+    if (stopRequested && updated.dataset.automaticProcessing !== 'true' && !matchingInProgress) {
+      document.getElementById('stop-feedback').textContent = 'Batch stopped. Completed work has been preserved.';
+    }
     document.querySelector('.last-updated').replaceWith(page.querySelector('.last-updated'));
     document.getElementById('batch-processing').textContent = page.getElementById('batch-processing').textContent;
+    window.formatLocalTimes();
   }
   window.refreshWorkspace = refreshWorkspace;
 
@@ -145,6 +158,7 @@
     revision += 1;
     document.querySelectorAll('.file-action').forEach(select => { select.disabled = true; });
     processBatch.disabled = true;
+    stopBatch.disabled = stopRequested;
     document.getElementById('match-running').hidden = false;
     document.getElementById('match-error').hidden = true;
   }
@@ -159,7 +173,7 @@
       const response = await fetch('/workspace/match/status/' + encodeURIComponent(jobId), {cache: 'no-store'});
       if (!response.ok) throw new Error();
       const job = await response.json();
-      if (job.status === 'completed') {
+      if (job.status === 'completed' || job.status === 'cancelled') {
         matchingInProgress = false;
         revision += 1;
         document.getElementById('match-running').hidden = true;
@@ -187,6 +201,26 @@
       pollMatching(result.job_id);
     } catch {
       matchingFailed();
+    }
+  });
+
+  stopBatch.addEventListener('click', async () => {
+    stopBatch.disabled = true;
+    revision += 1;
+    const status = document.getElementById('stop-feedback');
+    status.textContent = 'Requesting stop...';
+    try {
+      const response = await fetch({{ settings.STOP_BATCH_URL | tojson }}, {
+        method: 'POST', body: new URLSearchParams({batch_id: {{ workspace.id | tojson }}})
+      });
+      if (!response.ok || (await response.json()).accepted !== true) throw new Error();
+      stopRequested = true;
+      status.textContent = 'Stop requested. Finishing the current operation...';
+      revision += 1;
+      await refreshWorkspace(true);
+    } catch {
+      status.textContent = 'Could not confirm the stop request. Refresh to check the batch.';
+      stopBatch.disabled = false;
     }
   });
 

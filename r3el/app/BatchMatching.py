@@ -12,6 +12,8 @@ from r3el.app.RetryIdentification import RetryIdentification
 from r3el.constants.DR3el import DR3el
 from r3el.entity.MediaFile import MediaFile, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch
+from r3el.entity.MediaFileBatch import MediaFileBatchState
+from r3el.entity.BatchStopped import BatchStopped
 from r3el.constants.DEventCategory import DEventCategory as Categories
 from r3el.constants.DEventName import DEventName as Names
 from r3el.entity.LogEvent import LogEvent
@@ -31,13 +33,26 @@ class BatchMatching:
         self._llm = llm
 
     def run(self, batch_id: str, *, file_ids: list[str] | None = None) -> None:
+        try:
+            self._run(batch_id, file_ids=file_ids)
+        except BatchStopped:
+            batch = self._workspace.load()
+            log = EventWriter(self._record, {'batch_id': batch_id}, batch.started_event_id)
+            self._workspace.save_batch_state(batch_id, MediaFileBatchState.CANCELLED, log.prepare(
+                Categories.Batch.LIFECYCLE, Names.BATCH_CANCELLED,
+                {'stage': 'matching'}, source='BatchMatching', level='WARNING'))
+            raise
+
+    def _run(self, batch_id: str, *, file_ids: list[str] | None = None) -> None:
         with self._workspace.processing(), self._workspace.matching():
             batch = self._workspace.load()
+            self._workspace.check_stop(batch_id)
             if batch is not None and file_ids is not None:
                 batch = replace(batch, files=[item for item in batch.files if item.id in file_ids])
             if batch is None or batch.id != batch_id or not BatchPreparation.ready(batch):
                 raise WorkspaceActionConflict('Processing requires a nonempty batch with identification finished.')
             for item in batch.files:
+                self._workspace.check_stop(batch_id)
                 log = EventWriter(self._record,
                                   {'batch_id': batch.id, 'item_id': item.id, 'filename': item.filename},
                                   batch.started_event_id)
@@ -66,11 +81,13 @@ class BatchMatching:
                     self._workspace.save_match(batch.id, item.id, result, log.prepare(
                         Categories.TMDB.RESULT, Names.TMDB_RESULT,
                         dict(asdict(result), outcome=result.label), source='TMDB'))
+                    self._workspace.check_stop(batch_id)
                     retry = RetryIdentification(self._workspace, self._llm)
                     if item.retries >= DR3el.MAX_IDENTIFICATION_RETRIES:
                         retry.exhausted(item, log)
                         break
                     retry.run(item, log)
+                    self._workspace.check_stop(batch_id)
                     if item.state != MediaFileState.IDENTIFIED:
                         break
                     result = self._search(item.identification.title, item.identification.year, log)
@@ -98,6 +115,7 @@ class BatchMatching:
                                         level='ERROR' if result.selection_error else 'INFO')
                     self._workspace.save_match(batch.id, item.id, result, event)
                 self._catalogue(batch, item, result, log)
+            self._workspace.check_stop(batch_id)
 
     def _catalogue(self, batch: MediaFileBatch, item: MediaFile, result: TMDBMatch, log: EventWriter) -> None:
         if result.catalogue_saved:

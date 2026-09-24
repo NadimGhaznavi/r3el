@@ -23,6 +23,7 @@ import zmq
 
 from r3el.constants.DMessage import DMessage
 from r3el.entity.BatchRequest import BatchRequest
+from r3el.entity.BatchStopped import BatchStopped
 from r3el.interface.BatchControl import BatchControl
 from r3el.zmq.ZMQClient import ZMQClient
 from r3el.zmq.ZMQMsg import ZMQMsg
@@ -130,9 +131,59 @@ class EventDatabaseTests(unittest.TestCase):
         self.db.execute('DELETE FROM media_file_batches')
         self.db.execute('DELETE FROM events ORDER BY event_id DESC')
 
+    def assert_batch_equal(self, actual, expected):
+        self.assertEqual(replace(actual, files=[replace(item, updated_at=None) for item in actual.files]), expected)
+
     def workspace_batch(self):
         return MediaFileBatch(str(uuid4()), 10, '/tmp/films',
                               files=[MediaFile(str(uuid4()), '/tmp/films/a.mkv')])
+
+    def test_stop_request_is_durable_and_does_not_wait_for_processing_lock(self):
+        workspace = WorkspaceDb(self.db)
+        batch = self.workspace_batch()
+        workspace.create(batch, self.event(), self.event())
+        reader = DbMgr()
+        try:
+            with workspace.processing(), workspace.matching():
+                WorkspaceDb(reader).request_stop(batch.id)
+                WorkspaceDb(reader).request_stop(batch.id)
+                with self.assertRaises(BatchStopped):
+                    workspace.check_stop(batch.id)
+            self.assertTrue(WorkspaceDb(reader).snapshot().stop_requested)
+        finally:
+            reader.close()
+        self.assertEqual(len(self.events.recent(name='batch_stop_requested')), 1)
+        WorkspaceSchema(self.db).apply()
+        self.assertTrue(workspace.load().stop_requested)
+
+    def test_stop_rejects_idle_and_stale_batches(self):
+        workspace = WorkspaceDb(self.db)
+        with self.assertRaises(WorkspaceActionConflict):
+            workspace.request_stop('missing')
+        batch = self.workspace_batch()
+        batch.state = MediaFileBatchState.MATCHING_COMPLETED
+        workspace.create(batch, self.event(), self.event())
+        with self.assertRaises(WorkspaceActionConflict):
+            workspace.request_stop(batch.id)
+        workspace.request_stop(batch.id, matching=True)
+        self.assertTrue(workspace.load().stop_requested)
+
+    def test_file_updated_timestamp_is_saved_in_utc_and_preserved_by_upgrade(self):
+        workspace = WorkspaceDb(self.db)
+        batch = self.workspace_batch()
+        before = self.db.query('SELECT UTC_TIMESTAMP(6) AS now')[0]['now']
+        workspace.create(batch, self.event(), self.event())
+        saved = workspace.load().files[0]
+        self.assertGreaterEqual(saved.updated_at.replace(tzinfo=None), before)
+        self.assertEqual(saved.updated_at.utcoffset().total_seconds(), 0)
+        self.db.execute("UPDATE media_files SET updated_at = '2000-01-01 00:00:00' WHERE file_id = %s", (saved.id,))
+        saved.state = MediaFileState.IDENTIFIED
+        saved.identification = Identification('Movie', 2020, 10)
+        workspace.save_file(batch.id, saved, self.event())
+        updated = workspace.load().files[0].updated_at
+        self.assertGreaterEqual(updated.replace(tzinfo=None), before)
+        WorkspaceSchema(self.db).apply()
+        self.assertEqual(workspace.load().files[0].updated_at, updated)
 
     def catalogue_movie(self):
         return CatalogueMovie(42, 'Film', 'Original', date(2020, 2, 3), 'Overview', 120,
@@ -251,7 +302,7 @@ class EventDatabaseTests(unittest.TestCase):
         reader = DbMgr()
         try:
             restored = WorkspaceDb(reader).load()
-            self.assertEqual(restored, batch)
+            self.assert_batch_equal(restored, batch)
         finally:
             reader.close()
 
@@ -277,7 +328,7 @@ class EventDatabaseTests(unittest.TestCase):
         item.identification = Identification('Correct Film', 2000, 10)
         item.tmdb_match = None
         workspace.save_file(batch.id, item, self.event())
-        self.assertEqual(workspace.load().files[0], item)
+        self.assertEqual(replace(workspace.load().files[0], updated_at=None), item)
 
     def test_workspace_action_changes_persist_without_changing_identification(self):
         workspace = WorkspaceDb(self.db)
@@ -403,10 +454,10 @@ class EventDatabaseTests(unittest.TestCase):
                 item.attempts = 3
                 first.save_file(batch.id, item, self.event())
             with second.processing():
-                self.assertEqual(second.load(), batch)
+                self.assert_batch_equal(second.load(), batch)
                 with self.assertRaises(pymysql.IntegrityError):
                     second.create(self.workspace_batch(), self.event(), self.event())
-                self.assertEqual(second.load(), batch)
+                self.assert_batch_equal(second.load(), batch)
         finally:
             reader.close()
 
@@ -436,7 +487,7 @@ class EventDatabaseTests(unittest.TestCase):
         try:
             WorkspaceSchema(self.db).apply()
             WorkspaceSchema(self.db).apply()
-            self.assertEqual(workspace.load(), batch)
+            self.assert_batch_equal(workspace.load(), batch)
         finally:
             WorkspaceSchema(self.db).apply()
 

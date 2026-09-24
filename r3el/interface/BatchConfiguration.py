@@ -17,6 +17,6 @@ class BatchConfiguration:
                     or not Path(value).is_absolute()):
                 raise ValueError(f'{name} must be an absolute directory path.')
         size = payload['batch_size']
-        if type(size) is not int or size not in DR3el.BATCH_SIZES:
-            raise ValueError(f'batch_size must be one of {DR3el.BATCH_SIZES}.')
+        if type(size) is not int or not 1 <= size <= DR3el.MAX_BATCH_SIZE:
+            raise ValueError(f'batch_size must be a positive whole number no greater than {DR3el.MAX_BATCH_SIZE}.')
         return BatchRequest(**payload)

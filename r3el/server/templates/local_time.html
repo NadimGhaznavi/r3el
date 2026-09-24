@@ -1,0 +1,17 @@
+<script>
+  function localTimeText(value, compact) {
+    const time = new Date(value);
+    const pad = value => String(value).padStart(2, '0');
+    const day = `${pad(time.getMonth() + 1)}-${pad(time.getDate())}`;
+    const clock = `${pad(time.getHours())}:${pad(time.getMinutes())}`;
+    return compact ? `${day} ${clock}` : `${time.getFullYear()}-${day} ${clock}:${pad(time.getSeconds())}`;
+  }
+  window.formatLocalTimes = function(root = document) {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    root.querySelectorAll('time[data-local-time]').forEach(element => {
+      element.textContent = localTimeText(element.dateTime, element.dataset.localTime === 'compact');
+      element.title = zone;
+    });
+  };
+  document.addEventListener('DOMContentLoaded', () => window.formatLocalTimes());
+</script>

@@ -28,6 +28,7 @@ class EventPages:
         self._templates.filters['reasoning_preview'] = self.reasoning_preview
         self._templates.filters['prompt_preview'] = self.prompt_preview
         self._templates.filters['from_json'] = json.loads
+        self._templates.filters['utc_iso'] = lambda value: value.replace(tzinfo=timezone.utc).isoformat(timespec='milliseconds')
         self._templates.globals['settings'] = DR3el
         self._templates.globals['messages'] = DMessage
         self._templates.globals['event_types'] = DEventName
@@ -82,8 +83,10 @@ class EventPages:
             workspace = values['workspace']
             values['automatic_processing'] = workspace is not None and workspace.state in (
                 MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING)
+            values['stop_ready'] = (workspace is not None and not workspace.stop_requested
+                                    and (values['automatic_processing'] or values['matching_job'] is not None))
             values['process_ready'] = (workspace is not None and BatchPreparation.ready(workspace)
-                                       and not values['automatic_processing'])
+                                       and not workspace.stop_requested and not values['automatic_processing'])
             values['has_match_results'] = workspace is not None and any(
                 item.tmdb_match is not None for item in workspace.files)
             values['last_updated'] = datetime.now(timezone.utc)

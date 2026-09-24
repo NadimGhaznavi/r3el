@@ -8,6 +8,7 @@ from uuid import uuid4
 import pymysql
 
 from r3el.interface.WorkspaceDb import WorkspaceActionConflict, WorkspaceBusy
+from r3el.entity.BatchStopped import BatchStopped
 
 
 class MatchingJobs:
@@ -38,6 +39,8 @@ class MatchingJobs:
         try:
             self._execute(batch_id)
             status = 'completed'
+        except BatchStopped:
+            status = 'cancelled'
         except (WorkspaceActionConflict, WorkspaceBusy, pymysql.MySQLError):
             logging.exception('Background matching failed')
         finally:
