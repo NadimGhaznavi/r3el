@@ -3,18 +3,23 @@
 from collections.abc import Callable
 from dataclasses import asdict, replace
 
+import httpx
+
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.MovieSelection import MovieSelection
 from r3el.app.RetryIdentification import RetryIdentification
 from r3el.constants.DR3el import DR3el
-from r3el.entity.MediaFile import MediaFileState
+from r3el.entity.MediaFile import MediaFile, MediaFileState
+from r3el.entity.MediaFileBatch import MediaFileBatch
 from r3el.constants.DEventCategory import DEventCategory as Categories
 from r3el.constants.DEventName import DEventName as Names
 from r3el.entity.LogEvent import LogEvent
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.entity.TMDBMatch import TMDBMatch
 from r3el.interface.TMDB import TMDB, TMDBError
+from r3el.interface.TMDBCatalogue import TMDBCatalogue
+from r3el.interface.CatalogueFiles import CatalogueFiles
 from r3el.interface.LLM import LLM
 from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict
 
@@ -49,6 +54,7 @@ class BatchMatching:
                     # Repeated submissions reuse completed queries; failed searches can be retried.
                     result = item.tmdb_match
                     if result.response['total_results'] == 1 or result.selected_number is not None:
+                        self._catalogue(batch, item, result, log)
                         continue
                 elif identification is None:
                     result = TMDBMatch(title, year, error='No identified title and year available.')
@@ -91,6 +97,48 @@ class BatchMatching:
                                         dict(asdict(result), outcome=result.label), source='MovieSelection',
                                         level='ERROR' if result.selection_error else 'INFO')
                     self._workspace.save_match(batch.id, item.id, result, event)
+                self._catalogue(batch, item, result, log)
+
+    def _catalogue(self, batch: MediaFileBatch, item: MediaFile, result: TMDBMatch, log: EventWriter) -> None:
+        if result.catalogue_saved:
+            if not result.file_moved:
+                self._finish_move(batch.id, item.id, result, log)
+            return
+        response = result.resolved_response
+        if (result.skipped or result.error is not None
+                or result.selection_pending or result.selection_error is not None
+                or response is None or response['total_results'] != 1):
+            return
+        try:
+            movie = TMDBCatalogue(TMDB.from_environment()).movie(response['results'][0]['id'])
+            files = CatalogueFiles().prepare(movie, item.path, batch.destination_directory, item.id)
+        except (TMDBError, OSError, ValueError, httpx.HTTPError) as error:
+            self._catalogue_failure(batch.id, item.id, result, error, log)
+            return
+        result = replace(result, catalogue_saved=True, catalogue_error=None,
+                         source_path=item.path, catalogue_path=files.video)
+        self._workspace.save_catalogue(batch.id, item.id, movie, result, log.prepare(
+            Categories.TMDB.RESULT, Names.TMDB_RESULT,
+            {'movie_id': movie.tmdb_id, 'outcome': 'Saved to catalogue'}, source='Catalogue'), files)
+        self._finish_move(batch.id, item.id, result, log)
+
+    def _finish_move(self, batch_id: str, file_id: str, result: TMDBMatch, log: EventWriter) -> None:
+        try:
+            CatalogueFiles().finish(result.source_path, result.catalogue_path, file_id)
+        except (OSError, ValueError) as error:
+            self._catalogue_failure(batch_id, file_id, result, error, log)
+            return
+        result = replace(result, file_moved=True, catalogue_error=None)
+        self._workspace.save_match(batch_id, file_id, result, log.prepare(
+            Categories.TMDB.RESULT, Names.TMDB_RESULT,
+            {'outcome': 'Moved to catalogue', 'path': result.catalogue_path}, source='Catalogue'))
+
+    def _catalogue_failure(self, batch_id: str, file_id: str, result: TMDBMatch,
+                           error: Exception, log: EventWriter) -> None:
+        result = replace(result, catalogue_error=str(error))
+        self._workspace.save_match(batch_id, file_id, result, log.prepare(
+            Categories.TMDB.RESULT, Names.TMDB_RESULT, dict(asdict(result), outcome=result.label),
+            source='Catalogue', level='ERROR'))
 
     @staticmethod
     def _search(title: str, year: int, log: EventWriter) -> TMDBMatch:

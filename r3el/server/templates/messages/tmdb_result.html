@@ -1,1 +1,1 @@
-<a href="/events/{{ event.event_id }}">TMDB result. Filename: {{ message.payload.context.filename }}, {{ message.payload.data.outcome }}{% if message.payload.data.error %}: {{ message.payload.data.error }}{% endif %}.</a>
+<a href="/events/{{ event.event_id }}">TMDB result. Filename: {{ message.payload.context.filename }}, {{ message.payload.data.outcome }}{% if message.payload.data.get('error') %}: {{ message.payload.data.error }}{% elif message.payload.data.get('catalogue_error') %}: {{ message.payload.data.catalogue_error }}{% endif %}.</a>

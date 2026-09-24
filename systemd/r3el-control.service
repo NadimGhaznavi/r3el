@@ -17,7 +17,9 @@ RestartSec=3
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
-ProtectSystem=strict
+# Matching writes to the input/output directories selected in the batch.
+# Keep system directories read-only while allowing ordinary data directories.
+ProtectSystem=full
 
 [Install]
 WantedBy=multi-user.target

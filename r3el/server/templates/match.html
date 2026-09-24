@@ -2,6 +2,9 @@
 {% block title %}Match Results{% endblock %}
 {% block content %}
 <h1>Match Results</h1>
+{% if match.catalogue_error %}<p class="match-status match-status-failed">Catalogue save failed: {{ match.catalogue_error }}</p>
+{% elif match.file_moved %}<p class="note">Saved to catalogue and moved to {{ match.catalogue_path }}.</p>
+{% elif match.catalogue_saved %}<p class="note">Saved to catalogue; completing the file move.</p>{% endif %}
 <p class="note match-query">{{ file.filename }}<br>Query: {{ match.title if match.title is not none else '—' }} ({{ match.year if match.year is not none else '—' }}) · Movies</p>
 <section class="tmdb-match" aria-labelledby="tmdb-heading">
   <header class="match-header">

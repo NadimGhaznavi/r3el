@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-24 @ 04:27
+
+### Added
+
+- Save resolved TMDB matches in a normalized local movie catalogue with people, credit roles, movie credits, genres, and durable file links. Include Director, Actor, Producer, Executive Producer, and Co-Producer credits; preserve multiple characters and cast billing order. Store the requested movie metadata without language.
+- Install/upgrade creates the catalogue tables. Metadata and file links commit atomically with the workspace checkpoint and event; failed metadata downloads can be retried without repeating identification or search. Match Results shows catalogue save status.
+- Create a `Title (Year)` folder beneath the batch's configured output directory, using the documented naming rules. Store local TMDB posters/backdrops with database references and move resolved videos there without copying bytes on the same filesystem. Preserve the source until the catalogue commit, reject destination collisions, and resume interrupted moves safely.
+
 ## [0.9.3] - 2026-09-24 @ 03:53
 
 ### Fixed

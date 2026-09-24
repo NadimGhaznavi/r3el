@@ -19,6 +19,9 @@ from r3el.interface.WorkspaceDb import WorkspaceDb
 
 class ZeroMatchRetryTests(unittest.TestCase):
     def setUp(self):
+        catalogue = patch('r3el.app.BatchMatching.BatchMatching._catalogue')
+        catalogue.start()
+        self.addCleanup(catalogue.stop)
         self.item = MediaFile('file', '/tmp/Actual.Movie.2025.mkv', MediaFileState.IDENTIFIED,
                               Identification('Creative Movie', 2025, 10), attempts=1)
         self.batch = MediaFileBatch('batch', 1, '/tmp', files=[self.item],
