@@ -66,6 +66,9 @@ class TMDBTests(unittest.TestCase):
 
 class BatchMatchingTests(unittest.TestCase):
     def setUp(self):
+        catalogue = patch('r3el.app.BatchMatching.BatchMatching._catalogue')
+        catalogue.start()
+        self.addCleanup(catalogue.stop)
         self.files = [MediaFile(str(index), f'/tmp/{index}.mkv', MediaFileState.IDENTIFIED,
                                Identification('Movie', 2020, 10), action=action)
                       for index, action in enumerate((MediaFileAction.APPROVE,

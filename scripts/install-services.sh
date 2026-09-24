@@ -90,6 +90,8 @@ modules=(
     interface/DbMgr.py interface/EventLogDb.py interface/FileMgr.py
     activity/EventSchema.py activity/EventReport.py activity/ServerLifecycle.py
     activity/WorkspaceSchema.py interface/WorkspaceDb.py
+    activity/CatalogueSchema.py interface/CatalogueDb.py interface/TMDBCatalogue.py entity/CatalogueMovie.py
+    activity/MovieNaming.py interface/CatalogueFiles.py entity/MovieFiles.py
     entity/MediaFile.py entity/MediaFileBatch.py
     entity/MediaFileAction.py activity/BatchPreparation.py
     entity/TMDBMatch.py interface/TMDB.py interface/TMDBCredentials.py app/BatchMatching.py
@@ -128,6 +130,8 @@ for line in Path('/etc/r3el/tmdb.env').read_text().splitlines():
 subprocess.run([sys.executable, '-B', '-m', 'r3el.activity.EventSchema'],
                cwd=sys.argv[1], env=environment, check=True)
 subprocess.run([sys.executable, '-B', '-m', 'r3el.activity.WorkspaceSchema'],
+               cwd=sys.argv[1], env=environment, check=True)
+subprocess.run([sys.executable, '-B', '-m', 'r3el.activity.CatalogueSchema'],
                cwd=sys.argv[1], env=environment, check=True)
 subprocess.run([sys.executable, '-B', '-m', 'r3el.activity.TMDBReferenceRefresh'],
                cwd=sys.argv[1], env=environment, check=True)

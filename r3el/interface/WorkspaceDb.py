@@ -10,6 +10,9 @@ from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.entity.TMDBMatch import TMDBMatch
+from r3el.entity.CatalogueMovie import CatalogueMovie
+from r3el.entity.MovieFiles import MovieFiles
+from r3el.interface.CatalogueDb import CatalogueDb
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
 
@@ -159,4 +162,17 @@ class WorkspaceDb:
         with self._db.transaction():
             self._db.execute('UPDATE media_file_batches SET state = %s WHERE batch_id = %s',
                              (state, batch_id))
+            self._events.record_in_transaction(event)
+
+    def save_catalogue(self, batch_id: str, file_id: str, movie: CatalogueMovie,
+                       result: TMDBMatch, event: LogEvent, files: MovieFiles) -> None:
+        """Commit metadata, the durable file link, and the workspace checkpoint together."""
+        with self._db.transaction():
+            rows = self._db.query('SELECT path FROM media_files WHERE batch_id = %s AND file_id = %s FOR UPDATE',
+                                   (batch_id, file_id))
+            if not rows:
+                raise WorkspaceActionConflict('The file is no longer in the workspace.')
+            CatalogueDb(self._db).save_in_transaction(movie, files)
+            self._db.execute('UPDATE media_files SET tmdb_match = %s, path = %s WHERE batch_id = %s AND file_id = %s',
+                             (json.dumps(asdict(result), allow_nan=False), files.video, batch_id, file_id))
             self._events.record_in_transaction(event)

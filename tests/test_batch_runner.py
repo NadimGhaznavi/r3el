@@ -88,7 +88,8 @@ class BatchRunnerTests(unittest.IsolatedAsyncioTestCase):
                       patch('r3el.app.BatchRunner.WorkspaceDb') as workspaces,
                       patch('r3el.app.BatchRunner.EventLogDb') as events,
                       patch('r3el.app.BatchIdentification.ToolConversation') as conversation,
-                      patch('r3el.app.BatchMatching.TMDB.from_environment') as tmdb):
+                      patch('r3el.app.BatchMatching.TMDB.from_environment') as tmdb,
+                      patch('r3el.app.BatchMatching.BatchMatching._catalogue')):
                     workspace = workspaces.return_value
                     workspace.processing.side_effect = nullcontext
                     workspace.matching.side_effect = nullcontext
@@ -119,6 +120,8 @@ class BatchRunnerTests(unittest.IsolatedAsyncioTestCase):
                     workspace.save_batch_state.side_effect = state
                     conversation.side_effect = make_conversation
                     tmdb.return_value.search.side_effect = search
+                    tmdb.return_value.details.return_value = {
+                        'id': 42, 'title': 'Movie', 'genres': [], 'credits': {'cast': [], 'crew': []}}
                     await BatchRunner('http://model', 'endpoint', Mock()).run(
                         BatchRequest(directory, '/tmp/out', max(5, count)))
                     expected = []
