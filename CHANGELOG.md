@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-24 @ 04:27
+
 ### Added
 
 - Save resolved TMDB matches in a normalized local movie catalogue with people, credit roles, movie credits, genres, and durable file links. Include Director, Actor, Producer, Executive Producer, and Co-Producer credits; preserve multiple characters and cast billing order. Store the requested movie metadata without language.
