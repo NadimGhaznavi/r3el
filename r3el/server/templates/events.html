@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1>Event log</h1>
-<p class="note">Latest {{ events | length }} matching events, up to 500. Newest first. All times UTC.</p>
+<p class="note">Latest {{ events | length }} matching events, up to 500. Newest first. Times shown in your local timezone.</p>
 <form method="get" action="/events" id="event-filters">
   <label>Refresh
     <select name="refresh">
@@ -15,7 +15,7 @@
 <table class="event-log" aria-label="Event log">
   <colgroup><col style="width: 16%"><col style="width: 4%"><col style="width: 5%"><col style="width: 8%"><col style="width: 12%"><col style="width: 22%"><col style="width: 33%"></colgroup>
   <thead>
-    <tr><th scope="col">Time (UTC)</th><th scope="col">ID</th><th scope="col">Level</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Event / Source</th><th scope="col">Message</th></tr>
+    <tr><th scope="col">Time (local)</th><th scope="col">ID</th><th scope="col">Level</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Event / Source</th><th scope="col">Message</th></tr>
     <tr class="filter-row">
       <td></td><td></td><td></td>
       <td>
@@ -42,7 +42,7 @@
   <tbody>
   {% for event in events %}
     <tr>
-      <td><time>{{ event.occurred_at }}</time></td>
+      <td><time datetime="{{ event.occurred_at | utc_iso }}" data-local-time="full">—</time></td>
       <td><a href="/events/{{ event.event_id }}">#{{ event.event_id }}</a></td>
       <td class="level level-{{ event.log_level | lower }}">{{ event.log_level }}</td>
       <td>{{ event.category }}</td>

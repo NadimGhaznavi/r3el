@@ -2,6 +2,7 @@
 
 from contextlib import contextmanager
 from dataclasses import asdict, replace
+from datetime import timezone
 import json
 
 from r3el.entity.Identification import Identification
@@ -12,6 +13,10 @@ from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.entity.TMDBMatch import TMDBMatch
 from r3el.entity.CatalogueMovie import CatalogueMovie
 from r3el.entity.MovieFiles import MovieFiles
+from r3el.entity.BatchStopped import BatchStopped
+from r3el.constants.DEventCategory import DEventCategory as Categories
+from r3el.constants.DEventName import DEventName as Names
+from r3el.activity.EventWriter import EventWriter
 from r3el.interface.CatalogueDb import CatalogueDb
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
@@ -72,6 +77,7 @@ class WorkspaceDb:
             id=row['batch_id'], requested_size=row['requested_size'],
             source_directory=row['source_directory'], state=MediaFileBatchState(row['state']),
             destination_directory=row['destination_directory'],
+            stop_requested=bool(row['stop_requested']),
             started_event_id=row['started_event_id'], files=[self._file(item) for item in files],
         )
 
@@ -84,6 +90,7 @@ class WorkspaceDb:
             issues=[MediaFileIssue(**issue) for issue in json.loads(row['issues'])],
             attempts=row['attempts'], action=MediaFileAction(row['action']),
             retries=row['retries'],
+            updated_at=row['updated_at'].replace(tzinfo=timezone.utc) if row['updated_at'] is not None else None,
             tmdb_match=TMDBMatch(**json.loads(row['tmdb_match'])) if row['tmdb_match'] is not None else None,
         )
 
@@ -101,8 +108,8 @@ class WorkspaceDb:
             for position, item in enumerate(batch.files):
                 self._db.execute(
                     'INSERT INTO media_files '
-                    '(file_id, batch_id, position, path, state, identification, issues, attempts, action) '
-                    'VALUES (%s, %s, %s, %s, %s, NULL, %s, %s, %s)',
+                    '(file_id, batch_id, position, path, state, identification, issues, attempts, action, updated_at) '
+                    'VALUES (%s, %s, %s, %s, %s, NULL, %s, %s, %s, UTC_TIMESTAMP(6))',
                     (item.id, batch.id, position, item.path, item.state, '[]', item.attempts, item.action),
                 )
             self._events.record_in_transaction(replace(discovered, parent_event_id=event_id))
@@ -163,6 +170,29 @@ class WorkspaceDb:
             self._db.execute('UPDATE media_file_batches SET state = %s WHERE batch_id = %s',
                              (state, batch_id))
             self._events.record_in_transaction(event)
+
+    def request_stop(self, batch_id: str, *, matching: bool = False) -> None:
+        """Request a stop without taking the worker's long-lived processing lock."""
+        with self._db.transaction():
+            rows = self._db.query('SELECT state, stop_requested, started_event_id FROM media_file_batches '
+                                  'WHERE batch_id = %s FOR UPDATE', (batch_id,))
+            if not rows:
+                raise WorkspaceActionConflict('The batch is no longer in the workspace.')
+            row = rows[0]
+            if row['stop_requested']:
+                return
+            if not matching and row['state'] not in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING):
+                raise WorkspaceActionConflict('The batch is not running.')
+            self._db.execute('UPDATE media_file_batches SET stop_requested = TRUE WHERE batch_id = %s', (batch_id,))
+            event = EventWriter(self._events.record, {'batch_id': batch_id}, row['started_event_id']).prepare(
+                Categories.Batch.LIFECYCLE, Names.BATCH_STOP_REQUESTED,
+                {'message': 'Stop requested; finishing the current operation.'}, source='Control')
+            self._events.record_in_transaction(event)
+
+    def check_stop(self, batch_id: str) -> None:
+        rows = self._db.query('SELECT stop_requested FROM media_file_batches WHERE batch_id = %s', (batch_id,))
+        if rows and rows[0]['stop_requested']:
+            raise BatchStopped()
 
     def save_catalogue(self, batch_id: str, file_id: str, movie: CatalogueMovie,
                        result: TMDBMatch, event: LogEvent, files: MovieFiles) -> None:

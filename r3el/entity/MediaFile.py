@@ -1,6 +1,7 @@
 """Current working data for one file in a batch."""
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 
@@ -33,6 +34,7 @@ class MediaFile:
     action: MediaFileAction = MediaFileAction.PENDING
     tmdb_match: TMDBMatch | None = None
     retries: int = 0
+    updated_at: datetime | None = None
 
     @property
     def filename(self) -> str:

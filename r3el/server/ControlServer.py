@@ -157,7 +157,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                                              matching_job=active_job, **values))
 
         def do_POST(self):
-            if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL):
+            if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL):
                 self.send_error(404)
                 return
             # Browser form submissions must originate from this control server.
@@ -176,7 +176,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 if any(len(values) != 1 for values in fields.values()):
                     raise ValueError('Repeated form field.')
                 payload = {name: values[0] for name, values in fields.items()}
-                if self.path == DR3el.MATCH_TMDB_URL:
+                if self.path in (DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL):
                     if set(payload) != {'batch_id'} or not re.fullmatch(r'[A-Za-z0-9-]{1,36}', payload['batch_id']):
                         raise ValueError('Supply a valid batch_id.')
                 elif self.path == DR3el.FILE_ACTION_URL:
@@ -189,10 +189,13 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     payload['batch_size'] = int(payload['batch_size'])
                     parameters = BatchConfiguration.resolve(payload)
             except (KeyError, ValueError):
-                if self.path in (DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL):
+                if self.path in (DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL):
                     self.respond(400, b'{"saved":false}', 'application/json')
                     return
                 self.respond_control(400, result=DMessage.INVALID_PARAMETERS)
+                return
+            if self.path == DR3el.STOP_BATCH_URL:
+                self.stop_batch(payload['batch_id'])
                 return
             if self.path == DR3el.MATCH_TMDB_URL:
                 self.match_batch(payload['batch_id'])
@@ -245,6 +248,24 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 return
             self.respond(200, json.dumps({'saved': True, 'ready': BatchPreparation.ready(batch)}).encode(),
                          'application/json')
+
+        def stop_batch(self, batch_id: str):
+            job = matching.current()
+            active = job is not None and job['batch_id'] == batch_id and job['status'] == 'running'
+            try:
+                db = DbMgr()
+                try:
+                    WorkspaceDb(db).request_stop(batch_id, matching=active)
+                finally:
+                    db.close()
+            except WorkspaceActionConflict:
+                self.respond(409, b'{"accepted":false}', 'application/json')
+                return
+            except pymysql.MySQLError:
+                logging.exception('Unable to request batch stop')
+                self.respond(503, b'{"accepted":false}', 'application/json')
+                return
+            self.respond(202, b'{"accepted":true}', 'application/json')
 
         def match_batch(self, batch_id: str):
             job = matching.submit(batch_id)
