@@ -290,6 +290,41 @@ class ControlServerTests(unittest.TestCase):
         self.assertNotIn('pollMatching("' + job_id + '")', self.request('/')[2])
         self.assertEqual(self.request('/workspace/match/status/unknown')[0], 404)
 
+    def test_manual_id_controls_only_show_for_finished_multiple_matches(self):
+        item = MediaFile('file-1', '/tmp/movie.mkv', state=MediaFileState.IDENTIFIED,
+            tmdb_match=TMDBMatch('Movie', 2020, response={'total_results': 2, 'results': [{'id': 1}, {'id': 2}]},
+                                 selected_number=0))
+        batch = MediaFileBatch('batch-1', 1, '/tmp', files=[item], state=MediaFileBatchState.MATCHING_COMPLETED)
+        self.workspace.return_value = batch
+        body = self.request('/')[2]
+        self.assertIn('<th scope="col">Manual match</th>', body)
+        self.assertIn('aria-label="TMDB ID for movie.mkv"', body)
+        self.assertIn('>TMDB ID</button>', body)
+        batch.state = MediaFileBatchState.MATCHING
+        self.assertNotIn('class="manual-match"', self.request('/')[2])
+        batch.state = MediaFileBatchState.MATCHING_COMPLETED
+        item.tmdb_match = TMDBMatch('Movie', 2020, response={'total_results': 1, 'results': [{'id': 1}]})
+        self.assertNotIn('class="manual-match"', self.request('/')[2])
+
+    @patch('r3el.server.ControlServer.BatchMatching.match_id')
+    def test_manual_id_request_validates_and_runs_in_background(self, match_id):
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        for value in ('0', '-1', 'abc', '1.5', '4294967296'):
+            self.assertEqual(self.request('/workspace/match-id', 'POST',
+                f'batch_id=batch-1&file_id=file-1&movie_id={value}', headers)[0], 400)
+        match_id.assert_not_called()
+        status, _, body = self.request('/workspace/match-id', 'POST',
+            'batch_id=batch-1&file_id=file-1&movie_id=42', headers)
+        self.assertEqual(status, 202)
+        job_id = json.loads(body)['job_id']
+        deadline = time.monotonic() + 2
+        while json.loads(self.request('/workspace/match/status/' + job_id)[2])['status'] == 'running':
+            self.assertLess(time.monotonic(), deadline)
+            time.sleep(0.01)
+        match_id.assert_called_once_with('batch-1', 'file-1', 42)
+        self.assertEqual(self.request('/workspace/match-id', 'POST',
+            'batch_id=batch-1&file_id=file-1&movie_id=42', dict(headers, Origin='http://elsewhere.invalid'))[0], 403)
+
     @patch('r3el.server.ControlServer.BatchMatching.run')
     def test_invalid_matching_requests_do_not_run(self, run):
         for body in ('batch_id=', 'batch_id=../bad', 'batch_id=one&batch_id=two', 'file_id=one'):

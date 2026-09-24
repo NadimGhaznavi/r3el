@@ -12,21 +12,24 @@ from r3el.entity.BatchStopped import BatchStopped
 
 
 class MatchingJobs:
-    def __init__(self, execute: Callable[[str], None]) -> None:
+    def __init__(self, execute: Callable[..., None]) -> None:
         self._execute = execute
         self._lock = Lock()
         self._job = None
         self._thread = None
         self._closed = False
 
-    def submit(self, batch_id: str) -> dict | None:
+    def submit(self, batch_id: str, *, file_id: str | None = None, movie_id: int | None = None) -> dict | None:
         with self._lock:
             if self._closed:
                 return None
             if self._job is not None and self._job['status'] == 'running':
-                return dict(self._job) if self._job['batch_id'] == batch_id else None
+                return (dict(self._job) if self._job['batch_id'] == batch_id
+                        and self._job.get('file_id') == file_id and self._job.get('movie_id') == movie_id else None)
             self._job = {'id': str(uuid4()), 'batch_id': batch_id, 'status': 'running'}
-            self._thread = Thread(target=self._run, args=(batch_id,), name='r3el-matching')
+            if file_id is not None:
+                self._job.update(file_id=file_id, movie_id=movie_id)
+            self._thread = Thread(target=self._run, args=(batch_id, file_id, movie_id), name='r3el-matching')
             self._thread.start()
             return dict(self._job)
 
@@ -34,10 +37,13 @@ class MatchingJobs:
         with self._lock:
             return dict(self._job) if self._job is not None else None
 
-    def _run(self, batch_id: str) -> None:
+    def _run(self, batch_id: str, file_id: str | None, movie_id: int | None) -> None:
         status = 'failed'
         try:
-            self._execute(batch_id)
+            if file_id is None:
+                self._execute(batch_id)
+            else:
+                self._execute(batch_id, file_id=file_id, movie_id=movie_id)
             status = 'completed'
         except BatchStopped:
             status = 'cancelled'

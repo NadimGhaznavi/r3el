@@ -22,6 +22,12 @@ class TMDBMatch:
     discard_files: list[dict] = field(default_factory=list)
 
     @property
+    def needs_manual_match(self) -> bool:
+        return (not self.skipped and not self.catalogue_saved and not self.selection_pending
+                and not self.selected_number and self.response is not None
+                and self.response['total_results'] > 1)
+
+    @property
     def resolved_response(self) -> dict | None:
         """Keep only the chosen movie, including for older saved multi-result searches."""
         if not self.selected_number or self.response is None or self.response['total_results'] == 1:
