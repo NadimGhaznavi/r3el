@@ -43,6 +43,16 @@ class TMDB:
     def search_parameters(title: str, year: int) -> dict:
         return {'query': title, 'primary_release_year': year, 'page': 1}
 
+    def details(self, movie_id: int) -> dict:
+        """Return the full movie record and related descriptive data."""
+        payload = self._get(f'https://api.themoviedb.org/3/movie/{movie_id}', {
+            'append_to_response': 'alternative_titles,credits,external_ids,images,keywords,release_dates,translations,videos',
+        })
+        if (not isinstance(payload, dict) or type(payload.get('id')) is not int
+                or payload['id'] != movie_id):
+            raise TMDBError(f'TMDB returned invalid details for movie {movie_id}.')
+        return payload
+
     def reference(self) -> TMDBReference:
         genres = self._get('https://api.themoviedb.org/3/genre/movie/list', {'language': 'en'})
         languages = self._get('https://api.themoviedb.org/3/configuration/languages', {})
