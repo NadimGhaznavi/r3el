@@ -25,9 +25,11 @@ class BatchMatching:
         self._record = record
         self._llm = llm
 
-    def run(self, batch_id: str) -> None:
+    def run(self, batch_id: str, *, file_ids: list[str] | None = None) -> None:
         with self._workspace.processing(), self._workspace.matching():
             batch = self._workspace.load()
+            if batch is not None and file_ids is not None:
+                batch = replace(batch, files=[item for item in batch.files if item.id in file_ids])
             if batch is None or batch.id != batch_id or not BatchPreparation.ready(batch):
                 raise WorkspaceActionConflict('Processing requires a nonempty batch with identification finished.')
             for item in batch.files:

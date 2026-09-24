@@ -6,6 +6,7 @@ from r3el.activity.EventWriter import EventWriter
 from r3el.app.BatchIdentification import BatchIdentification
 from r3el.app.BatchMatching import BatchMatching
 from r3el.app.SubmissionHandler import SubmissionHandler
+from r3el.constants.DR3el import DR3el
 from r3el.constants.DEventCategory import DEventCategory as Categories
 from r3el.constants.DEventName import DEventName as Names
 from r3el.entity.BatchRequest import BatchRequest
@@ -25,35 +26,45 @@ class BatchRunner:
         self._submissions = submissions
 
     async def run(self, request: BatchRequest) -> None:
-        db = DbMgr()
-        try:
-            workspace = WorkspaceDb(db)
-            await BatchIdentification(
-                FileMgr(request.input_directory), LLM(self._llm_url), self.endpoint,
-                self._submissions, EventLogDb(db).record, workspace,
-            ).run(request.batch_size, destination_directory=request.output_directory, new_batch=True,
-                  completion_state=MediaFileBatchState.MATCHING)
-            batch_id = workspace.load().id
-        finally:
-            db.close()
-        # Matching uses synchronous TMDB and its own async MCP conversations.
-        # Its thread owns a fresh connection, while the server listener stays responsive.
-        await asyncio.to_thread(self._match, batch_id)
+        offset = 0
+        while True:
+            db = DbMgr()
+            try:
+                workspace = WorkspaceDb(db)
+                await BatchIdentification(
+                    FileMgr(request.input_directory), LLM(self._llm_url), self.endpoint,
+                    self._submissions, EventLogDb(db).record, workspace,
+                ).run(request.batch_size, destination_directory=request.output_directory,
+                      new_batch=offset == 0, offset=offset, limit=DR3el.PROCESSING_GROUP_SIZE,
+                      completion_state=MediaFileBatchState.MATCHING)
+                batch = workspace.load()
+                group = batch.files[offset:offset + DR3el.PROCESSING_GROUP_SIZE]
+                finished = offset + DR3el.PROCESSING_GROUP_SIZE >= len(batch.files)
+            finally:
+                db.close()
+            # The matching thread owns its connection and async MCP conversations.
+            # Await the whole group, including selection and retries, before advancing.
+            await asyncio.to_thread(self._match, batch.id, [item.id for item in group], finished)
+            if finished:
+                return
+            offset += DR3el.PROCESSING_GROUP_SIZE
 
-    def _match(self, batch_id: str) -> None:
+    def _match(self, batch_id: str, file_ids: list[str], finished: bool) -> None:
         db = DbMgr()
         try:
             workspace = WorkspaceDb(db)
             batch = workspace.load()
             log = EventWriter(EventLogDb(db).record, {'batch_id': batch_id}, batch.started_event_id)
             try:
-                if batch.files:
-                    BatchMatching(workspace, log.record, LLM(self._llm_url)).run(batch_id)
+                if file_ids:
+                    BatchMatching(workspace, log.record, LLM(self._llm_url)).run(batch_id, file_ids=file_ids)
             except BaseException as error:
                 workspace.save_batch_state(batch_id, MediaFileBatchState.MATCHING_FAILED,
                     log.prepare(Categories.Batch.LIFECYCLE, Names.BATCH_FAILED,
                                 {'stage': 'matching', 'error': str(error)}, source='BatchRunner', level='ERROR'))
                 raise
+            if not finished:
+                return
             workspace.save_batch_state(batch_id, MediaFileBatchState.MATCHING_COMPLETED,
                 log.prepare(Categories.Batch.LIFECYCLE, Names.BATCH_COMPLETED,
                             {'stage': 'matching', 'count': len(batch.files),

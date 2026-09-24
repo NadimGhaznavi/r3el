@@ -29,7 +29,12 @@ Saving an action updates button readiness without reloading the page. A failed
 or uncertain save disables further edits until the user reloads to read the saved
 state; no save is retried automatically.
 
-After identification, the server automatically searches movies by the saved title
+The server processes groups of up to 10 files within the selected batch. Each
+group completes identification, TMDB matching, LLM selection, and zero-result
+retries before identification starts for the next group. Remaining files stay
+Pending. The last group may contain fewer than 10 files.
+
+After each group's identification, the server automatically searches movies by the saved title
 and year for Pending and Approve files. Ignore and Delete files are skipped without
 file operations. Once automatic processing stops, Process Batch is available for
 manual retries on a nonempty identified batch, even with Pending actions.

@@ -5,7 +5,9 @@ It does not scan files, resume the workspace, or contact the model on startup.
 The control page's New Batch button sends input/output directories and batch size
 to the server. It identifies the batch, automatically performs TMDB searches and
 LLM candidate selection or zero-result retries, then returns to idle while keeping
-the listener available. No second button press is required. This path assumes an empty workspace; clearing and replacement remain
+the listener available. It processes groups of up to 10 files: each group finishes
+identification, matching, selection, and retries before the next begins. No second
+button press is required. This path assumes an empty workspace; clearing and replacement remain
 unimplemented. Output directories are saved for later stages, not used to move files.
 An explicit `--run-batch` option retains the one-batch diagnostic workflow described below.
 

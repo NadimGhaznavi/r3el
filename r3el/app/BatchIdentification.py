@@ -23,7 +23,7 @@ class BatchIdentification:
         self._workspace = workspace
 
     async def run(self, batch_size: int, *, destination_directory: str | None = None,
-                  new_batch: bool = False,
+                  new_batch: bool = False, offset: int = 0, limit: int | None = None,
                   completion_state: MediaFileBatchState = MediaFileBatchState.IDENTIFICATION_COMPLETED) -> list[dict]:
         with self._workspace.processing():
             batch = self._workspace.load()
@@ -37,16 +37,17 @@ class BatchIdentification:
                 self._set_state(batch, MediaFileBatchState.PROCESSING, Names.BATCH_RESUMED,
                                 {'pending': sum(item.state == MediaFileState.PENDING for item in batch.files)})
             try:
-                for item in batch.files:
+                files = batch.files[offset:] if limit is None else batch.files[offset:offset + limit]
+                for item in files:
                     if item.state != MediaFileState.PENDING:
                         continue
                     await self._identify(batch, item)
                 self._set_state(batch, completion_state, Names.BATCH_COMPLETED,
-                                {'count': len(batch.files),
+                                {'count': len(files),
                                  'unresolved_llm': sum(item.state == MediaFileState.UNRESOLVED_LLM
-                                                       for item in batch.files),
+                                                       for item in files),
                                  'unresolved_hidden_file': sum(item.state == MediaFileState.UNRESOLVED_HIDDEN_FILE
-                                                               for item in batch.files)})
+                                                               for item in files)})
                 return self._results(batch)
             except asyncio.CancelledError:
                 self._set_state(batch, MediaFileBatchState.CANCELLED, Names.BATCH_CANCELLED, {}, 'WARNING')
