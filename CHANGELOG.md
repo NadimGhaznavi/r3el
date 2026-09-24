@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-09-24 @ 05:30
+
 ### Added
 
 - Prefer MKV, MP4, M4V, AVI, MOV, WMV, FLV, then MPG/MPEG for versions matched to the same TMDB movie. Delete lower-ranked formats only after the preferred file is catalogued, including replacements across batches. Checkpoint cleanup for retries, remove obsolete file links, and log File / Delete outcomes with a linked template.
