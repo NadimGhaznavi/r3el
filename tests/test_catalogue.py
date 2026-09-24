@@ -77,6 +77,7 @@ class CatalogueMatchingTests(unittest.TestCase):
         self.batch = MediaFileBatch('batch', 1, '/movies', files=[self.item],
                                     state=MediaFileBatchState.IDENTIFICATION_COMPLETED)
         self.workspace = Mock()
+        self.workspace.catalogue_paths.return_value = []
         self.workspace.load.return_value = self.batch
         self.workspace.processing.side_effect = nullcontext
         self.workspace.matching.side_effect = nullcontext
@@ -88,7 +89,9 @@ class CatalogueMatchingTests(unittest.TestCase):
         self.client.search.return_value = {'total_results': 1, 'results': [{'id': 42}]}
         self.client.details.return_value = movie_payload()
         files = patch('r3el.app.BatchMatching.CatalogueFiles')
-        self.files = files.start().return_value
+        file_class = files.start()
+        file_class.discard_snapshot.return_value = []
+        self.files = file_class.return_value
         self.addCleanup(files.stop)
         self.files.prepare.return_value = MovieFiles('/output/Movie (2020)/Movie (2020).mkv')
         self.runner = BatchMatching(self.workspace, Mock(return_value=1))

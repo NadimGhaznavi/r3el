@@ -6,6 +6,7 @@ from dataclasses import asdict, replace
 import httpx
 
 from r3el.activity.BatchPreparation import BatchPreparation
+from r3el.activity.MovieFormats import MovieFormats
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.MovieSelection import MovieSelection
 from r3el.app.RetryIdentification import RetryIdentification
@@ -119,7 +120,7 @@ class BatchMatching:
 
     def _catalogue(self, batch: MediaFileBatch, item: MediaFile, result: TMDBMatch, log: EventWriter) -> None:
         if result.catalogue_saved:
-            if not result.file_moved:
+            if not result.file_moved or result.discard_files:
                 self._finish_move(batch.id, item.id, result, log)
             return
         response = result.resolved_response
@@ -128,13 +129,22 @@ class BatchMatching:
                 or response is None or response['total_results'] != 1):
             return
         try:
-            movie = TMDBCatalogue(TMDB.from_environment()).movie(response['results'][0]['id'])
+            movie_id = response['results'][0]['id']
+            preferred, discarded = MovieFormats.choose(item.path, self._workspace.catalogue_paths(movie_id))
+            discard_files = CatalogueFiles.discard_snapshot(discarded)
+            if item.path in discarded:
+                result = replace(result, catalogue_saved=True, catalogue_error=None, duplicate=True,
+                                 source_path=item.path, catalogue_path=preferred, discard_files=discard_files)
+                self._workspace.save_match(batch.id, item.id, result, None)
+                self._finish_move(batch.id, item.id, result, log)
+                return
+            movie = TMDBCatalogue(TMDB.from_environment()).movie(movie_id)
             files = CatalogueFiles().prepare(movie, item.path, batch.destination_directory, item.id, log)
         except (TMDBError, OSError, ValueError, httpx.HTTPError) as error:
             self._catalogue_failure(batch.id, item.id, result, error, log)
             return
         result = replace(result, catalogue_saved=True, catalogue_error=None,
-                         source_path=item.path, catalogue_path=files.video)
+                         source_path=item.path, catalogue_path=files.video, discard_files=discard_files)
         self._workspace.save_catalogue(batch.id, item.id, movie, result, log.prepare(
             Categories.DB.CREATE_RECORD, Names.DB_CREATE_RECORD,
             {'movie_id': movie.tmdb_id, 'title': movie.title, 'path': files.video,
@@ -143,17 +153,34 @@ class BatchMatching:
 
     def _finish_move(self, batch_id: str, file_id: str, result: TMDBMatch, log: EventWriter) -> None:
         try:
-            CatalogueFiles().finish(result.source_path, result.catalogue_path, file_id)
+            if not result.duplicate:
+                CatalogueFiles().finish(result.source_path, result.catalogue_path, file_id)
         except (OSError, ValueError) as error:
             result = replace(result, catalogue_error=str(error))
         else:
             result = replace(result, file_moved=True, catalogue_error=None)
-        self._workspace.save_match(batch_id, file_id, result, log.prepare(
-            Categories.File.MOVE, Names.FILE_MOVE,
-            {'outcome': 'failed' if result.catalogue_error else 'moved',
-             'source_path': result.source_path, 'destination_path': result.catalogue_path,
-             'error': result.catalogue_error}, source='CatalogueFiles',
-            level='ERROR' if result.catalogue_error else 'INFO'))
+        if not result.duplicate:
+            self._workspace.save_match(batch_id, file_id, result, log.prepare(
+                Categories.File.MOVE, Names.FILE_MOVE,
+                {'outcome': 'failed' if result.catalogue_error else 'moved',
+                 'source_path': result.source_path, 'destination_path': result.catalogue_path,
+                 'error': result.catalogue_error}, source='CatalogueFiles',
+                level='ERROR' if result.catalogue_error else 'INFO'))
+        if result.catalogue_error is not None or not result.discard_files:
+            return
+        try:
+            CatalogueFiles().discard(result.discard_files, result.catalogue_path)
+        except (OSError, ValueError) as error:
+            result = replace(result, file_moved=False, catalogue_error=str(error))
+        event = log.prepare(Categories.File.DELETE, Names.FILE_DELETE,
+                            {'outcome': 'failed' if result.catalogue_error else 'deleted',
+                             'paths': [item['path'] for item in result.discard_files],
+                             'preferred_path': result.catalogue_path, 'error': result.catalogue_error},
+                            source='CatalogueFiles', level='ERROR' if result.catalogue_error else 'INFO')
+        if result.catalogue_error:
+            self._workspace.save_match(batch_id, file_id, result, event)
+        else:
+            self._workspace.finish_duplicates(batch_id, file_id, result, event)
 
     def _catalogue_failure(self, batch_id: str, file_id: str, result: TMDBMatch,
                            error: Exception, log: EventWriter) -> None:

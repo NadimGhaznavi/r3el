@@ -72,7 +72,7 @@ modules=(
     server/templates/messages/item_completed.html
     server/templates/messages/batch_cancelled.html
     server/templates/messages/tmdb_search.html server/templates/messages/tmdb_result.html
-    server/templates/messages/file_move.html server/templates/messages/artifact_download.html
+    server/templates/messages/file_delete.html server/templates/messages/file_move.html server/templates/messages/artifact_download.html
     server/templates/messages/db_create_record.html
     app/Prompt.py
     app/BatchControlHandler.py app/BatchProcessor.py app/BatchRunner.py app/MessageHandler.py
@@ -93,7 +93,7 @@ modules=(
     activity/EventSchema.py activity/EventReport.py activity/ServerLifecycle.py
     activity/WorkspaceSchema.py interface/WorkspaceDb.py
     activity/CatalogueSchema.py interface/CatalogueDb.py interface/TMDBCatalogue.py entity/CatalogueMovie.py
-    activity/MovieNaming.py interface/CatalogueFiles.py entity/MovieFiles.py
+    activity/MovieFormats.py activity/MovieNaming.py interface/CatalogueFiles.py entity/MovieFiles.py
     entity/BatchStopped.py
     entity/MediaFile.py entity/MediaFileBatch.py
     entity/MediaFileAction.py activity/BatchPreparation.py
