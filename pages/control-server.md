@@ -12,8 +12,9 @@ The R3el logo is deployed with the server assets. New Batch runs identification 
 
 The control server is a human-operated web application. Starting it, opening a
 page, or refreshing status never sends a batch-start command. Only submitting
-the New Batch form does so. An empty workspace offers that action; a retained
-batch shows the current work instead. The identification worker finishing does
+the New Batch form does so. An empty or finished workspace offers that action; an active
+batch disables it. New Batch replaces the finished workspace with a fresh
+selection, preserving catalogue records, media, and event history. The identification worker finishing does
 not clear the application's workspace or automatically begin another batch.
 
 When the workspace contains a batch, the landing page shows its filenames and
@@ -21,10 +22,12 @@ saved statuses in selection order. The first columns are `#` (starting at 1) and
 `Updated` (`MM-DD HH:MM` in the browser's local timezone). Updated records the last
 saved change to the file, rather than the latest page refresh. Older workspace
 rows show `—` until changed; upgrading does not invent historical timestamps.
-The Control section stays visible but greyed
-out, with automatic-processing status beneath its heading. Saved input/output
-directories and batch size appear as static text, and New Batch is disabled. This also applies to
-completed, failed, cancelled, and zero-file batches retained in the workspace.
+While processing, the Control section is greyed out, saved directories and size
+appear as static text, and New Batch is disabled. When processing finishes, fails,
+or is stopped, editable controls return with the previous settings, including
+for empty batches. Automatic progress polling enables New Batch on completion.
+Replacement and fresh selection commit together; a failed selection or database
+transaction leaves the previous workspace intact.
 The file table ends with an Action dropdown: Pending / Approve / Ignore / Delete.
 These choices are saved in the workspace when changed. Identification initially
 selects Approve for confidence 10 and Pending otherwise. Rows still awaiting

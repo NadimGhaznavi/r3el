@@ -29,9 +29,11 @@ class BatchIdentification:
         with self._workspace.processing():
             batch = self._workspace.load()
             if new_batch and batch is not None:
-                raise WorkspaceOccupied('New Batch requires an empty workspace; clearing is not implemented yet.')
+                if batch.state in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING):
+                    raise WorkspaceOccupied('The current batch is still running.')
+                batch = None
             if batch is None:
-                batch = self._create(batch_size, destination_directory)
+                batch = self._create(batch_size, destination_directory, new_batch)
             elif batch.state == MediaFileBatchState.IDENTIFICATION_COMPLETED:
                 return self._results(batch)
             else:
@@ -60,7 +62,7 @@ class BatchIdentification:
                                 {'error': str(error)}, 'ERROR')
                 raise
 
-    def _create(self, batch_size: int, destination_directory: str | None) -> MediaFileBatch:
+    def _create(self, batch_size: int, destination_directory: str | None, new_batch: bool) -> MediaFileBatch:
         filenames = self._files.filenames(batch_size)
         batch = MediaFileBatch(
             id=str(uuid4()), requested_size=batch_size, source_directory=str(self._files.directory),
@@ -73,6 +75,7 @@ class BatchIdentification:
             log.prepare(Categories.Batch.LIFECYCLE, Names.BATCH_STARTED,
                         {'batch_size': batch_size}, source='BatchIdentification'),
             log.prepare(Categories.Batch.DISCOVERY, Names.FILES_RETRIEVED, filenames, source='FileMgr'),
+            replace_existing=new_batch,
         )
         return batch
 

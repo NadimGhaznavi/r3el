@@ -99,7 +99,8 @@ and `started_event_id`. One batch occupies the workspace.
 
 Explicit diagnostic `--run-batch` resumes pending files and returns failed/cancelled batches to
 `processing`. Identification completion is not finalization. Normal server startup is idle;
-control-requested New Batch currently requires an empty workspace. The destination
+control-requested New Batch replaces a finished workspace with a fresh selection.
+Active processing blocks replacement; catalogue records and event history remain. The destination
 directory is optional for older batches and saved for future file operations.
 
 ## Persistence and cleanup
@@ -111,8 +112,8 @@ directory is optional for older batches and saved for future file operations.
   interrupted file. Only one processor can hold the workspace.
 - Issues represent current problems, not an accumulating cleanup history.
 - Identification-complete batches remain available without repeating model calls.
-- Finalization will clear working records after file operations and final DB
-  updates succeed. Final media records remain. Event Log retention is separate.
+- New Batch clears finished working records as part of committing the fresh
+  selection. Final media records remain. Event Log retention is separate.
 
 ## Batch counters
 

@@ -124,16 +124,20 @@ class ControlServerTests(unittest.TestCase):
                     self.assertIn(label, body)
                 self.assertIn('<h1 id="control-heading">Control</h1>', body)
                 self.assertIn('id="batch-processing"', body)
-                self.assertIn('class="control-occupied"', body)
+                active = state in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING)
+                self.assertEqual('class="control-occupied"' in body, active)
                 self.assertIn('/tmp/&lt;input&gt;', body)
                 self.assertIn('/tmp/&lt;output&gt;', body)
-                self.assertIn('<dt>Batch Size</dt><dd>5</dd>', body)
-                self.assertIn('type="button" disabled', body)
-                self.assertNotIn('<input', body)
+                if active:
+                    self.assertIn('<dt>Batch Size</dt><dd>5</dd>', body)
+                    self.assertIn('type="button" disabled', body)
+                    self.assertNotIn('<input', body)
+                else:
+                    self.assertIn('type="submit" aria-describedby="batch-note">New Batch', body)
                 controls = re.search(r'<section.*?</section>', body, re.S).group(0)
                 self.assertNotIn('<select', controls)
                 self.assertIn('class="file-action"', body)
-                self.assertNotRegex(body, r'<form[^>]*aria-label="New batch"')
+                self.assertEqual(bool(re.search(r'<form[^>]*aria-label="New batch"', body)), not active)
                 self.assertNotIn('http-equiv="refresh"', body)
                 header = re.search(r'<header.*?</header>', body, re.S).group(0)
                 self.assertRegex(header, r'Last updated: <time datetime="[^"]+\+00:00" data-local-time="full">—</time>')
@@ -282,6 +286,19 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('No files in this batch.', body)
         self.assertIn('type="button" disabled', body)
         self.assertIn('<dd>Not available</dd>', body)
+
+    def test_finished_batch_offers_new_batch_with_previous_parameters(self):
+        for state in (MediaFileBatchState.MATCHING_COMPLETED, MediaFileBatchState.FAILED,
+                      MediaFileBatchState.CANCELLED):
+            with self.subTest(state=state):
+                self.workspace.return_value = MediaFileBatch('batch-1', 137, '/tmp/input',
+                    state=state, destination_directory='/tmp/output')
+                status, _, body = self.request('/')
+                self.assertEqual(status, 200)
+                self.assertIn('type="submit" aria-describedby="batch-note">New Batch', body)
+                self.assertIn('value="/tmp/input"', body)
+                self.assertIn('value="/tmp/output"', body)
+                self.assertIn('value="137"', body)
 
     def test_workspace_failure_does_not_offer_new_batch_or_expose_details(self):
         self.workspace.side_effect = pymysql.OperationalError('private database details')

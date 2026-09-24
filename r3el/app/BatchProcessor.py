@@ -9,7 +9,7 @@ import httpx
 import pymysql
 
 from r3el.entity.BatchRequest import BatchRequest
-from r3el.interface.WorkspaceDb import WorkspaceOccupied
+from r3el.interface.WorkspaceDb import WorkspaceBusy, WorkspaceOccupied
 
 
 class BatchProcessor:
@@ -36,7 +36,8 @@ class BatchProcessor:
                 request = await self._queue.get()
                 try:
                     await self._execute(request)
-                except (OSError, httpx.HTTPError, pymysql.OperationalError, pymysql.InterfaceError, WorkspaceOccupied):
+                except (OSError, httpx.HTTPError, pymysql.OperationalError, pymysql.InterfaceError,
+                        WorkspaceOccupied, WorkspaceBusy):
                     logging.exception('Batch failed; returning to idle')
                 finally:
                     with self._lock:

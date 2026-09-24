@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Enable New Batch when processing finishes, retaining the previous directory and size settings. Replace the finished workspace atomically on submission while preserving catalogue records, media, and event history; keep active batches protected.
+
 ## [1.0.2] - 2026-09-24 @ 04:56
 
 ### Added
