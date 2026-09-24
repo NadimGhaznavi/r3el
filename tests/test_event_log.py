@@ -194,6 +194,26 @@ class EventDatabaseTests(unittest.TestCase):
                 *[MovieCredit(7, 'Person', role) for role in
                   ('Director', 'Producer', 'Executive Producer', 'Co-Producer')]])
 
+    def test_catalogue_browse_order_and_complete_entry(self):
+        catalogue = CatalogueDb(self.db)
+        self.assertEqual(catalogue.movies(), [])
+        movie = self.catalogue_movie()
+        with self.db.transaction():
+            for movie_id, title in ((42, 'Zulu'), (43, 'Alpha'), (44, 'Middle')):
+                catalogue.save_in_transaction(replace(movie, tmdb_id=movie_id, title=title),
+                    MovieFiles(f'/films/{movie_id}.mkv', f'/films/{movie_id}.jpg'))
+        self.assertEqual([row['title'] for row in catalogue.movies()], ['Alpha', 'Middle', 'Zulu'])
+        entry = catalogue.get(42)
+        self.assertEqual(entry['release_year'], 2020)
+        self.assertEqual(entry['genres'], [{'name': 'Test genre'}])
+        self.assertEqual(len(entry['credits']), 6)
+        self.assertEqual(entry['credits'][0], {'name': 'Person', 'role': 'Actor', 'character_name': 'Hero'})
+        self.assertEqual(entry['files'], [{'path': '/films/42.mkv'}])
+        self.assertEqual(entry['artwork'], [{'kind': 'poster'}])
+        self.assertEqual(catalogue.artwork_path(42, 'poster'), '/films/42.jpg')
+        self.assertIsNone(catalogue.artwork_path(42, 'backdrop'))
+        self.assertIsNone(catalogue.get(999))
+
     def test_catalogue_normalized_refresh_and_durable_file_links(self):
         movie = self.catalogue_movie()
         catalogue = CatalogueDb(self.db)

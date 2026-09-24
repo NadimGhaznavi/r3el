@@ -11,6 +11,34 @@ class CatalogueDb:
     def __init__(self, db: DbMgr) -> None:
         self._db = db
 
+    def movies(self) -> list[dict]:
+        return self._db.query('SELECT tmdb_id, title, release_year FROM movies '
+                              'ORDER BY title, release_year, tmdb_id')
+
+    def get(self, movie_id: int) -> dict | None:
+        with self._db.transaction():
+            rows = self._db.query('SELECT * FROM movies WHERE tmdb_id = %s', (movie_id,))
+            if not rows:
+                return None
+            movie = rows[0]
+            movie['genres'] = self._db.query(
+                'SELECT g.name FROM movie_genres mg JOIN tmdb_movie_genres g ON g.genre_id = mg.genre_id '
+                'WHERE mg.movie_id = %s ORDER BY g.name', (movie_id,))
+            movie['credits'] = self._db.query(
+                'SELECT p.name, r.name AS role, c.character_name FROM movie_credits c '
+                'JOIN people p ON p.tmdb_id = c.person_id JOIN credit_roles r ON r.role_id = c.role_id '
+                'WHERE c.movie_id = %s ORDER BY c.position', (movie_id,))
+            movie['files'] = self._db.query('SELECT path FROM movie_files WHERE movie_id = %s ORDER BY path',
+                                           (movie_id,))
+            movie['artwork'] = self._db.query(
+                'SELECT DISTINCT kind FROM movie_artwork WHERE movie_id = %s ORDER BY kind', (movie_id,))
+            return movie
+
+    def artwork_path(self, movie_id: int, kind: str) -> str | None:
+        rows = self._db.query('SELECT path FROM movie_artwork WHERE movie_id = %s AND kind = %s '
+                              'ORDER BY path LIMIT 1', (movie_id, kind))
+        return rows[0]['path'] if rows else None
+
     def save_in_transaction(self, movie: CatalogueMovie, files: MovieFiles) -> None:
         """Caller owns the transaction, including any workspace checkpoint."""
         self._db.execute('''
