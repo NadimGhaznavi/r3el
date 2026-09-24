@@ -49,6 +49,7 @@ modules=(
     server/ReplyReasoning.py
     server/static/r3el.png server/templates/control.html
     server/templates/workspace.html server/templates/workspace_error.html
+    server/templates/catalogue.html server/templates/catalogue_movie.html server/templates/catalogue_error.html
     server/templates/base.html server/templates/styles.html server/templates/local_time.html
     server/templates/events.html server/templates/event.html server/templates/error.html
     server/templates/messages/default.html

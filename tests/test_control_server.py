@@ -74,6 +74,62 @@ class ControlServerTests(unittest.TestCase):
         finally:
             connection.close()
 
+    @patch('r3el.server.ControlServer.CatalogueDb.movies')
+    def test_catalogue_lists_linked_titles_and_empty_state(self, movies):
+        movies.return_value = [{'tmdb_id': 42, 'title': '<Movie>', 'release_year': 2020},
+                               {'tmdb_id': 43, 'title': 'Other', 'release_year': None}]
+        status, _, body = self.request('/catalogue')
+        self.assertEqual(status, 200)
+        self.assertIn('<a href="/catalogue/42">&lt;Movie&gt; (2020)</a>', body)
+        self.assertIn('<a href="/catalogue/43">Other</a>', body)
+        self.assertNotIn('<Movie>', body)
+        self.db.close.assert_called_once()
+        movies.return_value = []
+        self.assertIn('No movies in the catalogue yet.', self.request('/catalogue')[2])
+
+    @patch('r3el.server.ControlServer.CatalogueDb.get')
+    def test_catalogue_entry_renders_saved_metadata(self, get):
+        get.return_value = dict(tmdb_id=42, title='<Movie>', release_year=2020,
+            original_title='Original', release_date='2020-02-03', runtime=120,
+            overview='A saved overview.', genres=[{'name': 'Drama'}], rating=8.25,
+            vote_count=100, imdb_id='tt123', credits=[{'name': '<Actor>', 'role': 'Actor',
+                'character_name': 'Hero'}], files=[{'path': '/movies/Movie.mkv'}], artwork=[{'kind': 'poster'}])
+        status, _, body = self.request('/catalogue/42')
+        self.assertEqual(status, 200)
+        get.assert_called_once_with(42)
+        for text in ('&lt;Movie&gt; (2020)', 'A saved overview.', '120 minutes', 'Drama',
+                     '&lt;Actor&gt; — Actor (Hero)', '/movies/Movie.mkv', '/catalogue/42/poster', 'tt123'):
+            self.assertIn(text, body)
+        self.assertNotIn('image.tmdb.org', body)
+        get.return_value = None
+        self.assertEqual(self.request('/catalogue/42')[0], 404)
+        for path in ('/catalogue/0', '/catalogue/4294967296', '/catalogue/abc'):
+            self.assertEqual(self.request(path)[0], 404)
+
+    @patch('r3el.server.ControlServer.CatalogueDb.artwork_path')
+    def test_catalogue_serves_only_registered_artwork(self, artwork):
+        with TemporaryDirectory() as directory:
+            poster = Path(directory) / 'poster.jpg'
+            poster.write_bytes(b'image')
+            artwork.return_value = str(poster)
+            status, headers, body = self.request('/catalogue/42/poster')
+            self.assertEqual((status, headers['Content-Type'], body), (200, 'image/jpeg', 'image'))
+            artwork.assert_called_once_with(42, 'poster')
+            poster.unlink()
+            self.assertEqual(self.request('/catalogue/42/poster')[0], 404)
+            artwork.return_value = None
+            self.assertEqual(self.request('/catalogue/42/backdrop')[0], 404)
+            self.assertEqual(self.request('/catalogue/42/../../etc/passwd')[0], 404)
+
+    @patch('r3el.server.ControlServer.CatalogueDb.movies', side_effect=pymysql.OperationalError('private details'))
+    def test_catalogue_database_failure_is_reported_without_details(self, movies):
+        with self.assertLogs(level='ERROR'):
+            status, _, body = self.request('/catalogue')
+        self.assertEqual(status, 503)
+        self.assertIn('Catalogue unavailable', body)
+        self.assertNotIn('private details', body)
+        self.db.close.assert_called_once()
+
     def test_empty_workspace_shows_batch_controls(self):
         status, _, body = self.request('/')
         self.assertEqual(status, 200)
