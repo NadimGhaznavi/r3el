@@ -100,8 +100,9 @@ class WorkspaceDb:
         """Commit the entire selection before any identification begins."""
         with self._db.transaction():
             if replace_existing:
-                rows = self._db.query('SELECT state FROM media_file_batches FOR UPDATE')
+                rows = self._db.query('SELECT state, stop_requested FROM media_file_batches FOR UPDATE')
                 if any(row['state'] in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING)
+                       or (row['state'] == MediaFileBatchState.CANCELLED and not row['stop_requested'])
                        for row in rows):
                     raise WorkspaceOccupied('The current batch is still running.')
                 self._db.execute('DELETE FROM media_file_batches')
@@ -189,7 +190,8 @@ class WorkspaceDb:
             row = rows[0]
             if row['stop_requested']:
                 return
-            if not matching and row['state'] not in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING):
+            if not matching and row['state'] not in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING,
+                                                     MediaFileBatchState.CANCELLED):
                 raise WorkspaceActionConflict('The batch is not running.')
             self._db.execute('UPDATE media_file_batches SET stop_requested = TRUE WHERE batch_id = %s', (batch_id,))
             event = EventWriter(self._events.record, {'batch_id': batch_id}, row['started_event_id']).prepare(

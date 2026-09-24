@@ -33,7 +33,23 @@ class BatchRunner:
             # The stage that observed the request already checkpointed cancellation.
             return
 
-    async def _run(self, request: BatchRequest) -> None:
+    async def resume(self) -> None:
+        db = DbMgr()
+        try:
+            workspace = WorkspaceDb(db)
+            with workspace.processing():
+                batch = workspace.load()
+                if batch is None or not batch.in_progress:
+                    return
+                request = BatchRequest(batch.source_directory, batch.destination_directory, batch.requested_size)
+        finally:
+            db.close()
+        try:
+            await self._run(request, resume_id=batch.id)
+        except BatchStopped:
+            return
+
+    async def _run(self, request: BatchRequest, *, resume_id: str | None = None) -> None:
         offset = 0
         while True:
             db = DbMgr()
@@ -43,7 +59,8 @@ class BatchRunner:
                     FileMgr(request.input_directory), LLM(self._llm_url), self.endpoint,
                     self._submissions, EventLogDb(db).record, workspace,
                 ).run(request.batch_size, destination_directory=request.output_directory,
-                      new_batch=offset == 0, offset=offset, limit=DR3el.PROCESSING_GROUP_SIZE,
+                      new_batch=offset == 0 and resume_id is None, offset=offset,
+                      expected_batch_id=resume_id, limit=DR3el.PROCESSING_GROUP_SIZE,
                       completion_state=MediaFileBatchState.MATCHING)
                 batch = workspace.load()
                 group = batch.files[offset:offset + DR3el.PROCESSING_GROUP_SIZE]
@@ -52,7 +69,15 @@ class BatchRunner:
                 db.close()
             # The matching thread owns its connection and async MCP conversations.
             # Await the whole group, including selection and retries, before advancing.
-            await asyncio.to_thread(self._match, batch.id, [item.id for item in group], finished)
+            matching = asyncio.create_task(asyncio.to_thread(self._match, batch.id, [item.id for item in group], finished))
+            try:
+                await asyncio.shield(matching)
+            except asyncio.CancelledError:
+                # Keep the listener available until the matching thread checkpoints.
+                try:
+                    await matching
+                finally:
+                    raise
             if finished:
                 return
             offset += DR3el.PROCESSING_GROUP_SIZE

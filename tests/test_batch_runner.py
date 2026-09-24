@@ -14,6 +14,30 @@ from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
 
 
 class BatchRunnerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_resume_uses_saved_parameters_and_only_unfinished_batches(self):
+        for state, stopped, expected in (
+            (MediaFileBatchState.PROCESSING, False, True),
+            (MediaFileBatchState.MATCHING, False, True),
+            (MediaFileBatchState.CANCELLED, False, True),
+            (MediaFileBatchState.CANCELLED, True, False),
+            (MediaFileBatchState.MATCHING_COMPLETED, False, False),
+            (MediaFileBatchState.FAILED, False, False),
+        ):
+            with self.subTest(state=state, stopped=stopped), \
+                    patch('r3el.app.BatchRunner.DbMgr'), patch('r3el.app.BatchRunner.WorkspaceDb') as workspaces:
+                workspace = workspaces.return_value
+                workspace.processing.side_effect = nullcontext
+                workspace.load.return_value = MediaFileBatch('saved', 137, '/saved/input', state=state,
+                    destination_directory='/saved/output', stop_requested=stopped)
+                runner = BatchRunner('http://model', 'endpoint', Mock())
+                runner._run = AsyncMock()
+                await runner.resume()
+                if expected:
+                    runner._run.assert_awaited_once_with(BatchRequest('/saved/input', '/saved/output', 137),
+                                                       resume_id='saved')
+                else:
+                    runner._run.assert_not_awaited()
+
     async def test_identification_hands_off_automatically_using_separate_connection(self):
         with (patch('r3el.app.BatchRunner.DbMgr') as database,
               patch('r3el.app.BatchRunner.WorkspaceDb') as workspaces,

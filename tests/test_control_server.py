@@ -180,7 +180,7 @@ class ControlServerTests(unittest.TestCase):
                     self.assertIn(label, body)
                 self.assertIn('<h1 id="control-heading">Control</h1>', body)
                 self.assertIn('id="batch-processing"', body)
-                active = state in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING)
+                active = self.workspace.return_value.in_progress
                 self.assertEqual('class="control-occupied"' in body, active)
                 self.assertIn('/tmp/&lt;input&gt;', body)
                 self.assertIn('/tmp/&lt;output&gt;', body)
@@ -383,7 +383,8 @@ class ControlServerTests(unittest.TestCase):
                       MediaFileBatchState.CANCELLED):
             with self.subTest(state=state):
                 self.workspace.return_value = MediaFileBatch('batch-1', 137, '/tmp/input',
-                    state=state, destination_directory='/tmp/output')
+                    state=state, destination_directory='/tmp/output',
+                    stop_requested=state == MediaFileBatchState.CANCELLED)
                 status, _, body = self.request('/')
                 self.assertEqual(status, 200)
                 self.assertIn('type="submit" aria-describedby="batch-note">New Batch', body)

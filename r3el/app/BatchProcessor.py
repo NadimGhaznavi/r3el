@@ -13,12 +13,14 @@ from r3el.interface.WorkspaceDb import WorkspaceBusy, WorkspaceOccupied
 
 
 class BatchProcessor:
-    def __init__(self, execute: Callable[[BatchRequest], Awaitable[None]]) -> None:
+    def __init__(self, execute: Callable[[BatchRequest], Awaitable[None]],
+                 *, startup: Callable[[], Awaitable[None]] | None = None) -> None:
         self._execute = execute
+        self._startup = startup
         self._loop = asyncio.get_running_loop()
         self._queue: asyncio.Queue[BatchRequest] = asyncio.Queue(maxsize=1)
         self._lock = Lock()
-        self._busy = False
+        self._busy = startup is not None
         self._closed = False
 
     def submit(self, request: BatchRequest) -> bool:
@@ -32,6 +34,12 @@ class BatchProcessor:
 
     async def run(self) -> None:
         try:
+            if self._startup is not None:
+                try:
+                    await self._startup()
+                finally:
+                    with self._lock:
+                        self._busy = False
             while True:
                 request = await self._queue.get()
                 try:

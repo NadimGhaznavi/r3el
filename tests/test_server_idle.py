@@ -3,12 +3,32 @@
 import argparse
 import asyncio
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from r3el.server.R3elServer import run
 
 
 class IdleServerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_configured_startup_resumes_before_accepting_new_work(self):
+        with (patch('r3el.server.R3elServer.ServerLifecycle'),
+              patch('r3el.server.R3elServer.ZMQServer'),
+              patch('r3el.server.R3elServer.BatchRunner') as runner):
+            entered, release = asyncio.Event(), asyncio.Event()
+            async def resume():
+                entered.set()
+                await release.wait()
+            runner.return_value.resume = AsyncMock(side_effect=resume)
+            task = asyncio.create_task(run(argparse.Namespace(
+                zmq_endpoint='unused', run_batch=False, llm_url='http://model')))
+            try:
+                await asyncio.wait_for(entered.wait(), 1)
+                runner.return_value.resume.assert_awaited_once()
+                runner.return_value.run.assert_not_called()
+            finally:
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await task
+
     async def test_idle_until_cancelled_and_cleans_up(self):
         with (patch('r3el.server.R3elServer.DbMgr') as database,
               patch('r3el.server.R3elServer.ServerLifecycle') as lifecycle,

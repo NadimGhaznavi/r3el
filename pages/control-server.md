@@ -25,9 +25,11 @@ and size to the identification server over ZeroMQ. Labels and result messages
 use Jinja2; shared defaults live in `DR3el`, and message names live in `DMessage`.
 The R3el logo is deployed with the server assets. New Batch runs identification and TMDB matching without an intermediate pause.
 
-The control server is a human-operated web application. Starting it, opening a
-page, or refreshing status never sends a batch-start command. Only submitting
-the New Batch form does so. An empty or finished workspace offers that action; an active
+The control server is a human-operated web application. Opening a page or
+refreshing status never starts a batch. The identification service automatically
+resumes interrupted processing after restart, using saved batch parameters and
+file checkpoints. Completed batches and explicit Stop Batch requests remain idle.
+Only submitting New Batch creates a fresh selection. An empty or finished workspace offers that action; an active
 batch disables it. New Batch replaces the finished workspace with a fresh
 selection, preserving catalogue records, media, and event history. The identification worker finishing does
 not clear the application's workspace or automatically begin another batch.
@@ -141,7 +143,7 @@ not the time the file last changed. Pending files stay Pending until an outcome
 is saved. Reads use the shared workspace interface without taking the processor's
 exclusive lock. A database failure shows Workspace unavailable with no button.
 
-New Batch assumes an empty workspace. It does not clear, replace, or resume a
+New Batch replaces a finished workspace. Service startup resumes an interrupted
 retained batch. The output directory is stored with the batch for future stages;
 identification does not create that directory or move source files. Set the
 identification server's `--llm-url` or `R3EL_LLM_URL` before requesting work.
