@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-09-24 @ 03:38
+
 ### Fixed
 
 - Let the TMDB CLI read existing credentials from `/etc/r3el/tmdb.env` or `~/.tmdb` when `TMDB_TOKEN` is not exported, without executing either file.
