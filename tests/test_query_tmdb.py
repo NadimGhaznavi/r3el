@@ -2,6 +2,7 @@
 
 from contextlib import redirect_stderr, redirect_stdout
 import importlib.util
+import json
 from io import StringIO
 from pathlib import Path
 import unittest
@@ -15,6 +16,20 @@ spec.loader.exec_module(query)
 
 
 class QueryTMDBTests(unittest.TestCase):
+    @patch.object(query.TMDBCredentials, 'token', return_value='test-token')
+    @patch.object(query, 'TMDB')
+    def test_raw_response_preserves_all_fields(self, factory, token):
+        response = {'page': 1, 'total_pages': 1, 'total_results': 1, 'results': [
+            {'id': 42, 'title': 'Amélie', 'genre_ids': [35, 10749],
+             'extra': {'child': [None, False, {'value': 'nested'}]}}]}
+        factory.return_value.search.return_value = response
+        for args in (['-r', 'Amélie', '2001'], ['Amélie', '2001', '--raw']):
+            with self.subTest(args=args), redirect_stdout(StringIO()) as output:
+                self.assertEqual(query.main(args), 0)
+            self.assertEqual(json.loads(output.getvalue()), response)
+            self.assertIn('\n  "page": 1', output.getvalue())
+            self.assertIn('Amélie', output.getvalue())
+
     @patch.object(query.TMDBCredentials, 'token', return_value='test-token')
     @patch.object(query, 'TMDB')
     def test_title_year_query_and_readable_results(self, factory, token):

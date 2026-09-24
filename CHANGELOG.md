@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-09-24 @ 03:48
+
+### Added
+
+- Add `-r` / `--raw` to the TMDB CLI to print the complete search response as formatted JSON, including nested fields.
+
 ## [0.9.1] - 2026-09-24 @ 03:38
 
 ### Fixed
