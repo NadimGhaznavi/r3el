@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-09-24 @ 06:26
+
 ### Added
 
 - Add a manual TMDB ID column for unresolved multiple-match rows after batch processing stops. Look up the exact movie in the background and use the existing catalogue, move, and format-preference workflow. Preserve unresolved results on lookup failure so users can correct the ID.
