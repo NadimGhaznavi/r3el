@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-09-24 @ 03:53
+
 ### Fixed
 
 - Make CLI `-r` fetch full movie details for each search hit, including credits, keywords, external IDs, alternative titles, release dates, translations, images, and videos, instead of only search summaries.
