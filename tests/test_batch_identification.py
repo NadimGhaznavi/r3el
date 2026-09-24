@@ -17,7 +17,7 @@ class BatchIdentificationTests(unittest.IsolatedAsyncioTestCase):
         workspace.processing.side_effect = nullcontext
         workspace.load.return_value = None
 
-        def create(batch, started, discovered):
+        def create(batch, started, discovered, **kwargs):
             event_id = record(started)
             record(discovered)
             return event_id
@@ -97,7 +97,7 @@ class BatchIdentificationTests(unittest.IsolatedAsyncioTestCase):
     async def test_new_batch_does_not_reuse_or_replace_existing_workspace(self):
         record = Mock(return_value=1)
         workspace = self.workspace(record)
-        workspace.load.return_value = Mock()
+        workspace.load.return_value = Mock(state="processing")
         files = Mock()
         with self.assertRaises(WorkspaceOccupied):
             await BatchIdentification(files, Mock(), 'unused', Mock(), record, workspace).run(
@@ -105,6 +105,17 @@ class BatchIdentificationTests(unittest.IsolatedAsyncioTestCase):
         files.filenames.assert_not_called()
         workspace.create.assert_not_called()
         workspace.save_batch_state.assert_not_called()
+
+    async def test_new_batch_replaces_finished_workspace_with_fresh_selection(self):
+        with TemporaryDirectory() as directory:
+            Path(directory, '.new').touch()
+            record = Mock(return_value=1)
+            workspace = self.workspace(record)
+            workspace.load.return_value = Mock(state='matching_completed')
+            results = await BatchIdentification(FileMgr(directory), Mock(), 'unused', Mock(),
+                                                 record, workspace).run(5, new_batch=True)
+            self.assertEqual([item['filename'] for item in results], ['.new'])
+            self.assertTrue(workspace.create.call_args.kwargs['replace_existing'])
 
     async def test_confidence_initializes_saved_action_once(self):
         for confidence, action in ((0, MediaFileAction.PENDING), (8, MediaFileAction.PENDING),

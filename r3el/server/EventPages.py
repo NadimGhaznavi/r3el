@@ -91,9 +91,9 @@ class EventPages:
                 item.tmdb_match is not None for item in workspace.files)
             values['last_updated'] = datetime.now(timezone.utc)
             values.setdefault('result', None)
-            values.setdefault('input_directory', DR3el.FILM_DIR)
-            values.setdefault('output_directory', DR3el.MEDIA_DIR)
-            values.setdefault('batch_size', DR3el.BATCH_SIZE)
+            values.setdefault('input_directory', workspace.source_directory if workspace else DR3el.FILM_DIR)
+            values.setdefault('output_directory', workspace.destination_directory if workspace else DR3el.MEDIA_DIR)
+            values.setdefault('batch_size', workspace.requested_size if workspace else DR3el.BATCH_SIZE)
         if template == 'events.html':
             values['events'] = [
                 dict(event, message=self.message(event['content']),

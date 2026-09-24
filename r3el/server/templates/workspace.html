@@ -135,6 +135,13 @@
     }
     document.querySelector('.last-updated').replaceWith(page.querySelector('.last-updated'));
     document.getElementById('batch-processing').textContent = page.getElementById('batch-processing').textContent;
+    const controls = document.getElementById('batch-controls-section');
+    const nextControls = page.getElementById('batch-controls-section');
+    if (Boolean(controls.querySelector('form')) !== Boolean(nextControls.querySelector('form'))) {
+      controls.replaceWith(nextControls);
+      const refreshInput = nextControls.querySelector('input[name="refresh"]');
+      if (refreshInput) refreshInput.value = document.querySelector('#control-refresh select').value;
+    }
     window.formatLocalTimes();
   }
   window.refreshWorkspace = refreshWorkspace;
