@@ -123,7 +123,7 @@ class ControlServerTests(unittest.TestCase):
                 for label in ('Pending', 'Identified', 'Unresolved — identification', 'Unresolved — hidden file'):
                     self.assertIn(label, body)
                 self.assertIn('<h1 id="control-heading">Control</h1>', body)
-                self.assertIn('Batch is being processed...', body)
+                self.assertIn('id="batch-processing"', body)
                 self.assertIn('class="control-occupied"', body)
                 self.assertIn('/tmp/&lt;input&gt;', body)
                 self.assertIn('/tmp/&lt;output&gt;', body)
@@ -146,6 +146,9 @@ class ControlServerTests(unittest.TestCase):
         for state, action, enabled in (
             (MediaFileBatchState.PROCESSING, MediaFileAction.APPROVE, False),
             (MediaFileBatchState.FAILED, MediaFileAction.APPROVE, False),
+            (MediaFileBatchState.MATCHING, MediaFileAction.APPROVE, False),
+            (MediaFileBatchState.MATCHING_COMPLETED, MediaFileAction.APPROVE, True),
+            (MediaFileBatchState.MATCHING_FAILED, MediaFileAction.APPROVE, True),
             (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.PENDING, True),
             (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.APPROVE, True),
             (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.IGNORE, True),
@@ -163,6 +166,17 @@ class ControlServerTests(unittest.TestCase):
         batch.files = []
         self.assertIn('type="button" disabled', re.search(
             r'<button id="match-tmdb"[^>]*>', self.request('/')[2]).group(0))
+
+    def test_automatic_pipeline_disables_menus_and_polls_without_matching_post(self):
+        self.workspace.return_value = MediaFileBatch('batch', 5, '/tmp',
+            files=[MediaFile('file', '/tmp/a.mkv', MediaFileState.IDENTIFIED)])
+        for state in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING):
+            self.workspace.return_value.state = state
+            body = self.request('/')[2]
+            menu = re.search(r'<select class="file-action".*?>', body, re.S).group(0)
+            self.assertIn('disabled', menu)
+            self.assertIn('data-automatic-processing="true"', body)
+            self.assertIn('window.setTimeout(pollAutomaticBatch, 2000);', body)
 
     @patch('r3el.server.ControlServer.WorkspaceDb.save_action')
     def test_action_change_is_saved_and_reports_readiness(self, save):

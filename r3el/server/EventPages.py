@@ -11,6 +11,7 @@ from r3el.constants.DMessage import DMessage
 from r3el.constants.DEventCategory import DEventCategory
 from r3el.constants.DEventName import DEventName
 from r3el.entity.MediaFile import MediaFileState
+from r3el.entity.MediaFileBatch import MediaFileBatchState
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.server.ReplyReasoning import ReplyReasoning
@@ -79,7 +80,10 @@ class EventPages:
             values['control_url'] = '/?refresh=' + str(values['refresh']) if values['refresh'] else '/'
             values.setdefault('matching_job', None)
             workspace = values['workspace']
-            values['process_ready'] = workspace is not None and BatchPreparation.ready(workspace)
+            values['automatic_processing'] = workspace is not None and workspace.state in (
+                MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING)
+            values['process_ready'] = (workspace is not None and BatchPreparation.ready(workspace)
+                                       and not values['automatic_processing'])
             values['has_match_results'] = workspace is not None and any(
                 item.tmdb_match is not None for item in workspace.files)
             values['last_updated'] = datetime.now(timezone.utc)

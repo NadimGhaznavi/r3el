@@ -7,7 +7,7 @@ an Output Directory text box prefilled from `DR3el.MEDIA_DIR`, a Batch Size drop
 (5, 10, 20, 50, or 100, default 10), and a New Batch button. The button sends the directories
 and size to the identification server over ZeroMQ. Labels and result messages
 use Jinja2; shared defaults live in `DR3el`, and message names live in `DMessage`.
-The R3el logo is deployed with the server assets. File actions can be reviewed before TMDB matching.
+The R3el logo is deployed with the server assets. New Batch runs identification and TMDB matching without an intermediate pause.
 
 The control server is a human-operated web application. Starting it, opening a
 page, or refreshing status never sends a batch-start command. Only submitting
@@ -17,20 +17,27 @@ not clear the application's workspace or automatically begin another batch.
 
 When the workspace contains a batch, the landing page shows its filenames and
 saved statuses in selection order. The Control section stays visible but greyed
-out, with “Batch is being processed...” beneath its heading. Saved input/output
+out, with automatic-processing status beneath its heading. Saved input/output
 directories and batch size appear as static text, and New Batch is disabled. This also applies to
 completed, failed, cancelled, and zero-file batches retained in the workspace.
 The file table ends with an Action dropdown: Pending / Approve / Ignore / Delete.
 These choices are saved in the workspace when changed. Identification initially
 selects Approve for confidence 10 and Pending otherwise. Rows still awaiting
-identification have disabled dropdowns until an outcome is available on reload.
+identification have disabled dropdowns. All action menus stay disabled while the
+automatic pipeline is running.
 Saving an action updates button readiness without reloading the page. A failed
 or uncertain save disables further edits until the user reloads to read the saved
 state; no save is retried automatically.
 
-Process Batch is enabled as soon as identification is complete for a nonempty
-batch, even with Pending actions. Clicking it steps through the files and searches
-movies by the saved title and year for Pending and Approve files. Ignore and Delete files are skipped without file operations.
+The server processes groups of up to 10 files within the selected batch. Each
+group completes identification, TMDB matching, LLM selection, and zero-result
+retries before identification starts for the next group. Remaining files stay
+Pending. The last group may contain fewer than 10 files.
+
+After each group's identification, the server automatically searches movies by the saved title
+and year for Pending and Approve files. Ignore and Delete files are skipped without
+file operations. Once automatic processing stops, Process Batch is available for
+manual retries on a nonempty identified batch, even with Pending actions.
 The background worker holds the workspace processing lock; action changes
 receive a conflict while it runs. Duplicate submissions for the active batch
 return the same job instead of starting more work. Results are saved per file as searches finish.
@@ -88,7 +95,8 @@ accepts `batch_id`, `file_id`, and `action`, returning saved readiness as JSON.
 
 After New Batch is accepted, the control page reloads once after two seconds to
 show the discovered files. It returns to `/`, removing the acceptance flag so the
-reload does not repeat or resubmit the batch. The Refresh dropdown offers Manual
+reload does not repeat or resubmit the batch. During automatic processing, the
+table updates every two seconds until the batch finishes or fails. The Refresh dropdown offers Manual
 (the default), 5 seconds, 30 seconds, and 1 minute, with Apply / refresh and Reset
 controls like the event log. Refresh updates only the file table, button readiness,
 and last-updated timestamp; the page and form inputs stay in place. Apply and Reset
@@ -240,7 +248,7 @@ Install and upgrade read `TMDB_TOKEN` and `TMDB_KEY` from `/root/.tmdb`, accepti
 plain or quoted assignments and optional `export` prefixes. The file is parsed as
 data, never executed. Both values are required and installed atomically into
 `/etc/r3el/tmdb.env`, alongside `database.env`, with root ownership and mode 0600.
-The control service loads this file through systemd; uninstall removes the installed
+Both the control and batch services load this file through systemd; uninstall removes the installed
 copy and leaves `/root/.tmdb` alone. Missing or invalid source credentials stop the
 service installer before services are stopped or application modules are replaced.
 
@@ -249,7 +257,8 @@ credentials. For standalone startup, provide `TMDB_TOKEN` in the environment.
 See TMDB's [movie search](https://developer.themoviedb.org/reference/search-movie)
 and [authentication](https://developer.themoviedb.org/docs/authentication-application)
 documentation. This step uses the title and `primary_release_year` search parameters; exactly one
-total result establishes a match. No TV search or candidate selection is included.
+total result establishes a match. Multiple results use LLM candidate selection;
+TV search is not included.
 
 ## Shared TMDB catalogs
 

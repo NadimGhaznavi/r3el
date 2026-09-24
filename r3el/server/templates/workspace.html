@@ -9,7 +9,7 @@
   file_actions.IGNORE: 'Ignore', file_actions.DELETE: 'Delete'
 } %}
 <div class="table-wrap">
-  <table class="workspace-files" data-batch-id="{{ workspace.id }}" aria-label="Current batch files">
+  <table class="workspace-files" data-batch-id="{{ workspace.id }}" data-automatic-processing="{{ 'true' if automatic_processing else 'false' }}" aria-label="Current batch files">
     <thead><tr><th scope="col">Filename</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Retries</th><th scope="col">Status</th><th scope="col">Action</th>{% if has_match_results %}<th scope="col">Match Results</th>{% endif %}</tr></thead>
     <tbody>
       {% for file in workspace.files %}
@@ -23,7 +23,7 @@
         <td>
           <select class="file-action" aria-label="Action for {{ file.filename }}"
                   data-file-id="{{ file.id }}" data-saved-action="{{ file.action }}"
-                  {% if file.pending or matching_job %}disabled{% else %}data-action-editable{% endif %}>
+                  {% if file.pending or matching_job or automatic_processing %}disabled{% else %}data-action-editable{% endif %}>
             {% for action, label in action_labels.items() %}
             <option value="{{ action }}"{% if file.action == action %} selected{% endif %}>{{ label }}</option>
             {% endfor %}
@@ -51,7 +51,7 @@
   <span id="action-error" hidden>Could not confirm the saved action. Reload the page to check the workspace before continuing.</span>
 </p>
 <button id="match-tmdb" type="button"{% if not process_ready or matching_job %} disabled{% endif %} aria-describedby="match-note">Process Batch</button>
-<p class="note" id="match-note">After identification finishes, process the batch without choosing every action first. Pending and Approve files with a title and year are searched on TMDB; Ignore and Delete are skipped. Files without an identification or with failed lookups do not stop the batch.</p>
+<p class="note" id="match-note">New Batch runs identification and TMDB matching automatically. Process Batch can retry matching afterward. Ignore and Delete files are skipped.</p>
 <p role="status" id="match-feedback">
   <span id="match-running" hidden>Processing batch...</span>
   <span id="match-error" hidden>Could not confirm matching finished. Reload the page to check saved results before trying again.</span>
@@ -122,8 +122,23 @@
     table.replaceWith(updated);
     processBatch.disabled = matchingInProgress || page.getElementById('match-tmdb').disabled;
     document.querySelector('.last-updated').replaceWith(page.querySelector('.last-updated'));
+    document.getElementById('batch-processing').textContent = page.getElementById('batch-processing').textContent;
   }
   window.refreshWorkspace = refreshWorkspace;
+
+  async function pollAutomaticBatch() {
+    try {
+      await refreshWorkspace();
+    } catch {
+      // A failed progress read does not interrupt the server-owned batch.
+    }
+    if (document.querySelector('.workspace-files').dataset.automaticProcessing === 'true') {
+      window.setTimeout(pollAutomaticBatch, 2000);
+    }
+  }
+  {% if automatic_processing %}
+  window.setTimeout(pollAutomaticBatch, 2000);
+  {% endif %}
 
   function showMatching() {
     matchingInProgress = true;

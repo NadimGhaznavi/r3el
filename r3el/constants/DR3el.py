@@ -5,11 +5,12 @@ class DR3el:
     RAW_LOGS_ENABLED: Final[bool] = False
     HTTP_TIMEOUT_SECONDS: Final[int] = 300
 
-    VERSION: Final[str] = "0.7.0"
+    VERSION: Final[str] = "0.8.0"
 
     BASE_DIR: Final[str] = "/opt/prod/r3el"
     FILM_DIR: Final[str] = "/exports/disk1/archive/film"
     MEDIA_DIR: Final[str] = "/exports/disk1/archive/media"
+    PROCESSING_GROUP_SIZE: Final[int] = 10
     BATCH_SIZE: Final[int] = 10
     BATCH_SIZES: Final[tuple[int, ...]] = (5, 10, 20, 50, 100)
     NEW_BATCH_URL: Final[str] = "/batches"

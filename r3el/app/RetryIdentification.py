@@ -20,8 +20,9 @@ from r3el.zmq.ZMQServer import ZMQServer
 
 
 class RetryIdentification:
-    def __init__(self, workspace: WorkspaceDb) -> None:
+    def __init__(self, workspace: WorkspaceDb, llm: LLM | None = None) -> None:
         self._workspace = workspace
+        self._llm = llm
 
     @staticmethod
     def _record_submission(event) -> int:
@@ -40,7 +41,8 @@ class RetryIdentification:
         handler = SubmissionHandler(self._record_submission)
         try:
             with ZMQServer('tcp://127.0.0.1:*', handler.handle) as listener:
-                result = asyncio.run(ToolConversation(LLM.from_environment(), listener.endpoint, handler, log).run())
+                result = asyncio.run(ToolConversation(self._llm or LLM.from_environment(),
+                    listener.endpoint, handler, log).run())
         except BaseException:
             item.tmdb_match = replace(item.tmdb_match, selection_pending=False)
             self._save(item, log, Names.ITEM_COMPLETED)

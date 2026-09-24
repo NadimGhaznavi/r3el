@@ -35,8 +35,9 @@ these three outcomes.
 saves `approve` when confidence equals `DR3el.AUTO_APPROVE_CONFIDENCE` (10), otherwise
 `pending`, in the same transaction as the file outcome and completion event.
 
-After a file has finished identification, its Action dropdown saves human choices
-immediately. Pending identification rows cannot be edited, preventing a later
+After automatic batch processing stops, Action dropdowns save human choices
+immediately. Menus are disabled throughout identification and matching. Pending
+identification rows cannot be edited, preventing a later
 checkpoint from overwriting a user choice. Resuming identification skips saved
 outcomes and preserves their actions. A user can set a confidence-10 item back to
 Pending; rendering and schema upgrades do not reapply defaults to saved choices.
@@ -45,9 +46,10 @@ The schema upgrade initializes legacy rows once: identified confidence-10 files
 become Approve, and all others become Pending. It preserves rows and identification
 data. Apply the workspace schema through the usual install/upgrade flow.
 
-`BatchPreparation.ready` requires a nonempty identification-complete batch, no
-pending identification rows. Process Batch is enabled immediately at that point,
-including when actions are still Pending. Pending and Approve files with an
+`BatchPreparation.ready` requires a nonempty batch with completed identification
+and no pending identification rows. New Batch starts matching automatically.
+Process Batch is available afterward for retries, including when actions are
+still Pending. Pending and Approve files with an
 identification are queried by title/year; Ignore and Delete
 files are skipped. Results are checkpointed in `media_files.tmdb_match` as JSON.
 Exactly one total result is a match; zero triggers a fresh identification and
@@ -90,7 +92,10 @@ and `started_event_id`. One batch occupies the workspace.
 | `processing` | Identification underway. |
 | `failed` | Processing stopped on an error. |
 | `cancelled` | Processing interrupted. |
-| `identification_completed` | All outcomes saved, awaiting the next stage. |
+| `identification_completed` | Diagnostic identification finished; matching can be started manually. |
+| `matching` | Automatic TMDB matching underway. |
+| `matching_completed` | Automatic matching finished; results available for review. |
+| `matching_failed` | Automatic matching stopped on an error. |
 
 Explicit diagnostic `--run-batch` resumes pending files and returns failed/cancelled batches to
 `processing`. Identification completion is not finalization. Normal server startup is idle;
