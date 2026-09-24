@@ -283,7 +283,7 @@ loads the public image without receiving API credentials.
 
 ## Command-line TMDB search
 
-With `TMDB_TOKEN` exported in the environment, query a title and four-digit year:
+Query a title and four-digit year:
 
 ```bash
 .venv/bin/python scripts/query-tmdb.py "Superman" 2025
@@ -300,7 +300,10 @@ The installer creates or reuses `/opt/prod/r3el/.venv` and installs only the
 CLI's Python dependencies and modules. It does not provision databases or
 install or start services. The installed command works from any directory
 without activating the venv or keeping the development checkout available.
-Export `TMDB_TOKEN` in the invoking shell before searching.
+The CLI reads `TMDB_TOKEN` from the invoking shell first, then
+`/etc/r3el/tmdb.env`, then `~/.tmdb` (for root, `/root/.tmdb`).
+Credential files are read as data, never executed. Unreadable files are skipped;
+existing credential permissions are preserved.
 
 The script uses the same `primary_release_year` search as Process Batch and prints
 numbered results with release date, language, rating, TMDB link, and full wrapped

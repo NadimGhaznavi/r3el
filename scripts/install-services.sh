@@ -92,7 +92,7 @@ modules=(
     activity/WorkspaceSchema.py interface/WorkspaceDb.py
     entity/MediaFile.py entity/MediaFileBatch.py
     entity/MediaFileAction.py activity/BatchPreparation.py
-    entity/TMDBMatch.py interface/TMDB.py app/BatchMatching.py
+    entity/TMDBMatch.py interface/TMDB.py interface/TMDBCredentials.py app/BatchMatching.py
     server/templates/match.html
     entity/TMDBReference.py interface/TMDBReferenceDb.py
     activity/TMDBReferenceSchema.py activity/TMDBReferenceRefresh.py server/MatchResults.py

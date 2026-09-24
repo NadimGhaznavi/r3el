@@ -12,6 +12,7 @@ import textwrap
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from r3el.interface.TMDB import TMDB, TMDBError
+from r3el.interface.TMDBCredentials import TMDBCredentials
 
 
 def release_year(value: str) -> int:
@@ -54,12 +55,12 @@ def format_results(title: str, year: int, response: dict, width: int) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__,
-        epilog='Uses TMDB_TOKEN from the environment, just like R3el. Searches the first page with primary_release_year.')
+        epilog='Reads TMDB_TOKEN from the environment, /etc/r3el/tmdb.env, or ~/.tmdb. Searches the first page with primary_release_year.')
     parser.add_argument('title', type=movie_title, help='movie title (quote titles containing spaces)')
     parser.add_argument('year', type=release_year, help='four-digit release year')
     args = parser.parse_args(argv)
     try:
-        response = TMDB.from_environment().search(args.title, args.year)
+        response = TMDB(TMDBCredentials.token()).search(args.title, args.year)
     except TMDBError as error:
         print(f'Error: {error}', file=sys.stderr)
         return 1

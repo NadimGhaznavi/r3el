@@ -15,8 +15,9 @@ spec.loader.exec_module(query)
 
 
 class QueryTMDBTests(unittest.TestCase):
-    @patch.object(query.TMDB, 'from_environment')
-    def test_title_year_query_and_readable_results(self, factory):
+    @patch.object(query.TMDBCredentials, 'token', return_value='test-token')
+    @patch.object(query, 'TMDB')
+    def test_title_year_query_and_readable_results(self, factory, token):
         factory.return_value.search.return_value = {'total_results': 11, 'results': [
             {'id': 42, 'title': 'Superman', 'release_date': '2025-07-09',
              'original_language': 'en', 'overview': 'A hero in Metropolis.', 'vote_average': 7.2, 'vote_count': 50}]}
@@ -28,8 +29,9 @@ class QueryTMDBTests(unittest.TestCase):
                          'A hero in Metropolis.', 'https://www.themoviedb.org/movie/42'):
             self.assertIn(expected, output.getvalue())
 
-    @patch.object(query.TMDB, 'from_environment')
-    def test_no_matches_and_external_failure(self, factory):
+    @patch.object(query.TMDBCredentials, 'token', return_value='test-token')
+    @patch.object(query, 'TMDB')
+    def test_no_matches_and_external_failure(self, factory, token):
         factory.return_value.search.return_value = {'total_results': 0, 'results': []}
         output = StringIO()
         with redirect_stdout(output):
@@ -40,8 +42,9 @@ class QueryTMDBTests(unittest.TestCase):
             self.assertEqual(query.main(['Movie', '2025']), 1)
         self.assertIn('Configure TMDB_TOKEN.', errors.getvalue())
 
-    @patch.object(query.TMDB, 'from_environment')
-    def test_invalid_arguments_never_query(self, factory):
+    @patch.object(query.TMDBCredentials, 'token', return_value='test-token')
+    @patch.object(query, 'TMDB')
+    def test_invalid_arguments_never_query(self, factory, token):
         for args in (['Movie'], ['Movie', '25'], ['Movie', '20250'], ['Movie', '0000'], [' ', '2025']):
             with self.subTest(args=args), redirect_stderr(StringIO()), self.assertRaises(SystemExit) as error:
                 query.main(args)
