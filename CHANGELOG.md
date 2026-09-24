@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-09-24 @ 16:54
+
+### Changed
+
+- Widen the Current batch layout from 60rem to 90rem to accommodate the manual TMDB ID column.
+
 ## [1.0.6] - 2026-09-24 @ 06:26
 
 ### Added
