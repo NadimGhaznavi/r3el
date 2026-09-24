@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-24 @ 03:33
+
+### Added
+
+- Add a standalone CLI installer for `/opt/prod/r3el/bin/query-tmdb`, with an installation-local `.venv` and only the TMDB CLI dependencies. No database or service provisioning is required.
+
 ## [0.8.0] - 2026-09-23 @ 20:33
 
 ### Updated

@@ -107,6 +107,7 @@ for module in "${modules[@]}"; do
     install -D -m 644 -- "$checkout_dir/r3el/$module" "$install_dir/r3el/$module"
 done
 install -m 644 -- "$checkout_dir/requirements.txt" "$install_dir/requirements.txt"
+install -m 644 -- "$checkout_dir/requirements-cli.txt" "$install_dir/requirements-cli.txt"
 install -D -m 755 -- "$checkout_dir/scripts/services.sh" "$install_dir/scripts/services.sh"
 install -D -m 755 -- "$checkout_dir/scripts/query-tmdb.py" "$install_dir/scripts/query-tmdb.py"
 

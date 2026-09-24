@@ -289,6 +289,19 @@ With `TMDB_TOKEN` exported in the environment, query a title and four-digit year
 .venv/bin/python scripts/query-tmdb.py "Superman" 2025
 ```
 
+For a standalone CLI installation with its own virtual environment:
+
+```bash
+sudo scripts/install-cli.sh
+/opt/prod/r3el/bin/query-tmdb "Superman" 2025
+```
+
+The installer creates or reuses `/opt/prod/r3el/.venv` and installs only the
+CLI's Python dependencies and modules. It does not provision databases or
+install or start services. The installed command works from any directory
+without activating the venv or keeping the development checkout available.
+Export `TMDB_TOKEN` in the invoking shell before searching.
+
 The script uses the same `primary_release_year` search as Process Batch and prints
 numbered results with release date, language, rating, TMDB link, and full wrapped
 overview. It clearly labels partial first-page results and reports no matches.

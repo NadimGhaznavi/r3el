@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Run the installed CLI with R3el's own virtual environment.
+set -euo pipefail
+install_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+exec "$install_dir/.venv/bin/python" -B "$install_dir/scripts/query-tmdb.py" "$@"
