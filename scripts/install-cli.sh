@@ -20,7 +20,7 @@ if [[ ! -x $install_dir/.venv/bin/python ]]; then
 fi
 "$install_dir/.venv/bin/python" -m pip install -r "$checkout_dir/requirements-cli.txt"
 
-for module in interface/TMDB.py entity/TMDBReference.py; do
+for module in interface/TMDB.py interface/TMDBCredentials.py entity/TMDBReference.py; do
     install -D -m 644 -- "$checkout_dir/r3el/$module" "$install_dir/r3el/$module"
 done
 install -D -m 644 -- "$checkout_dir/scripts/query-tmdb.py" "$install_dir/scripts/query-tmdb.py"
@@ -28,4 +28,4 @@ install -m 644 -- "$checkout_dir/requirements-cli.txt" "$install_dir/requirement
 install -m 755 -- "$checkout_dir/scripts/query-tmdb" "$install_dir/bin/query-tmdb"
 
 "$install_dir/bin/query-tmdb" --help
-printf '\nInstalled CLI: %s/bin/query-tmdb\nExport TMDB_TOKEN before searching.\n' "$install_dir"
+printf '\nInstalled CLI: %s/bin/query-tmdb\nCredentials: TMDB_TOKEN, /etc/r3el/tmdb.env, or ~/.tmdb.\n' "$install_dir"
