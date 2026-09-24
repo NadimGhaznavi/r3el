@@ -9,7 +9,7 @@
   file_actions.IGNORE: 'Ignore', file_actions.DELETE: 'Delete'
 } %}
 <div class="table-wrap">
-  <table class="workspace-files" aria-label="Current batch files">
+  <table class="workspace-files" data-batch-id="{{ workspace.id }}" aria-label="Current batch files">
     <thead><tr><th scope="col">Filename</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Retries</th><th scope="col">Status</th><th scope="col">Action</th>{% if has_match_results %}<th scope="col">Match Results</th>{% endif %}</tr></thead>
     <tbody>
       {% for file in workspace.files %}
@@ -43,7 +43,7 @@
     </tbody>
   </table>
 </div>
-<p class="note">Reload the page to update the batch status.</p>
+<p class="note">Use Refresh to update the file table.</p>
 <p class="note">Actions save when changed. Pending files can be reviewed once identification or movie selection finishes.</p>
 <p role="status" id="action-feedback">
   <span id="action-saving" hidden>Saving action...</span>
@@ -57,16 +57,24 @@
   <span id="match-error" hidden>Could not confirm matching finished. Reload the page to check saved results before trying again.</span>
 </p>
 <script>
-  const actionMenus = [...document.querySelectorAll('[data-action-editable]')];
+  const actionMenus = () => [...document.querySelectorAll('[data-action-editable]')];
+  let savingAction = false;
+  let uncertainAction = false;
+  let matchingInProgress = false;
+  let revision = 0;
+  let refreshSequence = 0;
   const processBatch = document.getElementById('match-tmdb');
   const feedback = [...document.querySelectorAll('#action-feedback span')];
   const saving = document.getElementById('action-saving');
   const saved = document.getElementById('action-saved');
   const failed = document.getElementById('action-error');
 
-  for (const menu of actionMenus) {
-    menu.addEventListener('change', async () => {
-      actionMenus.forEach(select => { select.disabled = true; });
+  document.addEventListener('change', async event => {
+      const menu = event.target.closest('.file-action[data-action-editable]');
+      if (!menu || savingAction || uncertainAction || matchingInProgress) return;
+      savingAction = true;
+      revision += 1;
+      actionMenus().forEach(select => { select.disabled = true; });
       processBatch.disabled = true;
       feedback.forEach(message => { message.hidden = message !== saving; });
       try {
@@ -86,15 +94,40 @@
         menu.dataset.savedAction = menu.value;
         processBatch.disabled = result.ready !== true;
         feedback.forEach(message => { message.hidden = message !== saved; });
-        actionMenus.forEach(select => { select.disabled = false; });
+        actionMenus().forEach(select => { select.disabled = false; });
       } catch {
+        uncertainAction = true;
         menu.value = menu.dataset.savedAction;
         feedback.forEach(message => { message.hidden = message !== failed; });
+      } finally {
+        savingAction = false;
+        revision += 1;
       }
-    });
+  });
+
+  async function refreshWorkspace(duringMatching = false) {
+    const table = document.querySelector('.workspace-files');
+    if (savingAction || uncertainAction || (matchingInProgress && !duringMatching)
+        || table.contains(document.activeElement)) return;
+    const requestedRevision = revision;
+    const requestNumber = ++refreshSequence;
+    const response = await fetch('/', {cache: 'no-store'});
+    if (!response.ok) throw new Error();
+    const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+    const updated = page.querySelector('.workspace-files');
+    if (!updated || updated.dataset.batchId !== table.dataset.batchId) throw new Error();
+    if (savingAction || uncertainAction || revision !== requestedRevision || requestNumber !== refreshSequence
+        || table.contains(document.activeElement)) return;
+    if (matchingInProgress) updated.querySelectorAll('select').forEach(select => { select.disabled = true; });
+    table.replaceWith(updated);
+    processBatch.disabled = matchingInProgress || page.getElementById('match-tmdb').disabled;
+    document.querySelector('.last-updated').replaceWith(page.querySelector('.last-updated'));
   }
+  window.refreshWorkspace = refreshWorkspace;
 
   function showMatching() {
+    matchingInProgress = true;
+    revision += 1;
     document.querySelectorAll('.file-action').forEach(select => { select.disabled = true; });
     processBatch.disabled = true;
     document.getElementById('match-running').hidden = false;
@@ -112,18 +145,14 @@
       if (!response.ok) throw new Error();
       const job = await response.json();
       if (job.status === 'completed') {
-        window.location.replace({{ control_url | tojson }});
+        matchingInProgress = false;
+        revision += 1;
+        document.getElementById('match-running').hidden = true;
+        await refreshWorkspace();
         return;
       }
       if (job.status !== 'running') throw new Error();
-      const pageResponse = await fetch('/', {cache: 'no-store'});
-      if (!pageResponse.ok) throw new Error();
-      const page = new DOMParser().parseFromString(await pageResponse.text(), 'text/html');
-      const table = page.querySelector('.workspace-files');
-      if (table) {
-        table.querySelectorAll('select').forEach(select => { select.disabled = true; });
-        document.querySelector('.workspace-files').replaceWith(table);
-      }
+      await refreshWorkspace(true);
       window.setTimeout(() => pollMatching(jobId), 2000);
     } catch {
       matchingFailed();
