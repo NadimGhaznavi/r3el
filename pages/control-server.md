@@ -296,6 +296,13 @@ sudo scripts/install-cli.sh
 /opt/prod/r3el/bin/query-tmdb "Superman" 2025
 ```
 
+Add `-r` (or `--raw`) to print the complete first-page search response as
+indented JSON, including all fields and nested values:
+
+```bash
+/opt/prod/r3el/bin/query-tmdb -r "Superman" 2025
+```
+
 The installer creates or reuses `/opt/prod/r3el/.venv` and installs only the
 CLI's Python dependencies and modules. It does not provision databases or
 install or start services. The installed command works from any directory

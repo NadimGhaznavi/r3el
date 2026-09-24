@@ -2,6 +2,7 @@
 """Search TMDB movies by title and four-digit release year."""
 
 import argparse
+import json
 from pathlib import Path
 import re
 import shutil
@@ -58,14 +59,19 @@ def main(argv: list[str] | None = None) -> int:
         epilog='Reads TMDB_TOKEN from the environment, /etc/r3el/tmdb.env, or ~/.tmdb. Searches the first page with primary_release_year.')
     parser.add_argument('title', type=movie_title, help='movie title (quote titles containing spaces)')
     parser.add_argument('year', type=release_year, help='four-digit release year')
+    parser.add_argument('-r', '--raw', action='store_true',
+                        help='print the complete search response as formatted JSON')
     args = parser.parse_args(argv)
     try:
         response = TMDB(TMDBCredentials.token()).search(args.title, args.year)
     except TMDBError as error:
         print(f'Error: {error}', file=sys.stderr)
         return 1
-    width = max(40, min(shutil.get_terminal_size(fallback=(100, 24)).columns, 120))
-    print(format_results(args.title, args.year, response, width))
+    if args.raw:
+        print(json.dumps(response, indent=2, ensure_ascii=False))
+    else:
+        width = max(40, min(shutil.get_terminal_size(fallback=(100, 24)).columns, 120))
+        print(format_results(args.title, args.year, response, width))
     return 0
 
 
