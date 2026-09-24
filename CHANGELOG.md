@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-09-24 @ 18:06
+
 ### Fixed
 
 - Resume interrupted batches automatically when the identification service starts, using the saved selection, parameters, and checkpoints. Keep New Batch disabled for interrupted work, including shutdowns marked cancelled by older releases. Preserve explicit Stop Batch requests and keep completed batches idle.
