@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  {% if refresh %}<meta http-equiv="refresh" content="{{ refresh }}">{% endif %}
+  {% block page_refresh %}{% if refresh %}<meta http-equiv="refresh" content="{{ refresh }}">{% endif %}{% endblock %}
   <title>{% block title %}Event log{% endblock %} · R3el Control</title>
   {% include 'styles.html' %}
 </head>

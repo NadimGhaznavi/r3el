@@ -76,7 +76,7 @@ attempts within an identification conversation remain a separate counter.
 `POST /workspace/match` accepts `batch_id` and promptly returns HTTP 202 with
 `accepted: true` and a `job_id`. `GET /workspace/match/status/<job_id>` reports
 `running`, `completed`, or `failed`. The browser polls status and saved file
-progress every two seconds, then reloads on completion. Reloading the page during
+progress every two seconds, then updates the table in place on completion. Reloading the page during
 processing resumes polling without submitting another job. Errors stop polling
 and ask the user to inspect saved results. The worker owns its database connection
 and continues independently of browser connections; shutdown waits for it to finish.
@@ -90,7 +90,10 @@ After New Batch is accepted, the control page reloads once after two seconds to
 show the discovered files. It returns to `/`, removing the acceptance flag so the
 reload does not repeat or resubmit the batch. The Refresh dropdown offers Manual
 (the default), 5 seconds, 30 seconds, and 1 minute, with Apply / refresh and Reset
-controls like the event log. The selected interval stays in the URL and is retained
+controls like the event log. Refresh updates only the file table, button readiness,
+and last-updated timestamp; the page and form inputs stay in place. Apply and Reset
+update the interval without navigation. Refresh waits while an action menu is
+focused or a save is in progress. The selected interval stays in the URL and is retained
 after New Batch acceptance and Process Batch completion.
 “Last updated” at the top right reports the page's latest workspace read in UTC,
 not the time the file last changed. Pending files stay Pending until an outcome
@@ -268,3 +271,18 @@ and [languages](https://developer.themoviedb.org/reference/configuration-languag
 endpoints. Posters use the saved poster path and TMDB's documented
 [image URL format](https://developer.themoviedb.org/docs/image-basics); the browser
 loads the public image without receiving API credentials.
+
+## Command-line TMDB search
+
+With `TMDB_TOKEN` exported in the environment, query a title and four-digit year:
+
+```bash
+.venv/bin/python scripts/query-tmdb.py "Superman" 2025
+```
+
+The script uses the same `primary_release_year` search as Process Batch and prints
+numbered results with release date, language, rating, TMDB link, and full wrapped
+overview. It clearly labels partial first-page results and reports no matches.
+It exits with status 1 for a TMDB/configuration failure and 2 for invalid arguments.
+It does not contact the LLM or modify the workspace. Install/upgrade deploys the
+script alongside the service helper.

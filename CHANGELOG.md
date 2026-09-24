@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `scripts/query-tmdb.py TITLE YYYY` to search TMDB and print numbered movies with release dates, languages, ratings, links, and wrapped overviews.
+
+### Updated
+
+- Refresh the Control file table in place instead of reloading the page. Apply/reset the interval without navigation, preserve action-menu behavior after refresh, and update completed matching results without a page reload.
+
 ## [0.6.11] - 2026-09-23 @ 19:59
 
 ### Added
