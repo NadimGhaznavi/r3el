@@ -4,6 +4,7 @@ from contextlib import nullcontext
 from copy import deepcopy
 from datetime import date
 from decimal import Decimal
+import json
 import unittest
 from unittest.mock import Mock, patch
 
@@ -15,6 +16,7 @@ from r3el.entity.TMDBMatch import TMDBMatch
 from r3el.entity.MovieFiles import MovieFiles
 from r3el.interface.TMDB import TMDBError
 from r3el.interface.TMDBCatalogue import TMDBCatalogue
+from r3el.constants.DEventCategory import DEventCategory
 
 
 def movie_payload():
@@ -97,6 +99,12 @@ class CatalogueMatchingTests(unittest.TestCase):
         self.client.details.assert_called_once_with(42)
         self.workspace.save_catalogue.assert_called_once()
         self.assertTrue(self.item.tmdb_match.catalogue_saved)
+        saved = self.workspace.save_catalogue.call_args.args[4]
+        self.assertEqual(saved.classification, DEventCategory.DB.CREATE_RECORD)
+        self.assertEqual(json.loads(saved.message)['data']['movie_id'], 42)
+        moved = self.workspace.save_match.call_args.args[3]
+        self.assertEqual(moved.classification, DEventCategory.File.MOVE)
+        self.assertEqual(json.loads(moved.message)['data']['source_path'], '/movies/movie.mkv')
 
     def test_metadata_failure_retries_without_search_or_reidentification(self):
         self.client.details.side_effect = TMDBError('TMDB returned HTTP 429.')
@@ -135,6 +143,9 @@ class CatalogueMatchingTests(unittest.TestCase):
         self.runner.run('batch')
         self.assertTrue(self.item.tmdb_match.catalogue_saved)
         self.assertFalse(self.item.tmdb_match.file_moved)
+        event = self.workspace.save_match.call_args.args[3]
+        self.assertEqual(event.classification, DEventCategory.File.MOVE)
+        self.assertEqual(event.level, 'ERROR')
         self.files.finish.side_effect = None
         self.runner.run('batch')
         self.client.details.assert_called_once()

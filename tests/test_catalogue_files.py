@@ -1,6 +1,7 @@
 """Same-filesystem moves, local artwork, and interruption recovery."""
 
 from dataclasses import replace
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -9,6 +10,8 @@ from unittest.mock import Mock, patch
 import httpx
 
 from r3el.activity.MovieNaming import MovieNaming
+from r3el.activity.EventWriter import EventWriter
+from r3el.constants.DEventCategory import DEventCategory
 from r3el.interface.CatalogueFiles import CatalogueFiles
 from r3el.interface.TMDBCatalogue import TMDBCatalogue
 from test_catalogue import movie_payload
@@ -26,9 +29,12 @@ class CatalogueFilesTests(unittest.TestCase):
         client.details.return_value = movie_payload()
         self.movie = replace(TMDBCatalogue(client).movie(42), poster_path=None, backdrop_path=None)
         self.files = CatalogueFiles()
+        self.record = Mock(return_value=1)
+        self.log = EventWriter(self.record, {'batch_id': 'batch', 'item_id': 'file-id',
+                                           'filename': 'original.mkv'}, 123)
 
     def prepare(self):
-        return self.files.prepare(self.movie, str(self.source), str(self.output), 'file-id')
+        return self.files.prepare(self.movie, str(self.source), str(self.output), 'file-id', self.log)
 
     def test_move_uses_same_inode_and_survives_retry_before_and_after_commit(self):
         files = self.prepare()
@@ -79,6 +85,12 @@ class CatalogueFilesTests(unittest.TestCase):
         self.assertEqual(Path(files.backdrop).read_bytes(), b'image bytes')
         self.assertEqual(self.prepare(), files)
         self.assertEqual(stream.call_count, 2)
+        events = [call.args[0] for call in self.record.call_args_list]
+        self.assertEqual([json.loads(event.message)['data']['outcome'] for event in events],
+                         ['downloaded', 'downloaded', 'reused', 'reused'])
+        self.assertTrue(all(event.classification == DEventCategory.Artifact.DOWNLOAD for event in events))
+        self.assertTrue(all(event.parent_event_id == 123 for event in events))
+        self.assertEqual(json.loads(events[0].message)['data']['path'], files.poster)
 
     @patch('r3el.interface.CatalogueFiles.httpx.stream', side_effect=httpx.ConnectError('Offline'))
     def test_download_failure_leaves_original_video(self, stream):
@@ -87,6 +99,10 @@ class CatalogueFilesTests(unittest.TestCase):
             self.prepare()
         self.assertEqual(self.source.read_bytes(), b'video bytes')
         self.assertEqual(list(self.output.rglob('*.mkv')), [])
+        event = self.record.call_args.args[0]
+        self.assertEqual(event.classification, DEventCategory.Artifact.DOWNLOAD)
+        self.assertEqual(event.level, 'ERROR')
+        self.assertEqual(json.loads(event.message)['data']['outcome'], 'failed')
 
     def test_naming_rules(self):
         self.assertEqual(MovieNaming.stem('  Ａ: “B”/C\\D #1 50%?  ', 2020),
