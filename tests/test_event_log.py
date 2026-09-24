@@ -5,6 +5,9 @@ Integration checks create and remove their own database and account.
 
 import os
 import json
+from dataclasses import replace
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -31,6 +34,11 @@ import pymysql
 from r3el.activity.EventReport import EventReport
 from r3el.activity.EventSchema import EventSchema
 from r3el.activity.WorkspaceSchema import WorkspaceSchema
+from r3el.activity.CatalogueSchema import CatalogueSchema
+from r3el.app.BatchMatching import BatchMatching
+from r3el.entity.CatalogueMovie import CatalogueMovie, MovieCredit
+from r3el.entity.MovieFiles import MovieFiles
+from r3el.interface.CatalogueDb import CatalogueDb
 from r3el.constants.DEventCategory import DEventCategory
 from r3el.constants.DEventName import DEventName
 from r3el.activity.EventWriter import EventWriter
@@ -99,6 +107,8 @@ class EventDatabaseTests(unittest.TestCase):
         EventSchema(cls.db).apply()
         WorkspaceSchema(cls.db).apply()
         WorkspaceSchema(cls.db).apply()
+        CatalogueSchema(cls.db).apply()
+        CatalogueSchema(cls.db).apply()
 
     @classmethod
     def drop_database(cls):
@@ -114,12 +124,105 @@ class EventDatabaseTests(unittest.TestCase):
         self.events = EventLogDb(self.db)
 
     def tearDown(self):
+        for table in ('movie_artwork', 'movie_files', 'movie_credits', 'movie_genres', 'movies', 'people'):
+            self.db.execute(f'DELETE FROM {table}')
+        self.db.execute('DELETE FROM tmdb_movie_genres WHERE genre_id = 99999')
         self.db.execute('DELETE FROM media_file_batches')
         self.db.execute('DELETE FROM events ORDER BY event_id DESC')
 
     def workspace_batch(self):
         return MediaFileBatch(str(uuid4()), 10, '/tmp/films',
                               files=[MediaFile(str(uuid4()), '/tmp/films/a.mkv')])
+
+    def catalogue_movie(self):
+        return CatalogueMovie(42, 'Film', 'Original', date(2020, 2, 3), 'Overview', 120,
+            '/poster.jpg', '/backdrop.jpg', 'tt123', Decimal('7.123'), 10,
+            [TMDBGenre(99999, 'Test genre')], [
+                MovieCredit(7, 'Person', 'Actor', 'Hero', 0),
+                MovieCredit(7, 'Person', 'Actor', 'Twin', 1),
+                *[MovieCredit(7, 'Person', role) for role in
+                  ('Director', 'Producer', 'Executive Producer', 'Co-Producer')]])
+
+    def test_catalogue_normalized_refresh_and_durable_file_links(self):
+        movie = self.catalogue_movie()
+        catalogue = CatalogueDb(self.db)
+        with self.db.transaction():
+            catalogue.save_in_transaction(movie, MovieFiles('/films/a.mkv', '/films/poster.jpg', '/films/backdrop.jpg'))
+        with self.db.transaction():
+            catalogue.save_in_transaction(movie, MovieFiles('/films/a.mkv', '/films/poster.jpg', '/films/backdrop.jpg'))
+            catalogue.save_in_transaction(movie, MovieFiles('/films/b.mkv'))
+        self.assertEqual(len(self.db.query('SELECT * FROM movies')), 1)
+        self.assertEqual(len(self.db.query('SELECT * FROM people')), 1)
+        self.assertEqual(len(self.db.query('SELECT * FROM movie_credits')), 6)
+        self.assertEqual(len(self.db.query('SELECT * FROM movie_files')), 2)
+        self.assertEqual(self.db.query('SELECT release_year FROM movies')[0]['release_year'], 2020)
+        self.assertEqual(self.db.query('SELECT rating FROM movies')[0]['rating'], Decimal('7.123'))
+        updated = replace(movie, title='Updated', genres=[], credits=[movie.credits[0]])
+        with self.db.transaction():
+            catalogue.save_in_transaction(updated, MovieFiles('/films/a.mkv'))
+        self.assertEqual(self.db.query('SELECT title FROM movies')[0]['title'], 'Updated')
+        self.assertEqual(len(self.db.query('SELECT * FROM movie_credits')), 1)
+        self.assertEqual(self.db.query('SELECT * FROM movie_genres'), [])
+        self.assertEqual(len(self.db.query('SELECT * FROM movie_files')), 2)
+
+    def test_catalogue_checkpoint_rolls_back_and_survives_workspace_removal(self):
+        workspace = WorkspaceDb(self.db)
+        batch = self.workspace_batch()
+        workspace.create(batch, self.event(), self.event())
+        movie = self.catalogue_movie()
+        result = TMDBMatch('Film', 2020, response={'total_results': 1, 'results': [{'id': 42}]},
+                           catalogue_saved=True)
+        files = MovieFiles('/output/Film (2020)/Film (2020).mkv', '/output/Film (2020)/poster.jpg')
+        with self.assertRaises(pymysql.IntegrityError):
+            workspace.save_catalogue(batch.id, batch.files[0].id, movie, result, self.event(message=None), files)
+        self.assertEqual(self.db.query('SELECT * FROM movies'), [])
+        self.assertEqual(self.db.query('SELECT * FROM people'), [])
+        self.assertEqual(self.db.query('SELECT * FROM movie_files'), [])
+        self.assertIsNone(workspace.load().files[0].tmdb_match)
+        workspace.save_catalogue(batch.id, batch.files[0].id, movie, result, self.event(), files)
+        self.assertTrue(workspace.load().files[0].tmdb_match.catalogue_saved)
+        self.assertEqual(workspace.load().files[0].path, files.video)
+        self.assertEqual(self.db.query('SELECT path FROM movie_artwork')[0]['path'], files.poster)
+        with self.assertRaises(pymysql.IntegrityError):
+            workspace.save_catalogue(batch.id, batch.files[0].id,
+                replace(movie, title='Should roll back', credits=[]), result, self.event(message=None), files)
+        self.assertEqual(self.db.query('SELECT title FROM movies')[0]['title'], 'Film')
+        self.assertEqual(len(self.db.query('SELECT * FROM movie_credits')), 6)
+        self.db.execute('DELETE FROM media_file_batches')
+        self.assertEqual(len(self.db.query('SELECT * FROM movies')), 1)
+        self.assertEqual(len(self.db.query('SELECT * FROM movie_files')), 1)
+
+    @patch('r3el.app.BatchMatching.TMDB.from_environment')
+    def test_catalogue_processing_moves_video_and_commits_final_path(self, factory):
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / 'incoming.mkv'
+            source.write_bytes(b'video')
+            inode = source.stat().st_ino
+            output = Path(directory) / 'chosen-output'
+            batch = self.workspace_batch()
+            batch.files[0].path = str(source)
+            batch.files[0].state = MediaFileState.IDENTIFIED
+            batch.files[0].identification = Identification('Film', 2020, 10)
+            batch.state = MediaFileBatchState.IDENTIFICATION_COMPLETED
+            batch.destination_directory = str(output)
+            workspace = WorkspaceDb(self.db)
+            workspace.create(batch, self.event(), self.event())
+            workspace.save_file(batch.id, batch.files[0], self.event())
+            factory.return_value.search.return_value = {'total_results': 1, 'results': [{'id': 42}]}
+            factory.return_value.details.return_value = {
+                'id': 42, 'title': 'Film', 'release_date': '2020-02-03',
+                'genres': [], 'credits': {'cast': [], 'crew': []}}
+            runner = BatchMatching(workspace, self.events.record)
+            runner.run(batch.id)
+            target = output / 'Film (2020)' / 'Film (2020).mkv'
+            self.assertFalse(source.exists())
+            self.assertEqual(target.stat().st_ino, inode)
+            saved = workspace.load().files[0]
+            self.assertEqual(saved.path, str(target))
+            self.assertTrue(saved.tmdb_match.file_moved)
+            self.assertEqual(self.db.query('SELECT path FROM movie_files')[0]['path'], str(target))
+            runner.run(batch.id)
+            factory.return_value.details.assert_called_once_with(42)
 
     def test_workspace_creation_and_checkpoint_are_atomic(self):
         workspace = WorkspaceDb(self.db)

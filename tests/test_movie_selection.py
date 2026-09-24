@@ -24,6 +24,9 @@ from r3el.server.MatchResults import MatchResults
 
 class MovieSelectionTests(unittest.TestCase):
     def setUp(self):
+        catalogue = patch('r3el.app.BatchMatching.BatchMatching._catalogue')
+        catalogue.start()
+        self.addCleanup(catalogue.stop)
         self.listener_patch = patch('r3el.app.MovieSelection.ZMQServer')
         self.listener = self.listener_patch.start()
         self.addCleanup(self.listener_patch.stop)
@@ -120,7 +123,7 @@ class MovieSelectionTests(unittest.TestCase):
         runner.run('batch')
         self.assertEqual(item.tmdb_match.selected_number, 2)
         self.assertEqual(self.llm.complete.call_count, 2)
-        tmdb.assert_not_called()
+        tmdb.return_value.search.assert_not_called()
 
         # A fresh search is checkpointed before selection and uses the same flow.
         item.tmdb_match = None
