@@ -303,6 +303,35 @@ class EventDatabaseTests(unittest.TestCase):
             self.assertEqual(json.loads(moved[0]['content'])['data']['destination_path'], str(target))
 
     @patch('r3el.app.BatchMatching.TMDB.from_environment')
+    def test_manual_id_catalogues_exact_movie_and_moves_only_selected_file(self, factory):
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / 'incoming.mkv'
+            source.write_bytes(b'video')
+            batch = self.workspace_batch()
+            batch.state = MediaFileBatchState.MATCHING_COMPLETED
+            batch.destination_directory = str(Path(directory) / 'output')
+            item = batch.files[0]
+            item.path = str(source)
+            item.state = MediaFileState.IDENTIFIED
+            item.identification = Identification('Unknown', 2000, 5)
+            item.tmdb_match = TMDBMatch('Unknown', 2000,
+                response={'total_results': 2, 'results': [{'id': 1}, {'id': 2}]}, selected_number=0)
+            workspace = WorkspaceDb(self.db)
+            workspace.create(batch, self.event(), self.event())
+            workspace.save_file(batch.id, item, self.event())
+            factory.return_value.details.return_value = {'id': 42, 'title': 'Film',
+                'release_date': '2020-02-03', 'genres': [], 'credits': {'cast': [], 'crew': []}}
+            BatchMatching(workspace, self.events.record).match_id(batch.id, item.id, 42)
+            result = workspace.load().files[0].tmdb_match
+            self.assertEqual(result.response['results'][0]['id'], 42)
+            self.assertTrue(result.file_moved)
+            self.assertFalse(source.exists())
+            self.assertEqual(Path(result.catalogue_path).read_bytes(), b'video')
+            self.assertEqual(self.db.query('SELECT tmdb_id FROM movies'), [{'tmdb_id': 42}])
+            factory.return_value.search.assert_not_called()
+            factory.return_value.details.assert_called_once_with(42)
+
+    @patch('r3el.app.BatchMatching.TMDB.from_environment')
     def test_better_format_replaces_existing_movie_file(self, factory):
         self.check_format_preference(factory, ('mpg', 'mkv'))
 

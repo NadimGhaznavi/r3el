@@ -89,6 +89,10 @@ class EventPages:
                                        and not workspace.stop_requested and not values['automatic_processing'])
             values['has_match_results'] = workspace is not None and any(
                 item.tmdb_match is not None for item in workspace.files)
+            values['has_manual_matches'] = (workspace is not None and not values['automatic_processing']
+                and any(item.tmdb_match is not None and item.tmdb_match.needs_manual_match
+                        and item.action not in (MediaFileAction.IGNORE, MediaFileAction.DELETE)
+                        for item in workspace.files))
             values['last_updated'] = datetime.now(timezone.utc)
             values.setdefault('result', None)
             values.setdefault('input_directory', workspace.source_directory if workspace else DR3el.FILM_DIR)
