@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 import httpx
 
 from r3el.activity.MovieNaming import MovieNaming
+from r3el.activity.MovieFormats import MovieFormats
 from r3el.activity.EventWriter import EventWriter
 from r3el.constants.DEventCategory import DEventCategory
 from r3el.interface.CatalogueFiles import CatalogueFiles
@@ -111,3 +112,39 @@ class CatalogueFilesTests(unittest.TestCase):
                          'Spider - Man - No Way Home (2021)')
         with self.assertRaises(ValueError):
             MovieNaming.stem('???', 2020)
+
+    def test_format_preference_and_equal_mpeg_rank(self):
+        order = ['mkv', 'mp4', 'm4v', 'avi', 'mov', 'wmv', 'flv', 'mpg']
+        for better, worse in zip(order, order[1:]):
+            winner, discarded = MovieFormats.choose(f'/new/movie.{better}', [f'/old/movie.{worse}'])
+            self.assertEqual(winner, f'/new/movie.{better}')
+            self.assertEqual(discarded, [f'/old/movie.{worse}'])
+        self.assertEqual(MovieFormats.choose('/new/movie.MKV', ['/old/movie.mp4'])[0], '/new/movie.MKV')
+        self.assertEqual(MovieFormats.choose('/new/movie.mpeg', ['/old/movie.mpg']),
+                         ('/old/movie.mpg', ['/new/movie.mpeg']))
+        self.assertEqual(MovieFormats.choose('/new/movie.mkv', ['/old/movie.mkv'])[1], [])
+
+    def test_duplicate_cleanup_can_resume_and_preserves_changed_files(self):
+        preferred = self.root / 'preferred.mkv'
+        preferred.write_bytes(b'preferred')
+        duplicate = self.root / 'duplicate.mpg'
+        duplicate.write_bytes(b'duplicate')
+        snapshot = self.files.discard_snapshot([str(duplicate)])
+        self.files.discard(snapshot, str(preferred))
+        self.files.discard(snapshot, str(preferred))
+        self.assertFalse(duplicate.exists())
+        self.assertEqual(preferred.read_bytes(), b'preferred')
+        duplicate.write_bytes(b'new file')
+        # Keep the original inode alive to avoid immediate inode reuse in this test.
+        snapshot = self.files.discard_snapshot([str(duplicate)])
+        duplicate.rename(self.root / 'old-duplicate.mpg')
+        duplicate.write_bytes(b'replacement')
+        with self.assertRaisesRegex(ValueError, 'changed'):
+            self.files.discard(snapshot, str(preferred))
+        self.assertEqual(duplicate.read_bytes(), b'replacement')
+
+    def test_missing_preferred_file_preserves_duplicates(self):
+        snapshot = self.files.discard_snapshot([str(self.source)])
+        with self.assertRaisesRegex(ValueError, 'preferred catalogue video'):
+            self.files.discard(snapshot, str(self.root / 'missing.mkv'))
+        self.assertTrue(self.source.exists())

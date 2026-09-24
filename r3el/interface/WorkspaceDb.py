@@ -3,6 +3,7 @@
 from contextlib import contextmanager
 from dataclasses import asdict, replace
 from datetime import timezone
+from hashlib import sha256
 import json
 
 from r3el.entity.Identification import Identification
@@ -212,4 +213,29 @@ class WorkspaceDb:
             CatalogueDb(self._db).save_in_transaction(movie, files)
             self._db.execute('UPDATE media_files SET tmdb_match = %s, path = %s WHERE batch_id = %s AND file_id = %s',
                              (json.dumps(asdict(result), allow_nan=False), files.video, batch_id, file_id))
+            self._events.record_in_transaction(event)
+
+    def catalogue_paths(self, movie_id: int) -> list[str]:
+        return [row['path'] for row in self._db.query(
+            'SELECT path FROM movie_files WHERE movie_id = %s ORDER BY path', (movie_id,))]
+
+    def finish_duplicates(self, batch_id: str, file_id: str, result: TMDBMatch, event: LogEvent) -> None:
+        """Forget removed file links and checkpoint cleanup in one transaction."""
+        with self._db.transaction():
+            for item in result.discard_files:
+                path = item['path']
+                self._db.execute('DELETE FROM movie_files WHERE path_hash = %s',
+                                 (sha256(path.encode('utf-8')).digest(),))
+                rows = self._db.query('SELECT file_id, tmdb_match FROM media_files WHERE path = %s', (path,))
+                for row in rows:
+                    if row['file_id'] == file_id or row['tmdb_match'] is None:
+                        continue
+                    previous = replace(TMDBMatch(**json.loads(row['tmdb_match'])), duplicate=True,
+                                       catalogue_path=result.catalogue_path, discard_files=[],
+                                       file_moved=True, catalogue_error=None)
+                    self._db.execute('UPDATE media_files SET tmdb_match = %s WHERE file_id = %s',
+                                     (json.dumps(asdict(previous), allow_nan=False), row['file_id']))
+            self._db.execute('UPDATE media_files SET tmdb_match = %s WHERE batch_id = %s AND file_id = %s',
+                             (json.dumps(asdict(replace(result, discard_files=[])), allow_nan=False),
+                              batch_id, file_id))
             self._events.record_in_transaction(event)

@@ -1,6 +1,6 @@
 """Saved query, downloaded response, and outcome of movie matching."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -18,6 +18,8 @@ class TMDBMatch:
     source_path: str | None = None
     catalogue_path: str | None = None
     file_moved: bool = False
+    duplicate: bool = False
+    discard_files: list[dict] = field(default_factory=list)
 
     @property
     def resolved_response(self) -> dict | None:

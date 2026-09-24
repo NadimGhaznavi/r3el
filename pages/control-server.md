@@ -213,6 +213,7 @@ Each custom template owns the entire Message cell. Its whole message links to
 | `tmdb_search` | Linked filename, title, and primary release year; full details include query parameters. |
 | `tmdb_result` | Linked filename and match count or failure; full details include the response or error. |
 | `file_move` | Linked filename, source/destination paths, and move outcome or error. |
+| `file_delete` | Linked filename, duplicate paths, preferred video path, and deletion outcome or error. |
 | `artifact_download` | Linked filename, artwork type, source URL, local path, and download/reuse outcome or error. |
 | `db_create_record` | Linked filename, title, TMDB ID, local video path, and catalogue save outcome. |
 | `batch_cancelled` | `Batch cancelled`. |

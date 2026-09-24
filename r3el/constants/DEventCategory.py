@@ -28,6 +28,7 @@ class DEventCategory:
     class File:
         NAME = "File"
         MOVE = EventCategory(NAME, "Move")
+        DELETE = EventCategory(NAME, "Delete")
 
     class Artifact:
         NAME = "Artifact"
@@ -39,7 +40,7 @@ class DEventCategory:
 
     ALL = (Server.LIFECYCLE, Batch.LIFECYCLE, Batch.DISCOVERY, Batch.BATCH_IDENTIFICATION,
            Prompt.TOOL_CONVERSATION, Prompt.SUBMISSION_HANDLER, Prompt.LLM_PROMPT,
-           TMDB.SEARCH, TMDB.RESULT, File.MOVE, Artifact.DOWNLOAD, DB.CREATE_RECORD)
+           TMDB.SEARCH, TMDB.RESULT, File.MOVE, File.DELETE, Artifact.DOWNLOAD, DB.CREATE_RECORD)
     CHILDREN = {}
     for classification in ALL:
         CHILDREN.setdefault(classification.category, []).append(classification.subcategory)

@@ -29,6 +29,7 @@ class DEventName:
     TMDB_SEARCH = "tmdb_search"
     TMDB_RESULT = "tmdb_result"
     FILE_MOVE = "file_move"
+    FILE_DELETE = "file_delete"
     ARTIFACT_DOWNLOAD = "artifact_download"
     DB_CREATE_RECORD = "db_create_record"
 
@@ -45,6 +46,7 @@ class DEventName:
         Categories.TMDB.SEARCH: (TMDB_SEARCH,),
         Categories.TMDB.RESULT: (TMDB_RESULT,),
         Categories.File.MOVE: (FILE_MOVE,),
+        Categories.File.DELETE: (FILE_DELETE,),
         Categories.Artifact.DOWNLOAD: (ARTIFACT_DOWNLOAD,),
         Categories.DB.CREATE_RECORD: (DB_CREATE_RECORD,),
     }

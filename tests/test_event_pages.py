@@ -60,6 +60,10 @@ class EventPagesTests(unittest.TestCase):
 
     def test_catalogue_event_templates_link_to_escaped_details(self):
         cases = [
+            ('file_delete', {'outcome': 'deleted', 'paths': ['/in/<movie>.mpg'],
+                             'preferred_path': '/out/movie.mkv', 'error': None}, 'Duplicate files deleted.'),
+            ('file_delete', {'outcome': 'failed', 'paths': ['/in/<movie>.mpg'],
+                             'preferred_path': '/out/movie.mkv', 'error': '<denied>'}, 'Duplicate files deletion failed.'),
             ('file_move', {'outcome': 'moved', 'source_path': '/in/<movie>.mkv',
                            'destination_path': '/out/movie.mkv', 'error': None}, 'File moved.'),
             ('file_move', {'outcome': 'failed', 'source_path': '/in/<movie>.mkv',
