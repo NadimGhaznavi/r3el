@@ -274,6 +274,13 @@ class EventDatabaseTests(unittest.TestCase):
             self.assertEqual(self.db.query('SELECT path FROM movie_files')[0]['path'], str(target))
             runner.run(batch.id)
             factory.return_value.details.assert_called_once_with(42)
+            saved = self.events.recent(category='DB', subcategory='Create Record')
+            moved = self.events.recent(category='File', subcategory='Move')
+            self.assertEqual(len(saved), 1)
+            self.assertEqual(len(moved), 1)
+            self.assertLess(saved[0]['event_id'], moved[0]['event_id'])
+            self.assertEqual(json.loads(saved[0]['content'])['data']['movie_id'], 42)
+            self.assertEqual(json.loads(moved[0]['content'])['data']['destination_path'], str(target))
 
     def test_workspace_creation_and_checkpoint_are_atomic(self):
         workspace = WorkspaceDb(self.db)

@@ -58,6 +58,34 @@ class EventPagesTests(unittest.TestCase):
             if error:
                 self.assertIn('&lt;connection error&gt;', body)
 
+    def test_catalogue_event_templates_link_to_escaped_details(self):
+        cases = [
+            ('file_move', {'outcome': 'moved', 'source_path': '/in/<movie>.mkv',
+                           'destination_path': '/out/movie.mkv', 'error': None}, 'File moved.'),
+            ('file_move', {'outcome': 'failed', 'source_path': '/in/<movie>.mkv',
+                           'destination_path': '/out/movie.mkv', 'error': '<denied>'}, 'File move failed.'),
+            ('db_create_record', {'outcome': 'saved', 'title': '<Movie>', 'movie_id': 123,
+                                  'path': '/out/movie.mkv'}, 'Catalogue record saved.'),
+        ]
+        for outcome in ('downloaded', 'reused', 'failed'):
+            cases.append(('artifact_download', {'outcome': outcome, 'kind': 'poster',
+                'url': 'https://image.tmdb.org/t/p/original/poster.jpg',
+                'path': None if outcome == 'failed' else '/out/poster.jpg',
+                'error': '<denied>' if outcome == 'failed' else None},
+                'Artifact download failed.' if outcome == 'failed' else f'Artifact {outcome}.'))
+        for name, data, expected in cases:
+            with self.subTest(name=name, outcome=data['outcome']):
+                self.event.update(name=name, content=json.dumps({
+                    'context': {'filename': '<movie>.mkv'}, 'data': data}))
+                body = self.render()
+                self.assertIn(f'<a href="/events/42">{expected}', body)
+                self.assertIn('Filename: &lt;movie&gt;.mkv', body)
+                self.assertNotIn('<movie>', body)
+                if data.get('error'):
+                    self.assertIn('Error: &lt;denied&gt;', body)
+                if name == 'db_create_record':
+                    self.assertIn('Title: &lt;Movie&gt;, TMDB ID: 123', body)
+
     def test_multiple_choice_events_render_without_identification_fields(self):
         cases = (
             ('submission_accepted', 'MultipleChoiceHandler', {'status': 'ok', 'selected_number': 2}, 'Selected number: 2'),

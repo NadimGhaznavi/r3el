@@ -72,6 +72,8 @@ modules=(
     server/templates/messages/item_completed.html
     server/templates/messages/batch_cancelled.html
     server/templates/messages/tmdb_search.html server/templates/messages/tmdb_result.html
+    server/templates/messages/file_move.html server/templates/messages/artifact_download.html
+    server/templates/messages/db_create_record.html
     app/Prompt.py
     app/BatchControlHandler.py app/BatchProcessor.py app/BatchRunner.py app/MessageHandler.py
     interface/BatchConfiguration.py interface/BatchControl.py entity/BatchRequest.py constants/DMessage.py

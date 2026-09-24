@@ -511,8 +511,11 @@ class ControlServerTests(unittest.TestCase):
             ('category=TMDB', {'Search', 'Result'}, {'tmdb_search', 'tmdb_result'}),
             ('category=TMDB&subcategory=Search', {'Search', 'Result'}, {'tmdb_search'}),
             ('category=TMDB&subcategory=Result', {'Search', 'Result'}, {'tmdb_result'}),
+            ('category=File', {'Move'}, {'file_move'}),
+            ('category=Artifact', {'Download'}, {'artifact_download'}),
+            ('category=DB&subcategory=Create+Record', {'Create Record'}, {'db_create_record'}),
             ('subcategory=Lifecycle',
-             {'Lifecycle', 'Discovery', 'BatchIdentification', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt', 'Search', 'Result'},
+             {'Lifecycle', 'Discovery', 'BatchIdentification', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt', 'Search', 'Result', 'Move', 'Download', 'Create Record'},
              {'started', 'stopped', 'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'batch_stop_requested'}),
         ):
             with self.subTest(query=query):
