@@ -174,6 +174,14 @@ the batch because no search was sent. Ignore/Delete files and reused saved resul
 do not create search/result events. Each actual retry gets its own event pair.
 Opening saved result pages does not generate matching events.
 
+Catalogue processing records **Artifact / Download** for each poster or backdrop
+download, reuse, or failure; **DB / Create Record** when catalogue metadata and
+file references commit; and **File / Move** when the source removal completes or
+fails. These events carry batch/file context and link to the batch event.
+Catalogue record events share the record's transaction, and move events share
+the saved completion checkpoint. Already completed files do not repeat these
+events when a batch resumes.
+
 ## Message templates
 
 The Message column uses Jinja templates in `r3el/server/templates/messages/`.
@@ -201,6 +209,9 @@ Each custom template owns the entire Message cell. Its whole message links to
 | `batch_failed` | Only `data.error`. |
 | `tmdb_search` | Linked filename, title, and primary release year; full details include query parameters. |
 | `tmdb_result` | Linked filename and match count or failure; full details include the response or error. |
+| `file_move` | Linked filename, source/destination paths, and move outcome or error. |
+| `artifact_download` | Linked filename, artwork type, source URL, local path, and download/reuse outcome or error. |
+| `db_create_record` | Linked filename, title, TMDB ID, local video path, and catalogue save outcome. |
 | `batch_cancelled` | `Batch cancelled`. |
 
 `batch_resumed` and other events without a custom template use the default.

@@ -28,6 +28,9 @@ class DEventName:
     SUBMISSION_ACCEPTED = "submission_accepted"
     TMDB_SEARCH = "tmdb_search"
     TMDB_RESULT = "tmdb_result"
+    FILE_MOVE = "file_move"
+    ARTIFACT_DOWNLOAD = "artifact_download"
+    DB_CREATE_RECORD = "db_create_record"
 
     # Every event bucket has exactly one category/subcategory parent.
     CHILDREN = {
@@ -41,6 +44,9 @@ class DEventName:
         Categories.Batch.BATCH_IDENTIFICATION: (ITEM_STARTED, ITEM_COMPLETED),
         Categories.TMDB.SEARCH: (TMDB_SEARCH,),
         Categories.TMDB.RESULT: (TMDB_RESULT,),
+        Categories.File.MOVE: (FILE_MOVE,),
+        Categories.Artifact.DOWNLOAD: (ARTIFACT_DOWNLOAD,),
+        Categories.DB.CREATE_RECORD: (DB_CREATE_RECORD,),
     }
     PARENTS = {name: parent for parent, names in CHILDREN.items() for name in names}
     ALL = tuple(PARENTS)

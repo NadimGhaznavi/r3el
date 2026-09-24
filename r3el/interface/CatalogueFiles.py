@@ -8,13 +8,16 @@ import tempfile
 import httpx
 
 from r3el.activity.MovieNaming import MovieNaming
+from r3el.activity.EventWriter import EventWriter
+from r3el.constants.DEventCategory import DEventCategory as Categories
+from r3el.constants.DEventName import DEventName as Names
 from r3el.entity.CatalogueMovie import CatalogueMovie
 from r3el.entity.MovieFiles import MovieFiles
 
 
 class CatalogueFiles:
     def prepare(self, movie: CatalogueMovie, source: str, destination: str | None,
-                file_id: str) -> MovieFiles:
+                file_id: str, log: EventWriter) -> MovieFiles:
         if not destination:
             raise ValueError('The batch needs an output directory before files can be catalogued.')
         if movie.release_date is None:
@@ -43,8 +46,8 @@ class CatalogueFiles:
         if target.exists() and origin != target:
             if not stage.exists() or not target.samefile(stage):
                 raise FileExistsError(f'The destination video already exists: {target}')
-        poster = self._image(movie.poster_path, folder, 'poster')
-        backdrop = self._image(movie.backdrop_path, folder, 'backdrop')
+        poster = self._image(movie.poster_path, folder, 'poster', log)
+        backdrop = self._image(movie.backdrop_path, folder, 'backdrop', log)
         if origin != target:
             if stage.exists():
                 if not origin.samefile(stage):
@@ -90,17 +93,31 @@ class CatalogueFiles:
         finally:
             os.close(descriptor)
 
-    @staticmethod
-    def _image(remote: str | None, folder: Path, kind: str) -> str | None:
+    def _image(self, remote: str | None, folder: Path, kind: str, log: EventWriter) -> str | None:
         if remote is None:
             return None
+        url = 'https://image.tmdb.org/t/p/original' + remote
+        try:
+            path, outcome = self._download_image(remote, folder, kind)
+        except (OSError, ValueError, httpx.HTTPError) as error:
+            log.write(Categories.Artifact.DOWNLOAD, Names.ARTIFACT_DOWNLOAD,
+                      {'kind': kind, 'url': url, 'path': None, 'outcome': 'failed', 'error': str(error)},
+                      source='CatalogueFiles', level='ERROR')
+            raise
+        log.write(Categories.Artifact.DOWNLOAD, Names.ARTIFACT_DOWNLOAD,
+                  {'kind': kind, 'url': url, 'path': path, 'outcome': outcome, 'error': None},
+                  source='CatalogueFiles')
+        return path
+
+    @staticmethod
+    def _download_image(remote: str, folder: Path, kind: str) -> tuple[str, str]:
         if not re.fullmatch(r'/[A-Za-z0-9_-]+\.(jpg|png|webp)', remote):
             raise ValueError(f'TMDB returned an invalid {kind} path.')
         target = folder / f'{kind}-{remote[1:]}'
         if target.is_symlink():
             raise ValueError('Local artwork must not be a symbolic link.')
         if target.is_file():
-            return str(target)
+            return str(target), 'reused'
         descriptor, temporary = tempfile.mkstemp(prefix='.r3el-image-', dir=folder)
         try:
             with os.fdopen(descriptor, 'wb') as output:
@@ -118,4 +135,4 @@ class CatalogueFiles:
             os.link(temporary, target)
         finally:
             Path(temporary).unlink(missing_ok=True)
-        return str(target)
+        return str(target), 'downloaded'

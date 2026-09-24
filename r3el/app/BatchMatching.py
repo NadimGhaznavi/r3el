@@ -129,27 +129,31 @@ class BatchMatching:
             return
         try:
             movie = TMDBCatalogue(TMDB.from_environment()).movie(response['results'][0]['id'])
-            files = CatalogueFiles().prepare(movie, item.path, batch.destination_directory, item.id)
+            files = CatalogueFiles().prepare(movie, item.path, batch.destination_directory, item.id, log)
         except (TMDBError, OSError, ValueError, httpx.HTTPError) as error:
             self._catalogue_failure(batch.id, item.id, result, error, log)
             return
         result = replace(result, catalogue_saved=True, catalogue_error=None,
                          source_path=item.path, catalogue_path=files.video)
         self._workspace.save_catalogue(batch.id, item.id, movie, result, log.prepare(
-            Categories.TMDB.RESULT, Names.TMDB_RESULT,
-            {'movie_id': movie.tmdb_id, 'outcome': 'Saved to catalogue'}, source='Catalogue'), files)
+            Categories.DB.CREATE_RECORD, Names.DB_CREATE_RECORD,
+            {'movie_id': movie.tmdb_id, 'title': movie.title, 'path': files.video,
+             'outcome': 'saved'}, source='CatalogueDb'), files)
         self._finish_move(batch.id, item.id, result, log)
 
     def _finish_move(self, batch_id: str, file_id: str, result: TMDBMatch, log: EventWriter) -> None:
         try:
             CatalogueFiles().finish(result.source_path, result.catalogue_path, file_id)
         except (OSError, ValueError) as error:
-            self._catalogue_failure(batch_id, file_id, result, error, log)
-            return
-        result = replace(result, file_moved=True, catalogue_error=None)
+            result = replace(result, catalogue_error=str(error))
+        else:
+            result = replace(result, file_moved=True, catalogue_error=None)
         self._workspace.save_match(batch_id, file_id, result, log.prepare(
-            Categories.TMDB.RESULT, Names.TMDB_RESULT,
-            {'outcome': 'Moved to catalogue', 'path': result.catalogue_path}, source='Catalogue'))
+            Categories.File.MOVE, Names.FILE_MOVE,
+            {'outcome': 'failed' if result.catalogue_error else 'moved',
+             'source_path': result.source_path, 'destination_path': result.catalogue_path,
+             'error': result.catalogue_error}, source='CatalogueFiles',
+            level='ERROR' if result.catalogue_error else 'INFO'))
 
     def _catalogue_failure(self, batch_id: str, file_id: str, result: TMDBMatch,
                            error: Exception, log: EventWriter) -> None:
