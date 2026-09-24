@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-24 @ 04:42
+
 ### Added
 
 - Add numbered batch rows and an Updated column formatted as `MM-DD HH:MM`. Display web timestamps in the browser's local timezone while keeping database timestamps in UTC.
