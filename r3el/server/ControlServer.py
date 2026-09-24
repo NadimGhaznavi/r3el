@@ -23,6 +23,7 @@ from r3el.constants.DR3el import DR3el
 from r3el.interface.BatchConfiguration import BatchConfiguration
 from r3el.interface.BatchControl import BatchControl
 from r3el.interface.DbMgr import DbMgr
+from r3el.interface.CatalogueDb import CatalogueDb
 from r3el.interface.EventLogDb import EventLogDb
 from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict, WorkspaceBusy
 from r3el.interface.TMDBReferenceDb import TMDBReferenceDb
@@ -84,6 +85,14 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             if url.path == '/health':
                 self.respond(200, b'{"status":"ok","service":"r3el-control"}', 'application/json')
                 return
+            catalogue = re.fullmatch(r'/catalogue(?:/([0-9]{1,10})(?:/(poster|backdrop))?)?', url.path)
+            if catalogue:
+                movie_id = int(catalogue.group(1)) if catalogue.group(1) else None
+                if movie_id is not None and not 1 <= movie_id <= 4294967295:
+                    self.send_error(404, 'Movie not found')
+                    return
+                self.respond_catalogue(movie_id, catalogue.group(2))
+                return
             job_path = re.fullmatch(r'/workspace/match/status/([A-Za-z0-9-]{1,36})', url.path)
             if job_path:
                 job = matching.current()
@@ -138,6 +147,42 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 self.respond(503, pages.render('error.html', refresh=0))
                 return
             self.respond(200, body)
+
+        def respond_catalogue(self, movie_id: int | None, artwork: str | None):
+            try:
+                db = DbMgr()
+                try:
+                    catalogue = CatalogueDb(db)
+                    if artwork:
+                        value = catalogue.artwork_path(movie_id, artwork)
+                    elif movie_id is not None:
+                        value = catalogue.get(movie_id)
+                    else:
+                        value = catalogue.movies()
+                finally:
+                    db.close()
+            except pymysql.MySQLError:
+                logging.exception('Unable to read the catalogue')
+                self.respond(503, pages.render('catalogue_error.html', refresh=0))
+                return
+            if value is None:
+                self.send_error(404, 'Catalogue entry not found')
+            elif artwork:
+                path = Path(value)
+                content_type = {'.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp'}.get(path.suffix.lower())
+                if not content_type or path.is_symlink():
+                    self.send_error(404, 'Artwork not found')
+                    return
+                try:
+                    content = path.read_bytes()
+                except OSError:
+                    self.send_error(404, 'Artwork not found')
+                    return
+                self.respond(200, content, content_type)
+            elif movie_id is not None:
+                self.respond(200, pages.render('catalogue_movie.html', movie=value, refresh=0))
+            else:
+                self.respond(200, pages.render('catalogue.html', movies=value, refresh=0))
 
         def respond_control(self, status: int = 200, refresh: int = 0, **values):
             try:

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-09-24 @ 05:42
+
+### Added
+
+- Add an alphabetical Catalogue page with linked movie titles and years. Movie detail pages render stored metadata, cast and crew, local artwork, and catalogued file paths without calling TMDB.
+
 ## [1.0.4] - 2026-09-24 @ 05:30
 
 ### Added

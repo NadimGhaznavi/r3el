@@ -1,5 +1,12 @@
 # R3el Control
 
+The **Catalogue** navigation link opens `/catalogue`, an alphabetical list of
+saved movie titles and years. Each links to `/catalogue/<TMDB ID>`, showing saved
+metadata, genres, cast and crew, local posters/backdrops, and file paths.
+These pages read the durable catalogue independently of the batch workspace
+and do not query TMDB. An empty catalogue shows an empty-state message; missing
+entries return 404.
+
 `r3el-control.service` is a standalone Jinja2 report server. It displays the
 MariaDB event log while the identification service is running or stopped and
 does not require Qwen. When the workspace is empty, the landing page provides a Media Directory text box prefilled from `DR3el.FILM_DIR`,
