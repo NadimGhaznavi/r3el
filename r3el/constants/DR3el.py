@@ -12,7 +12,8 @@ class DR3el:
     MEDIA_DIR: Final[str] = "/exports/disk1/archive/media"
     PROCESSING_GROUP_SIZE: Final[int] = 10
     BATCH_SIZE: Final[int] = 10
-    BATCH_SIZES: Final[tuple[int, ...]] = (5, 10, 20, 50, 100)
+    MAX_BATCH_SIZE: Final[int] = 4294967295
+    STOP_BATCH_URL: Final[str] = '/workspace/stop'
     NEW_BATCH_URL: Final[str] = "/batches"
     FILE_ACTION_URL: Final[str] = "/workspace/actions"
     MATCH_TMDB_URL: Final[str] = "/workspace/match"

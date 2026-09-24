@@ -28,13 +28,20 @@ class BatchMessageTests(unittest.TestCase):
         submit = Mock()
         handler = BatchControlHandler(submit, True)
         for changes in ({'batch_size': True}, {'batch_size': '5'}, {'batch_size': 0},
-                        {'batch_size': 6}, {'input_directory': '../films'},
+                        {'batch_size': -1}, {'batch_size': 1.5}, {'batch_size': 4294967296}, {'input_directory': '../films'},
                         {'output_directory': None}, {'input_directory': '/tmp/\x00'},
                         {'extra': 'field'}):
             with self.subTest(changes=changes):
                 result = handler.handle(command(**changes))
                 self.assertEqual(result['error']['code'], DMessage.INVALID_PARAMETERS)
         submit.assert_not_called()
+
+    def test_free_form_positive_batch_sizes(self):
+        submit = Mock(return_value=True)
+        handler = BatchControlHandler(submit, True)
+        for size in (1, 6, 137, 1000):
+            self.assertEqual(handler.handle(command(batch_size=size))['status'], DMessage.ACCEPTED)
+            self.assertEqual(submit.call_args.args[0].batch_size, size)
 
     def test_sender_and_model_configuration_are_checked(self):
         submit = Mock()

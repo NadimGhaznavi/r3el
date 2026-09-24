@@ -125,7 +125,8 @@ class ZeroMatchRetryTests(unittest.TestCase):
         self.runner.run('batch')
         item = WorkspaceDb._file(dict(file_id=self.item.id, path=self.item.path, state=self.item.state,
             identification=json.dumps(asdict(self.item.identification)), issues='[]', attempts=self.item.attempts,
-            action=self.item.action, retries=self.item.retries, tmdb_match=json.dumps(asdict(self.item.tmdb_match))))
+            action=self.item.action, retries=self.item.retries, updated_at=None,
+            tmdb_match=json.dumps(asdict(self.item.tmdb_match))))
         self.assertEqual(item, self.item)
 
 

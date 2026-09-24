@@ -9,6 +9,7 @@ from r3el.app.ToolConversation import ToolConversation
 from r3el.constants.DEventCategory import DEventCategory as Categories
 from r3el.constants.DEventName import DEventName as Names
 from r3el.entity.Identification import Identification
+from r3el.entity.BatchStopped import BatchStopped
 from r3el.constants.DR3el import DR3el
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
@@ -39,9 +40,11 @@ class BatchIdentification:
             try:
                 files = batch.files[offset:] if limit is None else batch.files[offset:offset + limit]
                 for item in files:
+                    self._workspace.check_stop(batch.id)
                     if item.state != MediaFileState.PENDING:
                         continue
                     await self._identify(batch, item)
+                self._workspace.check_stop(batch.id)
                 self._set_state(batch, completion_state, Names.BATCH_COMPLETED,
                                 {'count': len(files),
                                  'unresolved_llm': sum(item.state == MediaFileState.UNRESOLVED_LLM
@@ -49,7 +52,7 @@ class BatchIdentification:
                                  'unresolved_hidden_file': sum(item.state == MediaFileState.UNRESOLVED_HIDDEN_FILE
                                                                for item in files)})
                 return self._results(batch)
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, BatchStopped):
                 self._set_state(batch, MediaFileBatchState.CANCELLED, Names.BATCH_CANCELLED, {}, 'WARNING')
                 raise
             except Exception as error:

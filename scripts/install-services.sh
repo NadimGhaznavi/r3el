@@ -49,7 +49,7 @@ modules=(
     server/ReplyReasoning.py
     server/static/r3el.png server/templates/control.html
     server/templates/workspace.html server/templates/workspace_error.html
-    server/templates/base.html server/templates/styles.html
+    server/templates/base.html server/templates/styles.html server/templates/local_time.html
     server/templates/events.html server/templates/event.html server/templates/error.html
     server/templates/messages/default.html
     server/templates/messages/files_retrieved.html
@@ -92,6 +92,7 @@ modules=(
     activity/WorkspaceSchema.py interface/WorkspaceDb.py
     activity/CatalogueSchema.py interface/CatalogueDb.py interface/TMDBCatalogue.py entity/CatalogueMovie.py
     activity/MovieNaming.py interface/CatalogueFiles.py entity/MovieFiles.py
+    entity/BatchStopped.py
     entity/MediaFile.py entity/MediaFileBatch.py
     entity/MediaFileAction.py activity/BatchPreparation.py
     entity/TMDBMatch.py interface/TMDB.py interface/TMDBCredentials.py app/BatchMatching.py

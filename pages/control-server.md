@@ -3,8 +3,9 @@
 `r3el-control.service` is a standalone Jinja2 report server. It displays the
 MariaDB event log while the identification service is running or stopped and
 does not require Qwen. When the workspace is empty, the landing page provides a Media Directory text box prefilled from `DR3el.FILM_DIR`,
-an Output Directory text box prefilled from `DR3el.MEDIA_DIR`, a Batch Size dropdown
-(5, 10, 20, 50, or 100, default 10), and a New Batch button. The button sends the directories
+an Output Directory text box prefilled from `DR3el.MEDIA_DIR`, a free-form Batch Size
+number input (positive whole numbers, default 10), and a New Batch button. The maximum
+is 4,294,967,295, matching the database column's capacity. The button sends the directories
 and size to the identification server over ZeroMQ. Labels and result messages
 use Jinja2; shared defaults live in `DR3el`, and message names live in `DMessage`.
 The R3el logo is deployed with the server assets. New Batch runs identification and TMDB matching without an intermediate pause.
@@ -16,7 +17,11 @@ batch shows the current work instead. The identification worker finishing does
 not clear the application's workspace or automatically begin another batch.
 
 When the workspace contains a batch, the landing page shows its filenames and
-saved statuses in selection order. The Control section stays visible but greyed
+saved statuses in selection order. The first columns are `#` (starting at 1) and
+`Updated` (`MM-DD HH:MM` in the browser's local timezone). Updated records the last
+saved change to the file, rather than the latest page refresh. Older workspace
+rows show `—` until changed; upgrading does not invent historical timestamps.
+The Control section stays visible but greyed
 out, with automatic-processing status beneath its heading. Saved input/output
 directories and batch size appear as static text, and New Batch is disabled. This also applies to
 completed, failed, cancelled, and zero-file batches retained in the workspace.
@@ -33,6 +38,16 @@ The server processes groups of up to 10 files within the selected batch. Each
 group completes identification, TMDB matching, LLM selection, and zero-result
 retries before identification starts for the next group. Remaining files stay
 Pending. The last group may contain fewer than 10 files.
+
+**Stop Batch** requests a cooperative stop for automatic processing or a manual
+Process Batch job. The request is committed independently of the worker's processing
+lock. The current operation finishes safely, then the worker stops before another
+file or identification retry. An in-flight model/API call must return or time out;
+the button does not kill services or interrupt a catalogue transaction or file move.
+Completed work remains saved, untouched pending files remain pending, and the batch
+is marked cancelled. The UI shows stopping/stopped status. Stop requests survive
+restarts and cannot be silently resumed by a repeated Process Batch request.
+This does not clear the retained workspace or add a Resume action.
 
 After each group's identification, the server automatically searches movies by the saved title
 and year for Pending and Approve files. Ignore and Delete files are skipped without
@@ -103,7 +118,7 @@ and last-updated timestamp; the page and form inputs stay in place. Apply and Re
 update the interval without navigation. Refresh waits while an action menu is
 focused or a save is in progress. The selected interval stays in the URL and is retained
 after New Batch acceptance and Process Batch completion.
-“Last updated” at the top right reports the page's latest workspace read in UTC,
+“Last updated” at the top right reports the page's latest workspace read in the browser's local timezone,
 not the time the file last changed. Pending files stay Pending until an outcome
 is saved. Reads use the shared workspace interface without taking the processor's
 exclusive lock. A database failure shows Workspace unavailable with no button.
@@ -141,7 +156,7 @@ The full message page indents JSON and preserves plain text. For `reply_received
 Message shows the decoded LLM reasoning with Markdown formatting (headings, lists,
 emphasis, code blocks, tables, and line breaks). The full logged payload remains
 below a JSON heading. Embedded HTML is escaped and unsafe link schemes are blocked.
-Replies without reasoning show an explicit empty-state message. Times are UTC.
+Replies without reasoning show an explicit empty-state message. Displayed times use the browser’s local timezone, including daylight-saving changes. Database values remain UTC; timestamp elements carry explicit UTC offsets for display conversion.
 
 ## TMDB events
 

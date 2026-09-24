@@ -80,7 +80,7 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('Media Directory', body)
         self.assertIn('value="/exports/disk1/archive/film"', body)
         self.assertIn('value="5"', body)
-        self.assertIn('value="10" selected', body)
+        self.assertIn('step="1" value="10" required', body)
         self.assertIn('type="submit" aria-describedby="batch-note">New Batch', body)
         self.assertIn('/static/r3el.png', body)
         self.assertIn('Last updated:', body)
@@ -136,7 +136,7 @@ class ControlServerTests(unittest.TestCase):
                 self.assertNotRegex(body, r'<form[^>]*aria-label="New batch"')
                 self.assertNotIn('http-equiv="refresh"', body)
                 header = re.search(r'<header.*?</header>', body, re.S).group(0)
-                self.assertRegex(header, r'Last updated: <time datetime="[^"]+">[0-9-]+ [0-9:]+ UTC</time>')
+                self.assertRegex(header, r'Last updated: <time datetime="[^"]+\+00:00" data-local-time="full">—</time>')
 
     def test_process_batch_is_enabled_after_identification_even_with_pending_actions(self):
         batch = MediaFileBatch('batch-1', 5, '/tmp', files=[
@@ -251,7 +251,7 @@ class ControlServerTests(unittest.TestCase):
             status, _, body = self.request('/matches/batch-1/file-1')
             self.assertEqual(status, 200)
             self.assertIn('&lt;script&gt;', body)
-            self.assertNotIn('<script>', body)
+            self.assertNotIn('<script>', body.split('<main>', 1)[1].split('</main>', 1)[0])
             self.assertIn('\n  &#34;total_results&#34;: 1,', body)
         self.assertEqual(self.request('/matches/old-batch/file-1')[0], 404)
         self.assertEqual(self.request('/matches/batch-1/missing')[0], 404)
@@ -341,6 +341,48 @@ class ControlServerTests(unittest.TestCase):
                             {'Content-Type': 'application/x-www-form-urlencoded'})
 
     @patch('r3el.server.ControlServer.BatchControl.new_batch')
+    def test_free_form_size_and_numbered_updated_columns(self, new_batch):
+        new_batch.return_value = {'status': DMessage.ACCEPTED}
+        body = self.request('/')[2]
+        self.assertIn('id="batch-size" name="batch_size" type="number"', body)
+        self.assertEqual(self.post_batch(batch_size='137')[0], 303)
+        self.assertEqual(new_batch.call_args.args[0].batch_size, 137)
+        self.workspace.return_value = MediaFileBatch('batch-1', 137, '/tmp', files=[
+            MediaFile('one', '/tmp/a.mkv', updated_at=datetime(2026, 9, 24, 13, 7)),
+            MediaFile('two', '/tmp/b.mkv')])
+        body = self.request('/')[2]
+        self.assertRegex(body, r'<th scope="col">#</th><th[^>]+>Updated</th><th scope="col">Filename</th>')
+        self.assertIn('<td>1</td>', body)
+        self.assertIn('<td>2</td>', body)
+        self.assertIn('datetime="2026-09-24T13:07:00.000+00:00" data-local-time="compact"', body)
+
+    @patch('r3el.server.ControlServer.WorkspaceDb.request_stop')
+    def test_stop_endpoint_and_validation(self, stop):
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        status, _, body = self.request('/workspace/stop', 'POST', 'batch_id=batch-1', headers)
+        self.assertEqual(status, 202)
+        self.assertTrue(json.loads(body)['accepted'])
+        stop.assert_called_once_with('batch-1', matching=False)
+        stop.reset_mock()
+        self.assertEqual(self.request('/workspace/stop', 'POST', 'batch_id=../bad', headers)[0], 400)
+        self.assertEqual(self.request('/workspace/stop', 'POST', 'batch_id=batch-1',
+                                     dict(headers, Origin='http://other-host'))[0], 403)
+        stop.assert_not_called()
+        stop.side_effect = WorkspaceActionConflict('Not running')
+        self.assertEqual(self.request('/workspace/stop', 'POST', 'batch_id=batch-1', headers)[0], 409)
+
+    def test_stop_button_tracks_running_and_requested_state(self):
+        batch = MediaFileBatch('batch-1', 1, '/tmp', files=[MediaFile('one', '/tmp/one.mkv')])
+        self.workspace.return_value = batch
+        self.assertIn('id="stop-batch" type="button" aria-describedby=', self.request('/')[2])
+        batch.stop_requested = True
+        body = self.request('/')[2]
+        self.assertIn('id="stop-batch" type="button" disabled', body)
+        self.assertIn('Stopping after the current operation', body)
+        batch.state = MediaFileBatchState.CANCELLED
+        self.assertIn('Batch stopped. Completed work has been preserved.', self.request('/')[2])
+
+    @patch('r3el.server.ControlServer.BatchControl.new_batch')
     def test_new_batch_forwards_parameters_and_redirects(self, new_batch):
         new_batch.return_value = {'status': DMessage.ACCEPTED}
         status, headers, _ = self.post_batch()
@@ -357,7 +399,7 @@ class ControlServerTests(unittest.TestCase):
 
     @patch('r3el.server.ControlServer.BatchControl.new_batch')
     def test_invalid_form_is_not_forwarded(self, new_batch):
-        for values in ({'batch_size': '6'}, {'batch_size': 'true'},
+        for values in ({'batch_size': '0'}, {'batch_size': '-1'}, {'batch_size': '1.5'}, {'batch_size': 'true'},
                        {'input_directory': 'relative'}, {'output_directory': ''}, {'extra': 'field'}):
             with self.subTest(values=values):
                 self.assertEqual(self.post_batch(**values)[0], 400)
@@ -457,7 +499,7 @@ class ControlServerTests(unittest.TestCase):
     def test_dropdowns_follow_selected_branch(self):
         for query, expected_subcategories, expected_events in (
             ('category=Batch', {'Lifecycle', 'Discovery', 'BatchIdentification'},
-             {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'files_retrieved', 'item_started', 'item_completed'}),
+             {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'batch_stop_requested', 'files_retrieved', 'item_started', 'item_completed'}),
             ('category=Batch&subcategory=BatchIdentification',
              {'Lifecycle', 'Discovery', 'BatchIdentification'}, {'item_started', 'item_completed'}),
             ('category=Prompt&subcategory=ToolConversation',
@@ -471,7 +513,7 @@ class ControlServerTests(unittest.TestCase):
             ('category=TMDB&subcategory=Result', {'Search', 'Result'}, {'tmdb_result'}),
             ('subcategory=Lifecycle',
              {'Lifecycle', 'Discovery', 'BatchIdentification', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt', 'Search', 'Result'},
-             {'started', 'stopped', 'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled'}),
+             {'started', 'stopped', 'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'batch_stop_requested'}),
         ):
             with self.subTest(query=query):
                 status, _, body = self.request('/events?' + query)
@@ -568,7 +610,8 @@ from pathlib import Path
 assert Path('r3el/server/static/r3el.png').is_file()
 page = EventPages().render('events.html', events=[], category=None, subcategory=None, name=None, refresh=0)
 assert b'No events match these filters.' in page
-event = dict(event_id=1, occurred_at='2026-09-20', log_level='INFO', category='Server',
+from datetime import datetime
+event = dict(event_id=1, occurred_at=datetime(2026, 9, 20), log_level='INFO', category='Server',
              subcategory='Lifecycle', name='started', source_name='R3elServer', content='Started.')
 page = EventPages().render('events.html', events=[event], category=None, subcategory=None, name=None, refresh=0)
 assert b'<pre>Started.</pre>' in page

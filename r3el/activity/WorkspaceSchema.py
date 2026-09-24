@@ -26,6 +26,8 @@ class WorkspaceSchema:
         self._db.execute(
             'ALTER TABLE media_file_batches ADD COLUMN IF NOT EXISTS destination_directory TEXT NULL'
         )
+        self._db.execute('ALTER TABLE media_file_batches ADD COLUMN IF NOT EXISTS '
+                         'stop_requested BOOLEAN NOT NULL DEFAULT FALSE')
         self._db.execute("""
             ALTER TABLE media_file_batches MODIFY COLUMN state
             ENUM('processing', 'failed', 'cancelled', 'identification_completed',
@@ -47,6 +49,8 @@ class WorkspaceSchema:
         """)
         # NULL marks only unmigrated rows. Reapplying the upgrade preserves user choices.
         self._db.execute('ALTER TABLE media_files ADD COLUMN IF NOT EXISTS tmdb_match JSON NULL')
+        self._db.execute('ALTER TABLE media_files ADD COLUMN IF NOT EXISTS '
+                         'updated_at DATETIME(6) NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP(6)')
         self._db.execute('ALTER TABLE media_files ADD COLUMN IF NOT EXISTS retries INT UNSIGNED NOT NULL DEFAULT 0')
         self._db.execute("""
             ALTER TABLE media_files ADD COLUMN IF NOT EXISTS

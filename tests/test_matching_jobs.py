@@ -6,9 +6,16 @@ from unittest.mock import Mock, patch
 
 from r3el.app.MatchingJobs import MatchingJobs
 from r3el.interface.WorkspaceDb import WorkspaceActionConflict
+from r3el.entity.BatchStopped import BatchStopped
 
 
 class MatchingJobsTests(unittest.TestCase):
+    def test_requested_stop_is_reported_as_cancelled(self):
+        jobs = MatchingJobs(Mock(side_effect=BatchStopped()))
+        jobs.submit('batch')
+        jobs.close()
+        self.assertEqual(jobs.current()['status'], 'cancelled')
+
     def test_reservation_duplicate_and_close(self):
         entered, release = Event(), Event()
 

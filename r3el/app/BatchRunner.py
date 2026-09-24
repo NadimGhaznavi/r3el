@@ -10,6 +10,7 @@ from r3el.constants.DR3el import DR3el
 from r3el.constants.DEventCategory import DEventCategory as Categories
 from r3el.constants.DEventName import DEventName as Names
 from r3el.entity.BatchRequest import BatchRequest
+from r3el.entity.BatchStopped import BatchStopped
 from r3el.entity.MediaFileBatch import MediaFileBatchState
 from r3el.entity.MediaFile import MediaFileState
 from r3el.interface.DbMgr import DbMgr
@@ -26,6 +27,13 @@ class BatchRunner:
         self._submissions = submissions
 
     async def run(self, request: BatchRequest) -> None:
+        try:
+            await self._run(request)
+        except BatchStopped:
+            # The stage that observed the request already checkpointed cancellation.
+            return
+
+    async def _run(self, request: BatchRequest) -> None:
         offset = 0
         while True:
             db = DbMgr()
@@ -58,6 +66,8 @@ class BatchRunner:
             try:
                 if file_ids:
                     BatchMatching(workspace, log.record, LLM(self._llm_url)).run(batch_id, file_ids=file_ids)
+            except BatchStopped:
+                raise
             except BaseException as error:
                 workspace.save_batch_state(batch_id, MediaFileBatchState.MATCHING_FAILED,
                     log.prepare(Categories.Batch.LIFECYCLE, Names.BATCH_FAILED,
