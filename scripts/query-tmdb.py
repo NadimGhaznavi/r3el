@@ -60,10 +60,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('title', type=movie_title, help='movie title (quote titles containing spaces)')
     parser.add_argument('year', type=release_year, help='four-digit release year')
     parser.add_argument('-r', '--raw', action='store_true',
-                        help='print the complete search response as formatted JSON')
+                        help='fetch full movie details and related data for each hit and print JSON')
     args = parser.parse_args(argv)
     try:
-        response = TMDB(TMDBCredentials.token()).search(args.title, args.year)
+        tmdb = TMDB(TMDBCredentials.token())
+        response = tmdb.search(args.title, args.year)
+        if args.raw:
+            response = dict(response, results=[
+                dict(movie, **tmdb.details(movie['id'])) for movie in response['results']])
     except TMDBError as error:
         print(f'Error: {error}', file=sys.stderr)
         return 1
