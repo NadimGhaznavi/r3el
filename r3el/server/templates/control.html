@@ -1,18 +1,19 @@
 {% extends 'base.html' %}
 {% block title %}Control{% endblock %}
+{% block page_refresh %}{% endblock %}
 {% block updated %}<span class="last-updated">Last updated: <time datetime="{{ last_updated.isoformat() }}">{{ last_updated.strftime('%Y-%m-%d %H:%M:%S') }} UTC</time></span>{% endblock %}
 {% block content %}
 <img class="control-logo" src="{{ settings.CONTROL_LOGO_URL }}" alt="R3el">
 <div class="batch-controls">
   <h1 id="control-heading">Control</h1>
-  <form method="get" action="/" aria-label="Control refresh">
+  <form method="get" action="/" aria-label="Control refresh" id="control-refresh">
     <label>Refresh
       <select name="refresh">
         {% for seconds, label in [(0, 'Manual'), (5, '5 seconds'), (30, '30 seconds'), (60, '1 minute')] %}<option value="{{ seconds }}" {% if refresh == seconds %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
     </label>
     <button type="submit">Apply / refresh</button>
-    <a href="/">Reset</a>
+    <a href="/" id="reset-refresh">Reset</a>
   </form>
   <section aria-labelledby="control-heading"{% if workspace is not none %} class="control-occupied"{% endif %}>
   {% if workspace is not none %}
@@ -64,6 +65,42 @@
   </p>
   {% endif %}
 </div>
+<script>
+  const refreshForm = document.getElementById('control-refresh');
+  let refreshSeconds = {{ refresh | tojson }};
+  let refreshTimer;
+  async function refreshTable() {
+    try {
+      if (window.refreshWorkspace) await window.refreshWorkspace();
+    } catch {
+      // Keep the last snapshot; the next interval can retry the read.
+    }
+    scheduleRefresh();
+  }
+  function scheduleRefresh() {
+    window.clearTimeout(refreshTimer);
+    if (refreshSeconds) refreshTimer = window.setTimeout(refreshTable, refreshSeconds * 1000);
+  }
+  function applyRefresh() {
+    refreshSeconds = Number(refreshForm.elements.refresh.value);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('result');
+    if (refreshSeconds) url.searchParams.set('refresh', refreshSeconds);
+    else url.searchParams.delete('refresh');
+    window.history.replaceState(null, '', url);
+    const batchRefresh = document.querySelector('form[aria-label="New batch"] input[name="refresh"]');
+    if (batchRefresh) batchRefresh.value = refreshSeconds;
+    window.clearTimeout(refreshTimer);
+    refreshTable();
+  }
+  refreshForm.addEventListener('submit', event => { event.preventDefault(); applyRefresh(); });
+  document.getElementById('reset-refresh').addEventListener('click', event => {
+    event.preventDefault();
+    refreshForm.elements.refresh.value = '0';
+    applyRefresh();
+  });
+  scheduleRefresh();
+</script>
 {% if result == messages.ACCEPTED %}
 <script>
   window.setTimeout(() => window.location.replace({{ control_url | tojson }}), 2000);

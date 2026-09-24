@@ -108,6 +108,7 @@ for module in "${modules[@]}"; do
 done
 install -m 644 -- "$checkout_dir/requirements.txt" "$install_dir/requirements.txt"
 install -D -m 755 -- "$checkout_dir/scripts/services.sh" "$install_dir/scripts/services.sh"
+install -D -m 755 -- "$checkout_dir/scripts/query-tmdb.py" "$install_dir/scripts/query-tmdb.py"
 
 # Read credentials as data and initialize the schema explicitly before any batch is started.
 "$install_dir/.venv/bin/python" - "$install_dir" <<'PYSCHEMA'
