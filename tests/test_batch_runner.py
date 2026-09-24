@@ -97,7 +97,7 @@ class BatchRunnerTests(unittest.IsolatedAsyncioTestCase):
                     events.return_value.record.return_value = 1
                     order = []
 
-                    def create(batch, *args):
+                    def create(batch, *args, **kwargs):
                         workspace.load.return_value = batch
                         return 1
 

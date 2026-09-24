@@ -23,7 +23,7 @@ from r3el.interface.EventLogDb import EventLogDb
 
 
 class WorkspaceOccupied(RuntimeError):
-    """A new batch requires an empty workspace."""
+    """The current workspace cannot be replaced while processing."""
 
 
 class WorkspaceActionConflict(ValueError):
@@ -94,9 +94,16 @@ class WorkspaceDb:
             tmdb_match=TMDBMatch(**json.loads(row['tmdb_match'])) if row['tmdb_match'] is not None else None,
         )
 
-    def create(self, batch: MediaFileBatch, started: LogEvent, discovered: LogEvent) -> int:
+    def create(self, batch: MediaFileBatch, started: LogEvent, discovered: LogEvent,
+               *, replace_existing: bool = False) -> int:
         """Commit the entire selection before any identification begins."""
         with self._db.transaction():
+            if replace_existing:
+                rows = self._db.query('SELECT state FROM media_file_batches FOR UPDATE')
+                if any(row['state'] in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING)
+                       for row in rows):
+                    raise WorkspaceOccupied('The current batch is still running.')
+                self._db.execute('DELETE FROM media_file_batches')
             event_id = self._events.record_in_transaction(started)
             self._db.execute(
                 'INSERT INTO media_file_batches '

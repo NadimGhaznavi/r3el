@@ -282,6 +282,29 @@ class EventDatabaseTests(unittest.TestCase):
             self.assertEqual(json.loads(saved[0]['content'])['data']['movie_id'], 42)
             self.assertEqual(json.loads(moved[0]['content'])['data']['destination_path'], str(target))
 
+    def test_new_batch_replacement_is_atomic_and_preserves_history(self):
+        from r3el.interface.WorkspaceDb import WorkspaceOccupied
+
+        workspace = WorkspaceDb(self.db)
+        previous = self.workspace_batch()
+        following = self.workspace_batch()
+        with workspace.processing():
+            workspace.create(previous, self.event(), self.event())
+            with self.assertRaises(WorkspaceOccupied):
+                workspace.create(following, self.event(), self.event(), replace_existing=True)
+            workspace.save_batch_state(previous.id, MediaFileBatchState.MATCHING_COMPLETED, self.event())
+            history = len(self.events.recent())
+            with self.assertRaises(pymysql.IntegrityError):
+                workspace.create(following, self.event(), self.event(message=None), replace_existing=True)
+            self.assertEqual(workspace.load().id, previous.id)
+            self.assertEqual(len(workspace.load().files), len(previous.files))
+            self.assertEqual(len(self.events.recent()), history)
+            workspace.create(following, self.event(), self.event(), replace_existing=True)
+            self.assertEqual(workspace.load().id, following.id)
+            self.assertEqual(self.db.query('SELECT COUNT(*) AS n FROM media_files')[0]['n'],
+                             len(following.files))
+            self.assertEqual(len(self.events.recent()), history + 2)
+
     def test_workspace_creation_and_checkpoint_are_atomic(self):
         workspace = WorkspaceDb(self.db)
         batch = self.workspace_batch()
