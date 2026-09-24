@@ -26,3 +26,10 @@ class MediaFileBatch:
     started_event_id: int | None = None
     destination_directory: str | None = None
     stop_requested: bool = False
+
+    @property
+    def in_progress(self) -> bool:
+        # Older releases checkpointed service shutdown as cancelled, without
+        # the durable flag set by the user's Stop Batch action.
+        return (self.state in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING)
+                or (self.state == MediaFileBatchState.CANCELLED and not self.stop_requested))

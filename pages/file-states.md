@@ -91,14 +91,17 @@ and `started_event_id`. One batch occupies the workspace.
 | --- | --- |
 | `processing` | Identification underway. |
 | `failed` | Processing stopped on an error. |
-| `cancelled` | Processing interrupted. |
+| `cancelled` | User stopped processing; older releases also used this for service shutdown. |
 | `identification_completed` | Diagnostic identification finished; matching can be started manually. |
 | `matching` | Automatic TMDB matching underway. |
 | `matching_completed` | Automatic matching finished; results available for review. |
 | `matching_failed` | Automatic matching stopped on an error. |
 
 Explicit diagnostic `--run-batch` resumes pending files and returns failed/cancelled batches to
-`processing`. Identification completion is not finalization. Normal server startup is idle;
+`processing`. Identification completion is not finalization. Normal server startup resumes
+interrupted processing or matching from the saved selection; completed batches and
+explicit Stop Batch requests remain idle. Legacy cancelled batches without a stop
+request also resume. New Batch remains disabled for interrupted work;
 control-requested New Batch replaces a finished workspace with a fresh selection.
 Active processing blocks replacement; catalogue records and event history remain. The destination
 directory is optional for older batches and saved for future file operations.
