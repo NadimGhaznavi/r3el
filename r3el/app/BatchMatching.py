@@ -37,8 +37,7 @@ class BatchMatching:
     def match_id(self, batch_id: str, file_id: str, movie_id: int) -> None:
         with self._workspace.processing(), self._workspace.matching():
             batch = self._workspace.load()
-            if (batch is None or batch.id != batch_id or batch.state in
-                    (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING)):
+            if batch is None or batch.id != batch_id or batch.in_progress:
                 raise WorkspaceActionConflict('Manual matching requires a finished batch.')
             item = next((item for item in batch.files if item.id == file_id), None)
             if (item is None or item.tmdb_match is None or not item.tmdb_match.needs_manual_match

@@ -111,7 +111,7 @@ class BatchIdentificationTests(unittest.IsolatedAsyncioTestCase):
             Path(directory, '.new').touch()
             record = Mock(return_value=1)
             workspace = self.workspace(record)
-            workspace.load.return_value = Mock(state='matching_completed')
+            workspace.load.return_value = Mock(state='matching_completed', in_progress=False)
             results = await BatchIdentification(FileMgr(directory), Mock(), 'unused', Mock(),
                                                  record, workspace).run(5, new_batch=True)
             self.assertEqual([item['filename'] for item in results], ['.new'])

@@ -43,7 +43,7 @@ async def run(args) -> None:
         try:
             submissions = SubmissionHandler(record_event)
             runner = BatchRunner(args.llm_url, args.zmq_endpoint, submissions)
-            processor = BatchProcessor(runner.run)
+            processor = BatchProcessor(runner.run, startup=runner.resume if args.llm_url and not args.run_batch else None)
             control = BatchControlHandler(processor.submit, bool(args.llm_url) and not args.run_batch)
             messages = MessageHandler(submissions.handle, control.handle)
             with ZMQServer(args.zmq_endpoint, messages.handle) as listener:

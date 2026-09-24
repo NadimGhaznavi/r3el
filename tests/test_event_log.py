@@ -728,12 +728,20 @@ class EventDatabaseTests(unittest.TestCase):
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     def test_control_starts_batch_and_server_returns_to_idle(self):
+        self.check_control_batch_restart(False)
+
+    def test_service_restart_resumes_saved_batch_without_new_selection(self):
+        self.check_control_batch_restart(True)
+
+    def check_control_batch_restart(self, restart):
         good = {'title': 'Example', 'year': 2001, 'confidence': 9}
-        with TemporaryDirectory() as directory, FakeLLM([good], block=True) as llm:
+        with TemporaryDirectory() as directory, FakeLLM([good, good, good], block_at=1 if restart else 0) as llm:
             root = Path(directory)
             source = root / 'input'
             source.mkdir()
             (source / 'a.mkv').write_text('untouched')
+            if restart:
+                (source / 'b.mkv').write_text('second file')
             output = str(root / 'output')
             endpoint = 'ipc://' + str(root / 'control.sock')
             process = subprocess.Popen([
@@ -756,9 +764,32 @@ class EventDatabaseTests(unittest.TestCase):
                 self.assertEqual(llm.requests, [])
                 control = BatchControl(endpoint)
                 parameters = BatchRequest(str(source), output, 5)
-                self.assertEqual(control.new_batch(parameters)['status'], DMessage.ACCEPTED)
+                # The listener may answer before startup's workspace check returns.
+                # Retry only a definite busy reply, never uncertain acceptance.
+                deadline = time.monotonic() + 5
+                while True:
+                    status = control.new_batch(parameters)['status']
+                    if status != DMessage.BUSY:
+                        break
+                    self.assertLess(time.monotonic(), deadline)
+                    time.sleep(0.05)
+                self.assertEqual(status, DMessage.ACCEPTED)
                 self.assertTrue(llm.blocked.wait(15))
                 self.assertEqual(control.new_batch(parameters)['status'], DMessage.BUSY)
+                original_batch = WorkspaceDb(self.db).load()
+                if restart:
+                    process.terminate()
+                    _, error = process.communicate(timeout=10)
+                    self.assertEqual(process.returncode, 0, error)
+                    self.assertTrue(WorkspaceDb(self.db).load().in_progress)
+                    (source / 'new-file.mkv').touch()
+                    process = subprocess.Popen(process.args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                               text=True, env=dict(os.environ, TMDB_TOKEN=''))
+                    deadline = time.monotonic() + 15
+                    while len(llm.requests) < 3:
+                        self.assertIsNone(process.poll())
+                        self.assertLess(time.monotonic(), deadline)
+                        time.sleep(0.05)
                 llm.release.set()
                 deadline = time.monotonic() + 20
                 while True:
@@ -768,11 +799,13 @@ class EventDatabaseTests(unittest.TestCase):
                     self.assertIsNone(process.poll())
                     self.assertLess(time.monotonic(), deadline)
                     time.sleep(0.05)
+                self.assertEqual(batch.id, original_batch.id)
+                self.assertEqual([item.id for item in batch.files], [item.id for item in original_batch.files])
                 self.assertEqual(batch.source_directory, str(source))
                 self.assertEqual(batch.destination_directory, output)
                 self.assertEqual(batch.requested_size, 5)
                 self.assertEqual(batch.files[0].identification.title, good['title'])
-                self.assertEqual(len(llm.requests), 1)
+                self.assertEqual(len(llm.requests), 3 if restart else 1)
                 self.assertEqual(llm.errors, [])
                 self.assertEqual((source / 'a.mkv').read_text(), 'untouched')
                 self.assertFalse(Path(output).exists())
@@ -881,7 +914,7 @@ class EventDatabaseTests(unittest.TestCase):
                     rows = self.events.recent(category='Server', limit=2)
                     self.assertEqual([row['name'] for row in rows], ['stopped', 'started'])
                     self.assertEqual(rows[0]['parent_event_id'], rows[1]['event_id'])
-                    self.assertIn('batch_cancelled', [r['name'] for r in self.events.recent()])
+                    self.assertEqual(WorkspaceDb(self.db).load().state, MediaFileBatchState.PROCESSING)
                 finally:
                     if process.poll() is None:
                         process.kill()

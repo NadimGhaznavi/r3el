@@ -81,8 +81,7 @@ class EventPages:
             values['control_url'] = '/?refresh=' + str(values['refresh']) if values['refresh'] else '/'
             values.setdefault('matching_job', None)
             workspace = values['workspace']
-            values['automatic_processing'] = workspace is not None and workspace.state in (
-                MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING)
+            values['automatic_processing'] = workspace is not None and workspace.in_progress
             values['stop_ready'] = (workspace is not None and not workspace.stop_requested
                                     and (values['automatic_processing'] or values['matching_job'] is not None))
             values['process_ready'] = (workspace is not None and BatchPreparation.ready(workspace)

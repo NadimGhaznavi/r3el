@@ -64,6 +64,27 @@ class BatchMessageTests(unittest.TestCase):
 
 
 class BatchProcessorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_startup_reserves_worker_until_recovery_finishes(self):
+        entered, release = asyncio.Event(), asyncio.Event()
+        async def startup():
+            entered.set()
+            await release.wait()
+        execute = AsyncMock()
+        processor = BatchProcessor(execute, startup=startup)
+        request = BatchRequest('/tmp/input', '/tmp/output', 5)
+        self.assertFalse(processor.submit(request))
+        worker = asyncio.create_task(processor.run())
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            self.assertFalse(processor.submit(request))
+            release.set()
+            await asyncio.sleep(0)
+            self.assertTrue(processor.submit(request))
+        finally:
+            worker.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await worker
+
     async def test_listener_accepts_submissions_during_batch_and_returns_to_idle(self):
         started, finish = asyncio.Event(), asyncio.Event()
         requests = []

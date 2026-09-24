@@ -25,11 +25,14 @@ class BatchIdentification:
 
     async def run(self, batch_size: int, *, destination_directory: str | None = None,
                   new_batch: bool = False, offset: int = 0, limit: int | None = None,
+                  expected_batch_id: str | None = None,
                   completion_state: MediaFileBatchState = MediaFileBatchState.IDENTIFICATION_COMPLETED) -> list[dict]:
         with self._workspace.processing():
             batch = self._workspace.load()
+            if expected_batch_id is not None and (batch is None or batch.id != expected_batch_id):
+                raise WorkspaceOccupied('The batch to resume is no longer in the workspace.')
             if new_batch and batch is not None:
-                if batch.state in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING):
+                if batch.in_progress:
                     raise WorkspaceOccupied('The current batch is still running.')
                 batch = None
             if batch is None:
@@ -54,7 +57,10 @@ class BatchIdentification:
                                  'unresolved_hidden_file': sum(item.state == MediaFileState.UNRESOLVED_HIDDEN_FILE
                                                                for item in files)})
                 return self._results(batch)
-            except (asyncio.CancelledError, BatchStopped):
+            except asyncio.CancelledError:
+                # Service shutdown leaves the processing checkpoint resumable.
+                raise
+            except BatchStopped:
                 self._set_state(batch, MediaFileBatchState.CANCELLED, Names.BATCH_CANCELLED, {}, 'WARNING')
                 raise
             except Exception as error:
