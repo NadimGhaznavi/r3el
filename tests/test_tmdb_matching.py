@@ -76,6 +76,7 @@ class BatchMatchingTests(unittest.TestCase):
         self.batch = MediaFileBatch('batch', 5, '/tmp', files=self.files,
                                    state=MediaFileBatchState.IDENTIFICATION_COMPLETED)
         self.workspace = Mock()
+        self.workspace.catalogue_paths.return_value = []
         self.workspace.processing.side_effect = nullcontext
         self.workspace.matching.side_effect = nullcontext
         self.workspace.load.return_value = self.batch

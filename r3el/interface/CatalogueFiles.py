@@ -16,6 +16,33 @@ from r3el.entity.MovieFiles import MovieFiles
 
 
 class CatalogueFiles:
+    @staticmethod
+    def discard_snapshot(paths: list[str]) -> list[dict]:
+        files = []
+        for path in paths:
+            target = Path(path)
+            if target.is_symlink() or not target.is_file():
+                raise ValueError(f'The duplicate must be a regular file: {path}')
+            stat = target.stat()
+            files.append({'path': path, 'device': stat.st_dev, 'inode': stat.st_ino})
+        return files
+
+    def discard(self, files: list[dict], preferred: str) -> None:
+        winner = Path(preferred)
+        if winner.is_symlink() or not winner.is_file() or winner.stat().st_size == 0:
+            raise ValueError('The preferred catalogue video is missing or empty; duplicates were preserved.')
+        for item in files:
+            target = Path(item['path'])
+            if target == winner or target.is_symlink():
+                raise ValueError('The duplicate path is unsafe; it has not been removed.')
+            if not target.exists():
+                continue  # Resume after unlink succeeded but the checkpoint failed.
+            stat = target.stat()
+            if (stat.st_dev, stat.st_ino) != (item['device'], item['inode']):
+                raise ValueError('The duplicate file changed; it has not been removed.')
+            target.unlink()
+            self._sync_directory(target.parent)
+
     def prepare(self, movie: CatalogueMovie, source: str, destination: str | None,
                 file_id: str, log: EventWriter) -> MovieFiles:
         if not destination:

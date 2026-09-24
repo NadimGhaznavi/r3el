@@ -282,6 +282,78 @@ class EventDatabaseTests(unittest.TestCase):
             self.assertEqual(json.loads(saved[0]['content'])['data']['movie_id'], 42)
             self.assertEqual(json.loads(moved[0]['content'])['data']['destination_path'], str(target))
 
+    @patch('r3el.app.BatchMatching.TMDB.from_environment')
+    def test_better_format_replaces_existing_movie_file(self, factory):
+        self.check_format_preference(factory, ('mpg', 'mkv'))
+
+    @patch('r3el.app.BatchMatching.TMDB.from_environment')
+    def test_lower_format_is_deleted_when_preferred_already_exists(self, factory):
+        self.check_format_preference(factory, ('mkv', 'mpg'))
+
+    @patch('r3el.app.BatchMatching.TMDB.from_environment')
+    def test_duplicate_cleanup_resumes_after_unlink_before_checkpoint(self, factory):
+        self.check_format_preference(factory, ('mpg', 'mkv'), interrupt_cleanup=True)
+
+    @patch('r3el.app.BatchMatching.TMDB.from_environment')
+    def test_format_preference_survives_new_workspace(self, factory):
+        self.check_format_preference(factory, ('mpg', 'mkv'), separate_batches=True)
+
+    def check_format_preference(self, factory, extensions, interrupt_cleanup=False, separate_batches=False):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            batch = self.workspace_batch()
+            batch.files = []
+            batch.state = MediaFileBatchState.IDENTIFICATION_COMPLETED
+            batch.destination_directory = str(root / 'output')
+            inodes = {}
+            for extension in extensions:
+                source = root / f'The-Matrix-2222.{extension}'
+                source.write_bytes(extension.encode())
+                inodes[extension] = source.stat().st_ino
+                batch.files.append(MediaFile(str(uuid4()), str(source),
+                    state=MediaFileState.IDENTIFIED,
+                    identification=Identification('The Matrix', 1999, 10)))
+            workspace = WorkspaceDb(self.db)
+            workspace.create(batch, self.event(), self.event())
+            for item in batch.files:
+                workspace.save_file(batch.id, item, self.event())
+            factory.return_value.search.return_value = {'total_results': 1, 'results': [{'id': 42}]}
+            factory.return_value.details.return_value = {
+                'id': 42, 'title': 'The Matrix', 'release_date': '1999-03-31',
+                'genres': [], 'credits': {'cast': [], 'crew': []}}
+            runner = BatchMatching(workspace, self.events.record)
+            if separate_batches:
+                runner.run(batch.id, file_ids=[batch.files[0].id])
+                batch = replace(batch, id=str(uuid4()), files=[batch.files[1]])
+                workspace.create(batch, self.event(), self.event(), replace_existing=True)
+                workspace.save_file(batch.id, batch.files[0], self.event())
+            if interrupt_cleanup:
+                with patch.object(workspace, 'finish_duplicates', side_effect=RuntimeError('Lost checkpoint')):
+                    with self.assertRaisesRegex(RuntimeError, 'Lost checkpoint'):
+                        runner.run(batch.id)
+                self.assertFalse((root / 'output' / 'The Matrix (1999)' / 'The Matrix (1999).mpg').exists())
+                self.assertTrue(workspace.load().files[-1].tmdb_match.discard_files)
+            else:
+                runner.run(batch.id)
+            runner.run(batch.id)
+            self.assertEqual(len(self.db.query('SELECT * FROM movies')), 1)
+            records = self.db.query('SELECT path, movie_id FROM movie_files')
+            self.assertEqual(len(records), 1)
+            self.assertEqual({row['movie_id'] for row in records}, {42})
+            for extension in inodes:
+                target = root / 'output' / 'The Matrix (1999)' / f'The Matrix (1999).{extension}'
+                if extension == 'mkv':
+                    self.assertEqual(target.stat().st_ino, inodes[extension])
+                    self.assertEqual(target.read_bytes(), extension.encode())
+                    self.assertIn(str(target), [row['path'] for row in records])
+                else:
+                    self.assertFalse(target.exists())
+                self.assertFalse((root / f'The-Matrix-2222.{extension}').exists())
+            self.assertTrue(all(item.tmdb_match.file_moved for item in workspace.load().files))
+            self.assertEqual(len(self.events.recent(category='File', subcategory='Delete')), 1)
+            self.assertEqual(sum(item.tmdb_match.duplicate for item in workspace.load().files),
+                             0 if separate_batches else 1)
+
     def test_new_batch_replacement_is_atomic_and_preserves_history(self):
         from r3el.interface.WorkspaceDb import WorkspaceOccupied
 

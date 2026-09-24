@@ -10,6 +10,18 @@ same name with its original extension. For example, a batch output of
 Posters and backdrops are downloaded into that folder and referenced by the
 catalogue. Movie title/year come from the accepted TMDB record.
 
+For multiple formats matched to the same TMDB movie, retain the first available
+format in this order: `mkv`, `mp4`, `m4v`, `avi`, `mov`, `wmv`, `flv`, `mpg`/`mpeg`.
+Extensions are compared without case; `mpg` and `mpeg` have equal preference,
+so an already catalogued copy wins that tie. This is a container preference,
+not an assessment of resolution or encoding quality.
+
+After the preferred video is saved, lower-ranked versions are deleted and their
+catalogue file links removed. This also applies when a better format arrives in
+a later batch. Cleanup is checkpointed for retries and logged under File / Delete.
+Files with the same extension retain the existing collision protection; they
+are not automatically deleted by this format policy.
+
 ```python
 import re
 import unicodedata
