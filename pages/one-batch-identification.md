@@ -3,18 +3,20 @@
 The server starts idle and keeps its MCP/ZeroMQ listener available until stopped.
 It does not scan files, resume the workspace, or contact the model on startup.
 The control page's New Batch button sends input/output directories and batch size
-to the server. It runs one batch and returns to idle while keeping the listener
-available. This path assumes an empty workspace; clearing and replacement remain
+to the server. It identifies the batch, automatically performs TMDB searches and
+LLM candidate selection or zero-result retries, then returns to idle while keeping
+the listener available. It processes groups of up to 10 files: each group finishes
+identification, matching, selection, and retries before the next begins. No second
+button press is required. This path assumes an empty workspace; clearing and replacement remain
 unimplemented. Output directories are saved for later stages, not used to move files.
 An explicit `--run-batch` option retains the one-batch diagnostic workflow described below.
 
 With `--run-batch` and an empty workspace, R3el scans regular files directly inside `DR3el.FILM_DIR`,
 selects up to `DR3el.BATCH_SIZE` names alphabetically, saves the selection,
 identifies each, and exits. Subdirectories and symbolic links are excluded.
-Identification leaves source files untouched. TMDB matching is a separate Control
-page action available after identification finishes, without requiring every file
-action to be resolved. Identification does not select a
-TMDB candidate or move files into `MEDIA_DIR`.
+Identification leaves source files untouched. This diagnostic mode only identifies
+filenames; Process Batch can start TMDB matching afterward. The normal New Batch
+flow includes matching automatically. Neither flow moves files into `MEDIA_DIR`.
 
 ## Components
 
@@ -86,7 +88,9 @@ An `identification_completed` batch stays available for later matching and revie
 Running `--run-batch` again returns its results without calling the model. Workspace
 cleanup belongs to finalization, which is not implemented yet.
 
-Install and upgrade apply `EventSchema` followed by `WorkspaceSchema`.
+Install and upgrade apply `EventSchema` followed by `WorkspaceSchema`, including
+the matching lifecycle states. The server unit also loads TMDB credentials from
+`/etc/r3el/tmdb.env` for automatic matching.
 
 ## Run
 

@@ -20,13 +20,16 @@ from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict
 
 
 class BatchMatching:
-    def __init__(self, workspace: WorkspaceDb, record: Callable[[LogEvent], int]) -> None:
+    def __init__(self, workspace: WorkspaceDb, record: Callable[[LogEvent], int], llm: LLM | None = None) -> None:
         self._workspace = workspace
         self._record = record
+        self._llm = llm
 
-    def run(self, batch_id: str) -> None:
+    def run(self, batch_id: str, *, file_ids: list[str] | None = None) -> None:
         with self._workspace.processing(), self._workspace.matching():
             batch = self._workspace.load()
+            if batch is not None and file_ids is not None:
+                batch = replace(batch, files=[item for item in batch.files if item.id in file_ids])
             if batch is None or batch.id != batch_id or not BatchPreparation.ready(batch):
                 raise WorkspaceActionConflict('Processing requires a nonempty batch with identification finished.')
             for item in batch.files:
@@ -57,7 +60,7 @@ class BatchMatching:
                     self._workspace.save_match(batch.id, item.id, result, log.prepare(
                         Categories.TMDB.RESULT, Names.TMDB_RESULT,
                         dict(asdict(result), outcome=result.label), source='TMDB'))
-                    retry = RetryIdentification(self._workspace)
+                    retry = RetryIdentification(self._workspace, self._llm)
                     if item.retries >= DR3el.MAX_IDENTIFICATION_RETRIES:
                         retry.exhausted(item, log)
                         break
@@ -78,7 +81,7 @@ class BatchMatching:
                 self._workspace.save_match(batch.id, item.id, result, event)
                 if needs_selection:
                     try:
-                        result = MovieSelection(LLM.from_environment()).run(result, log)
+                        result = MovieSelection(self._llm or LLM.from_environment()).run(result, log)
                     except BaseException:
                         self._workspace.save_match(batch.id, item.id,
                                                    replace(result, selection_pending=False), None)

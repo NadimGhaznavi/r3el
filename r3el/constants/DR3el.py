@@ -10,6 +10,7 @@ class DR3el:
     BASE_DIR: Final[str] = "/opt/prod/r3el"
     FILM_DIR: Final[str] = "/exports/disk1/archive/film"
     MEDIA_DIR: Final[str] = "/exports/disk1/archive/media"
+    PROCESSING_GROUP_SIZE: Final[int] = 10
     BATCH_SIZE: Final[int] = 10
     BATCH_SIZES: Final[tuple[int, ...]] = (5, 10, 20, 50, 100)
     NEW_BATCH_URL: Final[str] = "/batches"

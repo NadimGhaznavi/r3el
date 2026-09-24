@@ -27,6 +27,11 @@ class WorkspaceSchema:
             'ALTER TABLE media_file_batches ADD COLUMN IF NOT EXISTS destination_directory TEXT NULL'
         )
         self._db.execute("""
+            ALTER TABLE media_file_batches MODIFY COLUMN state
+            ENUM('processing', 'failed', 'cancelled', 'identification_completed',
+                 'matching', 'matching_completed', 'matching_failed') NOT NULL
+        """)
+        self._db.execute("""
             CREATE TABLE IF NOT EXISTS media_files (
                 file_id CHAR(36) PRIMARY KEY,
                 batch_id CHAR(36) NOT NULL,

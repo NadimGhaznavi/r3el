@@ -434,7 +434,8 @@ class EventDatabaseTests(unittest.TestCase):
             process = subprocess.Popen([
                 sys.executable, '-B', '-u', '-m', 'r3el.server.R3elServer',
                 '--llm-url', llm.url, '--zmq-endpoint', endpoint,
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                env=dict(os.environ, TMDB_TOKEN=''))
             try:
                 # Probe readiness without sending or retrying any batch commands.
                 probe = ZMQMsg(sender=DMessage.CONTROL, method='unknown')
@@ -457,7 +458,7 @@ class EventDatabaseTests(unittest.TestCase):
                 deadline = time.monotonic() + 20
                 while True:
                     batch = WorkspaceDb(self.db).load()
-                    if batch.state == MediaFileBatchState.IDENTIFICATION_COMPLETED:
+                    if batch.state == MediaFileBatchState.MATCHING_COMPLETED:
                         break
                     self.assertIsNone(process.poll())
                     self.assertLess(time.monotonic(), deadline)
@@ -478,7 +479,7 @@ class EventDatabaseTests(unittest.TestCase):
                 self.assertEqual(process.returncode, 0, error)
                 names = [row['name'] for row in self.events.recent()]
                 self.assertEqual(names.count('batch_started'), 1)
-                self.assertEqual(names.count('batch_completed'), 1)
+                self.assertEqual(names.count('batch_completed'), 2)
                 self.assertEqual(names[0], 'stopped')
             finally:
                 if process.poll() is None:
