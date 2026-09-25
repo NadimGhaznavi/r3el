@@ -290,7 +290,7 @@ class ControlServerTests(unittest.TestCase):
         self.assertNotIn('pollMatching("' + job_id + '")', self.request('/')[2])
         self.assertEqual(self.request('/workspace/match/status/unknown')[0], 404)
 
-    def test_manual_id_controls_only_show_for_finished_multiple_matches(self):
+    def test_manual_id_controls_only_show_for_finished_unresolved_matches(self):
         item = MediaFile('file-1', '/tmp/movie.mkv', state=MediaFileState.IDENTIFIED,
             tmdb_match=TMDBMatch('Movie', 2020, response={'total_results': 2, 'results': [{'id': 1}, {'id': 2}]},
                                  selected_number=0))
@@ -300,6 +300,15 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('<th scope="col">Manual match</th>', body)
         self.assertIn('aria-label="TMDB ID for movie.mkv"', body)
         self.assertIn('>TMDB ID</button>', body)
+        item.tmdb_match = TMDBMatch('Movie', 2020, response={'total_results': 0, 'results': []})
+        body = self.request('/')[2]
+        self.assertIn('>No matches</a>', body)
+        self.assertIn('aria-label="TMDB ID for movie.mkv"', body)
+        self.assertIn('>TMDB ID</button>', body)
+        for action in (MediaFileAction.IGNORE, MediaFileAction.DELETE):
+            item.action = action
+            self.assertNotIn('class="manual-match"', self.request('/')[2])
+        item.action = MediaFileAction.PENDING
         batch.state = MediaFileBatchState.MATCHING
         self.assertNotIn('class="manual-match"', self.request('/')[2])
         batch.state = MediaFileBatchState.MATCHING_COMPLETED
