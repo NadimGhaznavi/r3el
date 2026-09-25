@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Remove the Refresh and Stop Batch explanatory notes.
 - Remove the explanatory note beneath New Batch.
 - Move New Batch and Stop Batch together below Refresh and remove the Process Batch button.
 - Place the Update button on the same row as the Refresh menu.
