@@ -110,9 +110,10 @@ The new title/year is searched again, even when it is identical to the previous
 answer. The **Retries** column tracks up to three additional identifications after
 the initial one. If the third retry still has no matches, TMDB is searched with
 the final identified title and one year earlier, then one year later. The first
-adjacent-year search returning exactly one movie is accepted. Zero or multiple
-results continue to the next year without LLM selection. If neither year gives
-exactly one match, use the manual TMDB ID field to resolve the file. It becomes
+adjacent-year search returning exactly one movie is accepted. Multiple results
+use the usual LLM multiple-choice workflow; an unresolved choice is left for
+the manual TMDB ID field. Only zero results continue to the next year.
+If neither year gives any matches, use the manual TMDB ID field. The file becomes
 `unresolved_llm` and later Process Batch requests leave it exhausted. The batch
 continues to other files. API failures do not count as zero-result searches;
 failed adjacent-year requests can be retried without repeating completed years.
