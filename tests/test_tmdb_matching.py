@@ -149,7 +149,7 @@ class BatchMatchingTests(unittest.TestCase):
     @patch('r3el.app.BatchMatching.TMDB.from_environment')
     def test_failed_queries_are_saved_and_can_be_retried(self, factory):
         factory.return_value.search.side_effect = [TMDBError('TMDB returned HTTP 429.'),
-                                                  {'total_results': 0, 'results': []}]
+                                                  *[{'total_results': 0, 'results': []}] * 3]
         runner = BatchMatching(self.workspace, self.record)
         runner.run('batch')
         self.assertEqual(self.files[0].tmdb_match.label, 'Match failed')
@@ -160,7 +160,7 @@ class BatchMatchingTests(unittest.TestCase):
         self.files[0].retries = 3
         runner.run('batch')
         self.assertEqual(self.files[0].tmdb_match.label, 'No matches')
-        self.assertEqual(self.record.call_count, 2)
+        self.assertEqual(self.record.call_count, 4)
 
     @patch('r3el.app.BatchMatching.TMDB.from_environment')
     def test_missing_identification_is_a_failure_and_all_skipped_needs_no_credentials(self, factory):
