@@ -13,6 +13,7 @@ from r3el.entity.MediaFile import MediaFile, MediaFileState
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
 from r3el.entity.TMDBMatch import TMDBMatch
+from r3el.entity.BatchStopped import BatchStopped
 from r3el.interface.TMDB import TMDBError
 from r3el.interface.WorkspaceDb import WorkspaceDb
 
@@ -70,14 +71,14 @@ class ZeroMatchRetryTests(unittest.TestCase):
         self.tmdb.search.return_value = self.zero
         self.runner.run('batch')
         self.assertEqual(self.conversation.call_count, 3)
-        self.assertEqual(self.tmdb.search.call_count, 4)
+        self.assertEqual(self.tmdb.search.call_count, 6)
         self.assertEqual(self.item.retries, 3)
         self.assertEqual(self.item.state, MediaFileState.UNRESOLVED_LLM)
         self.assertEqual(self.item.action, MediaFileAction.PENDING)
         self.assertFalse(self.item.pending)
         self.runner.run('batch')
         self.assertEqual(self.conversation.call_count, 3)
-        self.assertEqual(self.tmdb.search.call_count, 4)
+        self.assertEqual(self.tmdb.search.call_count, 6)
 
     def test_saved_retry_count_and_zero_response_resume_remaining_budget(self):
         self.item.retries = 2
@@ -85,7 +86,7 @@ class ZeroMatchRetryTests(unittest.TestCase):
         self.tmdb.search.return_value = self.zero
         self.runner.run('batch')
         self.assertEqual(self.conversation.call_count, 1)
-        self.assertEqual(self.tmdb.search.call_count, 1)
+        self.assertEqual(self.tmdb.search.call_count, 3)
         self.assertEqual(self.item.retries, 3)
         self.assertEqual(self.item.state, MediaFileState.UNRESOLVED_LLM)
 
@@ -115,8 +116,9 @@ class ZeroMatchRetryTests(unittest.TestCase):
         self.item.tmdb_match = TMDBMatch('Creative Movie', 2025, response=self.zero)
         next_item = MediaFile('next', '/tmp/Next.mkv', MediaFileState.IDENTIFIED, Identification('Next', 2020, 10))
         self.batch.files.append(next_item)
-        self.tmdb.search.return_value = self.single
+        self.tmdb.search.side_effect = [self.zero, self.zero, self.single]
         self.runner.run('batch')
+        self.assertTrue(self.item.tmdb_match.needs_manual_match)
         self.assertEqual(next_item.tmdb_match.label, '1 match')
         self.conversation.assert_not_called()
 
@@ -128,6 +130,76 @@ class ZeroMatchRetryTests(unittest.TestCase):
             action=self.item.action, retries=self.item.retries, updated_at=None,
             tmdb_match=json.dumps(asdict(self.item.tmdb_match))))
         self.assertEqual(item, self.item)
+
+    def test_previous_year_single_match_is_accepted_and_reused(self):
+        self.item.retries = 3
+        self.item.tmdb_match = TMDBMatch('Creative Movie', 2025, response=self.zero)
+        self.tmdb.search.return_value = self.single
+        self.runner.run('batch')
+        self.tmdb.search.assert_called_once_with('Creative Movie', 2024)
+        self.assertEqual(self.item.tmdb_match.year_offset, -1)
+        self.assertEqual(self.item.state, MediaFileState.IDENTIFIED)
+        self.assertFalse(self.item.tmdb_match.needs_manual_match)
+        self.runner.run('batch')
+        self.tmdb.search.assert_called_once()
+
+    def test_following_year_requires_single_match_without_multiple_choice(self):
+        multiple = {'total_results': 2, 'results': [{'id': 1}, {'id': 2}]}
+        for previous in (self.zero, multiple):
+            for following in (self.zero, multiple, self.single):
+                with self.subTest(previous=previous, following=following):
+                    self.item.state = MediaFileState.IDENTIFIED
+                    self.item.retries = 3
+                    self.item.tmdb_match = TMDBMatch('Creative Movie', 2025, response=self.zero)
+                    self.tmdb.search.reset_mock()
+                    self.tmdb.search.side_effect = [previous, following]
+                    with patch('r3el.app.BatchMatching.MovieSelection') as selection:
+                        self.runner.run('batch')
+                    selection.assert_not_called()
+                    self.assertEqual([call.args for call in self.tmdb.search.call_args_list],
+                                     [('Creative Movie', 2024), ('Creative Movie', 2026)])
+                    self.assertEqual(self.item.tmdb_match.year_offset, 1)
+                    self.assertEqual(self.item.tmdb_match.needs_manual_match, following != self.single)
+                    self.runner.run('batch')
+                    self.assertEqual(self.tmdb.search.call_count, 2)
+
+    def test_adjacent_year_failure_resumes_failed_year(self):
+        self.item.retries = 3
+        self.item.tmdb_match = TMDBMatch('Creative Movie', 2025, response=self.zero)
+        self.tmdb.search.side_effect = [self.zero, TMDBError('Unavailable')]
+        self.runner.run('batch')
+        self.assertEqual(self.item.tmdb_match.label, 'Match failed')
+        self.assertEqual(self.item.state, MediaFileState.IDENTIFIED)
+        self.tmdb.search.side_effect = [self.single]
+        self.runner.run('batch')
+        self.assertEqual([call.args for call in self.tmdb.search.call_args_list],
+                         [('Creative Movie', 2024), ('Creative Movie', 2026), ('Creative Movie', 2026)])
+
+    def test_saved_adjacent_query_resumes_at_following_year(self):
+        self.item.retries = 3
+        saved = TMDBMatch('Creative Movie', 2024, response=self.zero, year_offset=-1)
+        self.item.tmdb_match = TMDBMatch(**json.loads(json.dumps(asdict(saved))))
+        self.tmdb.search.return_value = self.single
+        self.runner.run('batch')
+        self.tmdb.search.assert_called_once_with('Creative Movie', 2026)
+        self.assertEqual(self.item.tmdb_match.label, '1 match')
+
+    def test_stop_between_adjacent_years_preserves_progress(self):
+        self.item.retries = 3
+        self.item.tmdb_match = TMDBMatch('Creative Movie', 2025, response=self.zero)
+        self.tmdb.search.return_value = self.zero
+        def stop_after_previous_year(batch_id):
+            if self.item.tmdb_match.year_offset == -1:
+                raise BatchStopped()
+        self.workspace.check_stop.side_effect = stop_after_previous_year
+        with self.assertRaises(BatchStopped):
+            self.runner.run('batch')
+        self.tmdb.search.assert_called_once_with('Creative Movie', 2024)
+        self.workspace.check_stop.side_effect = None
+        self.tmdb.search.return_value = self.single
+        self.runner.run('batch')
+        self.assertEqual(self.tmdb.search.call_args.args, ('Creative Movie', 2026))
+        self.assertEqual(self.tmdb.search.call_count, 2)
 
 
 class FreshRetryConversationTests(unittest.TestCase):

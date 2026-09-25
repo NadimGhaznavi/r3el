@@ -96,19 +96,24 @@ class BatchMatching:
                 year = identification.year if identification is not None else None
                 if item.action in (MediaFileAction.IGNORE, MediaFileAction.DELETE):
                     result = TMDBMatch(title, year, skipped=True)
-                elif (item.tmdb_match is not None and item.tmdb_match.response is not None
-                      and item.tmdb_match.title == title and item.tmdb_match.year == year):
+                elif (item.tmdb_match is not None
+                      and (item.tmdb_match.response is not None or item.tmdb_match.year_offset != 0)
+                      and item.tmdb_match.title == title
+                      and item.tmdb_match.year - item.tmdb_match.year_offset == year):
                     # Repeated submissions reuse completed queries; failed searches can be retried.
                     result = item.tmdb_match
-                    if result.response['total_results'] == 1 or result.selected_number is not None:
+                    if ((result.response is not None and result.response['total_results'] == 1)
+                            or result.selected_number is not None):
                         self._catalogue(batch, item, result, log)
                         continue
                 elif identification is None:
                     result = TMDBMatch(title, year, error='No identified title and year available.')
                 else:
                     result = self._search(title, year, log)
+                if result.year_offset != 0:
+                    result = self._search_adjacent_years(batch, item, result, log)
                 while (result.response is not None and not result.skipped and result.error is None
-                       and result.response['total_results'] == 0):
+                       and result.response['total_results'] == 0 and result.year_offset == 0):
                     item.tmdb_match = result
                     self._workspace.save_match(batch.id, item.id, result, log.prepare(
                         Categories.TMDB.RESULT, Names.TMDB_RESULT,
@@ -116,7 +121,7 @@ class BatchMatching:
                     self._workspace.check_stop(batch_id)
                     retry = RetryIdentification(self._workspace, self._llm)
                     if item.retries >= DR3el.MAX_IDENTIFICATION_RETRIES:
-                        retry.exhausted(item, log)
+                        result = self._search_adjacent_years(batch, item, result, log)
                         break
                     retry.run(item, log)
                     self._workspace.check_stop(batch_id)
@@ -126,10 +131,11 @@ class BatchMatching:
                 if not result.skipped and item.retries > 0 and item.state == MediaFileState.UNRESOLVED_LLM:
                     continue
                 needs_selection = (result.response is not None and not result.skipped and result.error is None
-                                   and result.response['total_results'] > 1 and result.selected_number is None)
+                                   and result.response['total_results'] > 1 and result.selected_number is None
+                                   and result.year_offset == 0)
                 if needs_selection:
                     result = replace(result, selection_pending=True, selection_error=None)
-                event = None if result.skipped else log.prepare(
+                event = None if result.skipped or result.year_offset != 0 else log.prepare(
                     Categories.TMDB.RESULT, Names.TMDB_RESULT,
                     dict(asdict(result), outcome=result.label), source='TMDB',
                     level='ERROR' if result.error is not None else 'INFO')
@@ -148,6 +154,27 @@ class BatchMatching:
                     self._workspace.save_match(batch.id, item.id, result, event)
                 self._catalogue(batch, item, result, log)
             self._workspace.check_stop(batch_id)
+
+    def _search_adjacent_years(self, batch: MediaFileBatch, item: MediaFile,
+                               result: TMDBMatch, log: EventWriter) -> TMDBMatch:
+        year = result.year - result.year_offset
+        offsets = (-1, 1)
+        start = 0 if result.year_offset == 0 else offsets.index(result.year_offset)
+        if result.year_offset != 0 and result.error is None:
+            start += 1
+        for offset in offsets[start:]:
+            self._workspace.check_stop(batch.id)
+            result = replace(self._search(result.title, year + offset, log), year_offset=offset)
+            item.tmdb_match = result
+            self._workspace.save_match(batch.id, item.id, result, log.prepare(
+                Categories.TMDB.RESULT, Names.TMDB_RESULT,
+                dict(asdict(result), outcome=result.label), source='TMDB',
+                level='ERROR' if result.error else 'INFO'))
+            if result.error is not None or result.response['total_results'] == 1:
+                return result
+        item.tmdb_match = result
+        RetryIdentification(self._workspace, self._llm).exhausted(item, log)
+        return result
 
     def _catalogue(self, batch: MediaFileBatch, item: MediaFile, result: TMDBMatch, log: EventWriter,
                    *, movie: CatalogueMovie | None = None) -> None:
