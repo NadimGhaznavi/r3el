@@ -148,6 +148,7 @@ update the interval without navigation. Refresh waits while an action menu is
 focused or a save is in progress. The selected interval stays in the URL and is retained
 after New Batch acceptance and Process Batch completion.
 The Current Batch panel contains the file table in its own bordered box.
+Long batches scroll within that box, with the column headers fixed at its top.
 “Updated” on the right of its header uses `MM-DD HH:MM:SS` and reports the page's latest workspace read in the browser's local timezone,
 not the time the file last changed. Pending files stay Pending until an outcome
 is saved. Reads use the shared workspace interface without taking the processor's

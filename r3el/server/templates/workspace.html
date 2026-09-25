@@ -8,7 +8,7 @@
   file_actions.PENDING: 'Pending', file_actions.APPROVE: 'Approve',
   file_actions.IGNORE: 'Ignore', file_actions.DELETE: 'Delete'
 } %}
-<div class="table-wrap">
+<div class="table-wrap workspace-table-wrap" tabindex="0" role="region" aria-label="Scrollable current batch details">
   <table class="workspace-files" data-batch-id="{{ workspace.id }}" data-stop-requested="{{ 'true' if workspace.stop_requested else 'false' }}" data-automatic-processing="{{ 'true' if automatic_processing else 'false' }}" aria-label="Current batch files">
     <thead><tr><th scope="col">#</th><th scope="col" title="Last saved change (local time)">Updated</th><th scope="col">Filename</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Retries</th><th scope="col">Status</th><th scope="col">Action</th>{% if has_match_results %}<th scope="col">Match Results</th>{% endif %}{% if has_manual_matches %}<th scope="col">Manual match</th>{% endif %}</tr></thead>
     <tbody>
