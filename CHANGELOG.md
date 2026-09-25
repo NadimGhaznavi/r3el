@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-25 @ 05:18
+
 ### Changed
 
 - Send multiple results from adjacent-year TMDB searches through the existing LLM multiple-choice workflow. Resume saved candidates without searching another year; unresolved choices remain available for manual TMDB ID matching.
