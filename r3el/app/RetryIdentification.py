@@ -65,7 +65,7 @@ class RetryIdentification:
         item.state = MediaFileState.UNRESOLVED_LLM
         item.action = MediaFileAction.PENDING
         item.issues = [MediaFileIssue('unresolved_llm',
-            'No single TMDB match after three identification retries and adjacent-year searches.')]
+            'No TMDB matches after three identification retries and adjacent-year searches.')]
         item.tmdb_match = replace(item.tmdb_match, selection_pending=False)
         self._save(item, log, Names.ITEM_COMPLETED)
 

@@ -2,7 +2,7 @@
 
 from contextlib import nullcontext
 from copy import deepcopy
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
@@ -143,25 +143,54 @@ class ZeroMatchRetryTests(unittest.TestCase):
         self.runner.run('batch')
         self.tmdb.search.assert_called_once()
 
-    def test_following_year_requires_single_match_without_multiple_choice(self):
+    def test_adjacent_year_multiple_results_use_selection_and_reuse_outcome(self):
         multiple = {'total_results': 2, 'results': [{'id': 1}, {'id': 2}]}
-        for previous in (self.zero, multiple):
-            for following in (self.zero, multiple, self.single):
-                with self.subTest(previous=previous, following=following):
+        self.runner._llm = Mock()
+        for offset in (-1, 1):
+            for choice in (0, 2):
+                with self.subTest(offset=offset, choice=choice):
                     self.item.state = MediaFileState.IDENTIFIED
                     self.item.retries = 3
                     self.item.tmdb_match = TMDBMatch('Creative Movie', 2025, response=self.zero)
                     self.tmdb.search.reset_mock()
-                    self.tmdb.search.side_effect = [previous, following]
-                    with patch('r3el.app.BatchMatching.MovieSelection') as selection:
+                    self.tmdb.search.side_effect = [multiple] if offset == -1 else [self.zero, multiple]
+                    def choose(match, log):
+                        self.assertTrue(match.selection_pending)
+                        self.assertEqual(match.year, 2025 + offset)
+                        self.assertEqual(match.response, multiple)
+                        return replace(match, selected_number=choice)
+                    with patch('r3el.app.BatchMatching.MovieSelection.run', side_effect=choose) as selection:
                         self.runner.run('batch')
-                    selection.assert_not_called()
-                    self.assertEqual([call.args for call in self.tmdb.search.call_args_list],
-                                     [('Creative Movie', 2024), ('Creative Movie', 2026)])
-                    self.assertEqual(self.item.tmdb_match.year_offset, 1)
-                    self.assertEqual(self.item.tmdb_match.needs_manual_match, following != self.single)
-                    self.runner.run('batch')
-                    self.assertEqual(self.tmdb.search.call_count, 2)
+                        selection.assert_called_once()
+                        result = self.item.tmdb_match
+                        self.assertEqual(result.year_offset, offset)
+                        self.assertEqual(result.needs_manual_match, choice == 0)
+                        self.assertFalse(result.selection_pending)
+                        if choice:
+                            self.assertEqual(result.resolved_response['results'], [{'id': 2}])
+                        self.runner.run('batch')
+                        selection.assert_called_once()
+                    expected = [('Creative Movie', 2024)]
+                    if offset == 1:
+                        expected.append(('Creative Movie', 2026))
+                    self.assertEqual([call.args for call in self.tmdb.search.call_args_list], expected)
+
+    def test_interrupted_adjacent_selection_resumes_saved_candidates(self):
+        self.runner._llm = Mock()
+        self.item.retries = 3
+        multiple = {'total_results': 2, 'results': [{'id': 1}, {'id': 2}]}
+        self.item.tmdb_match = TMDBMatch('Creative Movie', 2025, response=self.zero)
+        self.tmdb.search.return_value = multiple
+        with patch('r3el.app.BatchMatching.MovieSelection.run', side_effect=RuntimeError('Interrupted')):
+            with self.assertRaisesRegex(RuntimeError, 'Interrupted'):
+                self.runner.run('batch')
+        self.assertFalse(self.item.tmdb_match.selection_pending)
+        with patch('r3el.app.BatchMatching.MovieSelection.run',
+                   side_effect=lambda match, log: replace(match, selected_number=1)) as selection:
+            self.runner.run('batch')
+        selection.assert_called_once()
+        self.tmdb.search.assert_called_once_with('Creative Movie', 2024)
+        self.assertEqual(self.item.tmdb_match.resolved_response['results'], [{'id': 1}])
 
     def test_adjacent_year_failure_resumes_failed_year(self):
         self.item.retries = 3
