@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Place the Update button on the same row as the Refresh menu.
 - Remove the Reset link beside the Control page's Update button.
 
 ## [1.3.0] - 2026-09-25 @ 18:45
