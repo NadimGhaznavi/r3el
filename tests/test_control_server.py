@@ -477,7 +477,7 @@ class ControlServerTests(unittest.TestCase):
     def test_stop_button_tracks_running_and_requested_state(self):
         batch = MediaFileBatch('batch-1', 1, '/tmp', files=[MediaFile('one', '/tmp/one.mkv')])
         self.workspace.return_value = batch
-        self.assertIn('id="stop-batch" type="button" aria-describedby=', self.request('/')[2])
+        self.assertIn('id="stop-batch" type="button">Stop Batch', self.request('/')[2])
         batch.stop_requested = True
         body = self.request('/')[2]
         self.assertIn('id="stop-batch" type="button" disabled', body)
