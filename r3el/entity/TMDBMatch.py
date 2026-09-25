@@ -25,7 +25,7 @@ class TMDBMatch:
     def needs_manual_match(self) -> bool:
         return (not self.skipped and not self.catalogue_saved and not self.selection_pending
                 and not self.selected_number and self.response is not None
-                and self.response['total_results'] > 1)
+                and self.response['total_results'] != 1)
 
     @property
     def resolved_response(self) -> dict | None:

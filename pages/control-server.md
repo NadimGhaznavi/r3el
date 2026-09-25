@@ -1,11 +1,11 @@
 # R3el Control
 
-When processing stops with unresolved multiple matches, a **Manual match** column
+When processing stops with no matches or unresolved multiple matches, a **Manual match** column
 offers a text field and **TMDB ID** button on those rows. Enter a positive movie
 ID to fetch that exact TMDB record, including one outside the original results.
 The request runs in the background and uses the usual catalogue, artwork, move,
 and format-preference workflow. Failed lookups show an error and preserve the
-original multiple matches for correction. Active, resolved, Ignore, and Delete
+original match results for correction. Active, resolved, Ignore, and Delete
 rows do not offer manual matching.
 
 The **Catalogue** navigation link opens `/catalogue`, an alphabetical list of

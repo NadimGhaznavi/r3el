@@ -130,6 +130,27 @@ class CatalogueMatchingTests(unittest.TestCase):
         self.assertIn('404', self.item.tmdb_match.selection_error)
         self.workspace.save_catalogue.assert_not_called()
 
+    def test_manual_id_uses_details_and_catalogues_without_search_or_llm_with_no_results(self):
+        self.item.tmdb_match = TMDBMatch('Movie', 2020,
+            response={'total_results': 0, 'results': []})
+        self.runner.match_id('batch', 'file', 42)
+        self.client.search.assert_not_called()
+        self.client.details.assert_called_once_with(42)
+        self.assertEqual(self.item.tmdb_match.resolved_response['results'][0]['id'], 42)
+        self.assertTrue(self.item.tmdb_match.file_moved)
+        self.assertFalse(self.item.tmdb_match.needs_manual_match)
+
+    def test_invalid_manual_id_keeps_no_matches_for_correction(self):
+        previous = TMDBMatch('Movie', 2020,
+            response={'total_results': 0, 'results': []})
+        self.item.tmdb_match = previous
+        self.client.details.side_effect = TMDBError('TMDB returned HTTP 404.')
+        self.runner.match_id('batch', 'file', 42)
+        self.assertEqual(self.item.tmdb_match.response, previous.response)
+        self.assertTrue(self.item.tmdb_match.needs_manual_match)
+        self.assertIn('404', self.item.tmdb_match.selection_error)
+        self.workspace.save_catalogue.assert_not_called()
+
     def test_manual_id_rejects_active_or_already_resolved_rows(self):
         from r3el.interface.WorkspaceDb import WorkspaceActionConflict
         self.item.tmdb_match = TMDBMatch('Movie', 2020,
