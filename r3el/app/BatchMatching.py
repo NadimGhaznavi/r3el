@@ -165,7 +165,12 @@ class BatchMatching:
             start += 1
         for offset in offsets[start:]:
             self._workspace.check_stop(batch.id)
-            result = replace(self._search(result.title, year + offset, log), year_offset=offset)
+            self._workspace.save_match(batch.id, item.id, replace(result, selection_pending=True), None)
+            try:
+                result = replace(self._search(result.title, year + offset, log), year_offset=offset)
+            except BaseException:
+                self._workspace.save_match(batch.id, item.id, replace(result, selection_pending=False), None)
+                raise
             item.tmdb_match = result
             self._workspace.save_match(batch.id, item.id, result, log.prepare(
                 Categories.TMDB.RESULT, Names.TMDB_RESULT,
