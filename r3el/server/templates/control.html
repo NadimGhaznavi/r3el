@@ -46,9 +46,8 @@
           <button form="new-batch-form" type="submit">New Batch</button>
           {% endif %}
         </div>
-        <button id="stop-batch" type="button"{% if not stop_ready %} disabled{% endif %} aria-describedby="stop-note">Stop Batch</button>
+        <button id="stop-batch" type="button"{% if not stop_ready %} disabled{% endif %}>Stop Batch</button>
       </div>
-      <p class="note" id="stop-note">Stop finishes the current operation and preserves completed work.</p>
       <p role="status" id="stop-feedback"></p>
     </div>
   </div>
