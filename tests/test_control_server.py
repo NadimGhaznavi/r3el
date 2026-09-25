@@ -156,7 +156,7 @@ class ControlServerTests(unittest.TestCase):
                     status, _, body = self.request(path)
                     self.assertEqual(status, 200)
                     self.assertIn('<button', body)
-                    self.assertEqual('type="button" disabled' in body, workspace is not None)
+                    self.assertEqual('disabled aria-describedby="batch-processing">New Batch' in body, workspace is not None)
                     self.assertNotIn('http-equiv="refresh"', body)
         new_batch.assert_not_called()
 
@@ -198,34 +198,19 @@ class ControlServerTests(unittest.TestCase):
                 header = re.search(r'<div class="batch-heading">.*?</div>', body, re.S).group(0)
                 self.assertRegex(header, r'Updated: <time datetime="[^"]+\+00:00" data-local-time="batch">—</time>')
 
-    def test_process_batch_is_enabled_after_identification_even_with_pending_actions(self):
-        batch = MediaFileBatch('batch-1', 5, '/tmp', files=[
-            MediaFile('file-1', '/tmp/a.mkv', state=MediaFileState.IDENTIFIED,
-                      action=MediaFileAction.APPROVE)])
-        self.workspace.return_value = batch
-        for state, action, enabled in (
-            (MediaFileBatchState.PROCESSING, MediaFileAction.APPROVE, False),
-            (MediaFileBatchState.FAILED, MediaFileAction.APPROVE, False),
-            (MediaFileBatchState.MATCHING, MediaFileAction.APPROVE, False),
-            (MediaFileBatchState.MATCHING_COMPLETED, MediaFileAction.APPROVE, True),
-            (MediaFileBatchState.MATCHING_FAILED, MediaFileAction.APPROVE, True),
-            (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.PENDING, True),
-            (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.APPROVE, True),
-            (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.IGNORE, True),
-            (MediaFileBatchState.IDENTIFICATION_COMPLETED, MediaFileAction.DELETE, True),
-        ):
-            with self.subTest(state=state, action=action):
-                batch.state, batch.files[0].action = state, action
+    def test_batch_buttons_are_above_workspace_without_process_batch(self):
+        self.workspace.return_value = MediaFileBatch('batch', 5, '/tmp', files=[
+            MediaFile('file', '/tmp/a.mkv', state=MediaFileState.IDENTIFIED)])
+        for state in MediaFileBatchState:
+            with self.subTest(state=state):
+                self.workspace.return_value.state = state
                 body = self.request('/')[2]
-                button = re.search(r'<button id="match-tmdb"[^>]*>', body).group(0)
-                self.assertEqual('disabled' not in button, enabled)
-                self.assertIn('type="button"', button)
-                self.assertIn('>Process Batch</button>', body)
-                self.assertNotIn('onclick', button)
-                self.assertIn(f'<option value="{action}" selected>', body)
-        batch.files = []
-        self.assertIn('type="button" disabled', re.search(
-            r'<button id="match-tmdb"[^>]*>', self.request('/')[2]).group(0))
+                panel = body.split('<div class="batch-panel">')[0]
+                self.assertIn('>New Batch</button>', panel)
+                self.assertIn('>Stop Batch</button>', panel)
+                self.assertNotIn('Process Batch', body)
+                self.assertNotIn('processBatch', body)
+                self.assertLess(panel.index('id="control-refresh"'), panel.index('class="batch-buttons"'))
 
     def test_automatic_pipeline_disables_menus_and_polls_without_matching_post(self):
         self.workspace.return_value = MediaFileBatch('batch', 5, '/tmp',

@@ -38,6 +38,18 @@
         </label>
         <button type="submit">Update</button>
       </form>
+      <div class="batch-buttons">
+        <div id="new-batch-action">
+          {% if automatic_processing or matching_job %}
+          <button type="button" disabled aria-describedby="batch-processing">New Batch</button>
+          {% else %}
+          <button form="new-batch-form" type="submit">New Batch</button>
+          {% endif %}
+        </div>
+        <button id="stop-batch" type="button"{% if not stop_ready %} disabled{% endif %} aria-describedby="stop-note">Stop Batch</button>
+      </div>
+      <p class="note" id="stop-note">Stop finishes the current operation and preserves completed work.</p>
+      <p role="status" id="stop-feedback"></p>
     </div>
   </div>
   <div class="batch-panel">
@@ -48,14 +60,6 @@
   {% if workspace is not none %}
   <p id="batch-processing">{% if automatic_processing or matching_job %}{% if workspace.stop_requested %}Stopping after the current operation...{% else %}Batch is being processed automatically...{% endif %}{% elif workspace.stop_requested %}Batch stopped. Completed work has been preserved.{% else %}Batch processing has stopped. Review the results below.{% endif %}</p>
   {% endif %}
-  <div id="new-batch-action">
-    {% if automatic_processing or matching_job %}
-    <button type="button" disabled aria-describedby="batch-processing">New Batch</button>
-    {% else %}
-    <button form="new-batch-form" type="submit" aria-describedby="batch-note">New Batch</button>
-    <p class="note" id="batch-note">Source is the input directory. New Batch clears the finished workspace and starts a fresh selection. Saved catalogue records and event history are preserved. Resolved movies are catalogued and moved into the output directory.</p>
-    {% endif %}
-  </div>
   {% if workspace is not none %}
   {% include 'workspace.html' %}
   {% endif %}

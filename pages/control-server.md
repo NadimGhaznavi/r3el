@@ -61,19 +61,19 @@ retries before identification starts for the next group. Remaining files stay
 Pending. The last group may contain fewer than 10 files.
 
 **Stop Batch** requests a cooperative stop for automatic processing or a manual
-Process Batch job. The request is committed independently of the worker's processing
+TMDB ID matching job. The request is committed independently of the worker's processing
 lock. The current operation finishes safely, then the worker stops before another
 file or identification retry. An in-flight model/API call must return or time out;
 the button does not kill services or interrupt a catalogue transaction or file move.
 Completed work remains saved, untouched pending files remain pending, and the batch
 is marked cancelled. The UI shows stopping/stopped status. Stop requests survive
-restarts and cannot be silently resumed by a repeated Process Batch request.
+restarts and cannot be silently resumed by a repeated matching request.
 This does not clear the retained workspace or add a Resume action.
 
 After each group's identification, the server automatically searches movies by the saved title
 and year for Pending and Approve files. Ignore and Delete files are skipped without
-file operations. Once automatic processing stops, Process Batch is available for
-manual retries on a nonempty identified batch, even with Pending actions.
+file operations. New Batch and Stop Batch sit together below Refresh.
+There is no Process Batch button; unresolved matches can be corrected with the TMDB ID button.
 The background worker holds the workspace processing lock; action changes
 receive a conflict while it runs. Duplicate submissions for the active batch
 return the same job instead of starting more work. Results are saved per file as searches finish.
@@ -115,7 +115,7 @@ adjacent-year search returning exactly one movie is accepted. Multiple results
 use the usual LLM multiple-choice workflow; an unresolved choice is left for
 the manual TMDB ID field. Only zero results continue to the next year.
 If neither year gives any matches, use the manual TMDB ID field. The file becomes
-`unresolved_llm` and later Process Batch requests leave it exhausted. The batch
+`unresolved_llm` and later matching requests leave it exhausted. The batch
 continues to other files. API failures do not count as zero-result searches;
 failed adjacent-year requests can be retried without repeating completed years.
 The Status column shows Pending while identification retries, adjacent-year
@@ -146,7 +146,7 @@ Refresh updates only the file table, button readiness,
 and last-updated timestamp; the page and form inputs stay in place. Update
 applies the interval without navigation. Refresh waits while an action menu is
 focused or a save is in progress. The selected interval stays in the URL and is retained
-after New Batch acceptance and Process Batch completion.
+after New Batch acceptance and matching completion.
 The Current Batch panel contains the file table in its own bordered box.
 Long batches scroll within that box, with the column headers fixed at its top.
 “Updated” on the right of its header uses `MM-DD HH:MM:SS` and reports the page's latest workspace read in the browser's local timezone,
@@ -375,7 +375,7 @@ The CLI reads `TMDB_TOKEN` from the invoking shell first, then
 Credential files are read as data, never executed. Unreadable files are skipped;
 existing credential permissions are preserved.
 
-The script uses the same `primary_release_year` search as Process Batch and prints
+The script uses the same `primary_release_year` search as batch processing and prints
 numbered results with release date, language, rating, TMDB link, and full wrapped
 overview. It clearly labels partial first-page results and reports no matches.
 It exits with status 1 for a TMDB/configuration failure and 2 for invalid arguments.

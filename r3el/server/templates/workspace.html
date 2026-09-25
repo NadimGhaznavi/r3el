@@ -63,11 +63,6 @@
   <span id="action-saved" hidden>Action saved.</span>
   <span id="action-error" hidden>Could not confirm the saved action. Reload the page to check the workspace before continuing.</span>
 </p>
-<button id="match-tmdb" type="button"{% if not process_ready or matching_job %} disabled{% endif %} aria-describedby="match-note">Process Batch</button>
-<button id="stop-batch" type="button"{% if not stop_ready %} disabled{% endif %} aria-describedby="stop-note">Stop Batch</button>
-<p class="note" id="stop-note">Stop finishes the current operation and preserves completed work.</p>
-<p role="status" id="stop-feedback"></p>
-<p class="note" id="match-note">New Batch runs identification and TMDB matching automatically. Process Batch can retry matching afterward. Ignore and Delete files are skipped.</p>
 <p role="status" id="match-feedback">
   <span id="match-running" hidden>Processing batch...</span>
   <span id="match-error" hidden>Could not confirm matching finished. Reload the page to check saved results before trying again.</span>
@@ -79,7 +74,6 @@
   let matchingInProgress = false;
   let revision = 0;
   let refreshSequence = 0;
-  const processBatch = document.getElementById('match-tmdb');
   const stopBatch = document.getElementById('stop-batch');
   let stopRequested = {{ workspace.stop_requested | tojson }};
   const feedback = [...document.querySelectorAll('#action-feedback span')];
@@ -93,7 +87,6 @@
       savingAction = true;
       revision += 1;
       actionMenus().forEach(select => { select.disabled = true; });
-      processBatch.disabled = true;
       feedback.forEach(message => { message.hidden = message !== saving; });
       try {
         const response = await fetch({{ settings.FILE_ACTION_URL | tojson }}, {
@@ -110,7 +103,6 @@
           if (matchCell) matchCell.textContent = '—';
         }
         menu.dataset.savedAction = menu.value;
-        processBatch.disabled = result.ready !== true;
         feedback.forEach(message => { message.hidden = message !== saved; });
         actionMenus().forEach(select => { select.disabled = false; });
       } catch {
@@ -138,7 +130,6 @@
         || table.contains(document.activeElement)) return;
     if (matchingInProgress) updated.querySelectorAll('select').forEach(select => { select.disabled = true; });
     table.replaceWith(updated);
-    processBatch.disabled = matchingInProgress || page.getElementById('match-tmdb').disabled;
     stopRequested = updated.dataset.stopRequested === 'true';
     stopBatch.disabled = page.getElementById('stop-batch').disabled;
     if (stopRequested && updated.dataset.automaticProcessing !== 'true' && !matchingInProgress) {
@@ -146,6 +137,7 @@
     }
     document.querySelector('.last-updated').replaceWith(page.querySelector('.last-updated'));
     document.getElementById('batch-processing').textContent = page.getElementById('batch-processing').textContent;
+    const newBatchDisabled = matchingInProgress || page.querySelector('#new-batch-action button').disabled;
     const controls = document.getElementById('batch-controls-section');
     const nextControls = page.getElementById('batch-controls-section');
     if (Boolean(controls.querySelector('form')) !== Boolean(nextControls.querySelector('form'))) {
@@ -154,6 +146,7 @@
       const refreshInput = nextControls.querySelector('input[name="refresh"]');
       if (refreshInput) refreshInput.value = document.querySelector('#control-refresh select').value;
     }
+    document.querySelector('#new-batch-action button').disabled = newBatchDisabled;
     window.formatLocalTimes();
   }
   window.refreshWorkspace = refreshWorkspace;
@@ -177,7 +170,7 @@
     revision += 1;
     document.querySelectorAll('.file-action').forEach(select => { select.disabled = true; });
     document.querySelectorAll('.manual-match input, .manual-match button').forEach(control => { control.disabled = true; });
-    processBatch.disabled = true;
+    document.querySelector('#new-batch-action button').disabled = true;
     stopBatch.disabled = stopRequested;
     document.getElementById('match-running').hidden = false;
     document.getElementById('match-error').hidden = true;
@@ -234,22 +227,6 @@
   });
   document.addEventListener('input', event => {
     if (event.target.matches('.manual-match input')) event.target.setCustomValidity('');
-  });
-
-  processBatch.addEventListener('click', async () => {
-    showMatching();
-    try {
-      const response = await fetch({{ settings.MATCH_TMDB_URL | tojson }}, {
-        method: 'POST',
-        body: new URLSearchParams({batch_id: {{ workspace.id | tojson }}})
-      });
-      if (!response.ok) throw new Error();
-      const result = await response.json();
-      if (result.accepted !== true) throw new Error();
-      pollMatching(result.job_id);
-    } catch {
-      matchingFailed();
-    }
   });
 
   stopBatch.addEventListener('click', async () => {
