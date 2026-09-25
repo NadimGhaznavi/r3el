@@ -54,10 +54,10 @@ identification are queried by title/year; Ignore and Delete
 files are skipped. Results are checkpointed in `media_files.tmdb_match` as JSON.
 Exactly one total result is a match; zero triggers a fresh identification and
 search, up to three retries. Continued zero results trigger searches for the final
-identified title one year earlier, then one year later. Only exactly one result
-is accepted from these searches; otherwise the file becomes `unresolved_llm`
-for manual TMDB ID matching. Adjacent-year progress is saved with the query.
-Multiple results from the original-year searches trigger
+identified title one year earlier, then one year later. A single result is
+accepted, and only zero results continue to the next year. If both years return
+zero results, the file becomes `unresolved_llm` for manual TMDB ID matching.
+Adjacent-year progress is saved with the query. Multiple results from any search trigger
 a `multiple_choice` prompt containing candidate numbers, titles, and short overview excerpts ending at a
 sentence boundary. The LLM
 selection is saved as `selected_number` (1-based; 0 means no confident choice),

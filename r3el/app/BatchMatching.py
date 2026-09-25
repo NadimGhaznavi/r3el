@@ -131,8 +131,7 @@ class BatchMatching:
                 if not result.skipped and item.retries > 0 and item.state == MediaFileState.UNRESOLVED_LLM:
                     continue
                 needs_selection = (result.response is not None and not result.skipped and result.error is None
-                                   and result.response['total_results'] > 1 and result.selected_number is None
-                                   and result.year_offset == 0)
+                                   and result.response['total_results'] > 1 and result.selected_number is None)
                 if needs_selection:
                     result = replace(result, selection_pending=True, selection_error=None)
                 event = None if result.skipped or result.year_offset != 0 else log.prepare(
@@ -157,6 +156,8 @@ class BatchMatching:
 
     def _search_adjacent_years(self, batch: MediaFileBatch, item: MediaFile,
                                result: TMDBMatch, log: EventWriter) -> TMDBMatch:
+        if result.error is None and result.response is not None and result.response['total_results'] > 0:
+            return result
         year = result.year - result.year_offset
         offsets = (-1, 1)
         start = 0 if result.year_offset == 0 else offsets.index(result.year_offset)
@@ -170,7 +171,7 @@ class BatchMatching:
                 Categories.TMDB.RESULT, Names.TMDB_RESULT,
                 dict(asdict(result), outcome=result.label), source='TMDB',
                 level='ERROR' if result.error else 'INFO'))
-            if result.error is not None or result.response['total_results'] == 1:
+            if result.error is not None or result.response['total_results'] > 0:
                 return result
         item.tmdb_match = result
         RetryIdentification(self._workspace, self._llm).exhausted(item, log)
