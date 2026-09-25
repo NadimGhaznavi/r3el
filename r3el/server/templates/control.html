@@ -41,6 +41,7 @@
       </form>
     </div>
   </div>
+  <div class="batch-panel">
   <div class="batch-heading">
     <h2>Current Batch</h2>
     <span class="last-updated">Updated: <time datetime="{{ last_updated | utc_iso }}" data-local-time="batch">—</time></span>
@@ -59,6 +60,7 @@
   {% if workspace is not none %}
   {% include 'workspace.html' %}
   {% endif %}
+  </div>
   {% if result %}
   <p role="status">
     {% if result == messages.ACCEPTED %}

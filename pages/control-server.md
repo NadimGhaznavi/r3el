@@ -147,7 +147,8 @@ and last-updated timestamp; the page and form inputs stay in place. Update and R
 update the interval without navigation. Refresh waits while an action menu is
 focused or a save is in progress. The selected interval stays in the URL and is retained
 after New Batch acceptance and Process Batch completion.
-“Updated” on the right of the Current Batch header reports the page's latest workspace read in the browser's local timezone,
+The Current Batch panel contains the file table in its own bordered box.
+“Updated” on the right of its header uses `MM-DD HH:MM:SS` and reports the page's latest workspace read in the browser's local timezone,
 not the time the file last changed. Pending files stay Pending until an outcome
 is saved. Reads use the shared workspace interface without taking the processor's
 exclusive lock. A database failure shows Workspace unavailable with no button.

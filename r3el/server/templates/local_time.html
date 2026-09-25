@@ -12,7 +12,7 @@
       if (element.dataset.localTime === 'batch') {
         const time = new Date(element.dateTime);
         const pad = value => String(value).padStart(2, '0');
-        element.textContent = `${pad(time.getMonth() + 1)}-${pad(time.getDate())} ${pad(time.getHours() % 12 || 12)}:${pad(time.getMinutes())}${time.getHours() < 12 ? 'AM' : 'PM'}:${pad(time.getSeconds())}`;
+        element.textContent = `${pad(time.getMonth() + 1)}-${pad(time.getDate())} ${pad(time.getHours())}:${pad(time.getMinutes())}:${pad(time.getSeconds())}`;
       } else {
         element.textContent = localTimeText(element.dateTime, element.dataset.localTime === 'compact');
       }

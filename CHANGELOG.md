@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Enclose the current batch table in its own bordered box inside the Current Batch panel, with the header timestamp formatted as `MM-DD HH:MM:SS`.
 - Arrange the Control page with the logo beside vertically aligned source, destination, batch size, and refresh settings. Rename the refresh button Update and move the local update time into a separate Current Batch header.
 
 ## [1.2.2] - 2026-09-25 @ 05:28
