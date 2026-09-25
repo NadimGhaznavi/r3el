@@ -156,6 +156,7 @@ class ZeroMatchRetryTests(unittest.TestCase):
                     self.tmdb.search.side_effect = [multiple] if offset == -1 else [self.zero, multiple]
                     def choose(match, log):
                         self.assertTrue(match.selection_pending)
+                        self.assertTrue(self.item.pending)
                         self.assertEqual(match.year, 2025 + offset)
                         self.assertEqual(match.response, multiple)
                         return replace(match, selected_number=choice)
@@ -198,6 +199,7 @@ class ZeroMatchRetryTests(unittest.TestCase):
         self.tmdb.search.side_effect = [self.zero, TMDBError('Unavailable')]
         self.runner.run('batch')
         self.assertEqual(self.item.tmdb_match.label, 'Match failed')
+        self.assertFalse(self.item.pending)
         self.assertEqual(self.item.state, MediaFileState.IDENTIFIED)
         self.tmdb.search.side_effect = [self.single]
         self.runner.run('batch')
@@ -212,6 +214,36 @@ class ZeroMatchRetryTests(unittest.TestCase):
         self.runner.run('batch')
         self.tmdb.search.assert_called_once_with('Creative Movie', 2026)
         self.assertEqual(self.item.tmdb_match.label, '1 match')
+
+    def test_adjacent_year_searches_show_pending_until_finished(self):
+        self.item.retries = 3
+        self.item.tmdb_match = TMDBMatch('Creative Movie', 2025, response=self.zero)
+        def search(title, year):
+            self.assertTrue(self.item.pending)
+            self.assertFalse(self.item.tmdb_match.needs_manual_match)
+            return self.zero if year == 2024 else self.single
+        self.tmdb.search.side_effect = search
+        self.runner.run('batch')
+        self.assertEqual(self.tmdb.search.call_count, 2)
+        self.assertFalse(self.item.pending)
+
+    def test_interrupted_adjacent_search_clears_pending_and_can_resume(self):
+        self.item.retries = 3
+        previous = TMDBMatch('Creative Movie', 2025, response=self.zero)
+        self.item.tmdb_match = previous
+        def interrupt(title, year):
+            self.assertTrue(self.item.pending)
+            raise RuntimeError('Interrupted')
+        self.tmdb.search.side_effect = interrupt
+        with self.assertRaisesRegex(RuntimeError, 'Interrupted'):
+            self.runner.run('batch')
+        self.assertFalse(self.item.pending)
+        self.assertEqual(self.item.tmdb_match, previous)
+        self.tmdb.search.side_effect = None
+        self.tmdb.search.return_value = self.single
+        self.runner.run('batch')
+        self.assertEqual(self.tmdb.search.call_args.args, ('Creative Movie', 2024))
+        self.assertFalse(self.item.pending)
 
     def test_stop_between_adjacent_years_preserves_progress(self):
         self.item.retries = 3
