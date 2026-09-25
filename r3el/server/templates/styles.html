@@ -18,7 +18,23 @@
   .manual-match { flex-wrap: nowrap; align-items: center; gap: .5rem; margin: 0; width: max-content; }
   .manual-match input { box-sizing: content-box; width: 15ch; flex: none; }
   .manual-match button { flex: none; white-space: nowrap; }
-  .control-logo { display: block; width: min(100%, 20rem); height: auto; margin: 1rem 0; }
+  .control-logo { display: block; width: 100%; max-width: 20rem; height: auto; justify-self: center; }
+  .control-panel { display: grid; grid-template-columns: minmax(10rem, 20rem) minmax(0, 1fr); align-items: center; gap: 2rem; padding: 2rem; border: 1px solid #344351; border-radius: .8rem; margin-bottom: 1.5rem; }
+  .control-settings { min-width: 0; }
+  .control-settings form[aria-label="New batch"] { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; }
+  .control-settings label { grid-template-columns: 7rem minmax(0, 1fr); align-items: center; }
+  .control-settings input[type="number"] { width: 8rem; }
+  .control-settings button { justify-self: start; }
+  .control-settings #control-refresh { display: grid; grid-template-columns: max-content 1fr; margin: 1rem 0 0; }
+  #control-refresh label { grid-column: 1 / -1; justify-self: start; }
+  #control-refresh a { align-self: center; }
+  #new-batch-action { margin: 1rem 0; }
+  .control-settings .control-values { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .control-settings .control-values > div { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: .4rem; }
+  .control-settings .control-values dd { margin: 0; }
+  .batch-panel { border: 1px solid #344351; border-radius: .65rem; padding: 1rem 1.5rem; min-width: 0; }
+  .batch-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+  .batch-heading h2, .batch-heading .last-updated { margin: 0; }
   .media-directory { flex: 1 1 20rem; }
   .media-directory input { width: 100%; min-width: 0; }
   .batch-controls { max-width: 90rem; }
@@ -30,6 +46,9 @@
   button { cursor: pointer; }
   :focus-visible { outline: 2px solid #8dd9cb; outline-offset: 3px; }
   .table-wrap { overflow-x: auto; border: 1px solid #344351; border-radius: .4rem; }
+  .workspace-table-wrap { max-height: 75vh; overflow: auto; }
+  .workspace-files { border-collapse: separate; border-spacing: 0; }
+  .workspace-files thead th { position: sticky; top: 0; z-index: 1; background: #1b2935; }
   table { border-collapse: collapse; width: 100%; text-align: left; font-size: .9rem; }
   th, td { padding: .8rem; border-bottom: 1px solid #344351; vertical-align: top; }
   th { background: #1b2935; }
@@ -86,6 +105,10 @@
   .match-json pre { margin-top: 1rem; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   @media (max-width: 600px) {
+    .batch-panel { padding: 1rem; }
+    .control-panel { grid-template-columns: minmax(0, 1fr); padding: 1rem; gap: 1rem; }
+    .control-logo { max-width: 12rem; }
+    .control-settings label, .control-settings .control-values > div { grid-template-columns: minmax(0, 1fr); }
     .movie-card { grid-template-columns: 1fr; }
     .movie-poster img { max-width: 12rem; }
     .movie-info { padding: 1.5rem; }
