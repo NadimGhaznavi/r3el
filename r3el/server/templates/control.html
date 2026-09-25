@@ -1,52 +1,66 @@
 {% extends 'base.html' %}
 {% block title %}Control{% endblock %}
 {% block page_refresh %}{% endblock %}
-{% block updated %}<span class="last-updated">Last updated: <time datetime="{{ last_updated | utc_iso }}" data-local-time="full">—</time></span>{% endblock %}
 {% block content %}
-<img class="control-logo" src="{{ settings.CONTROL_LOGO_URL }}" alt="R3el">
 <div class="batch-controls">
-  <h1 id="control-heading">Control</h1>
-  <form method="get" action="/" aria-label="Control refresh" id="control-refresh">
-    <label>Refresh
-      <select name="refresh">
-        {% for seconds, label in [(0, 'Manual'), (5, '5 seconds'), (30, '30 seconds'), (60, '1 minute')] %}<option value="{{ seconds }}" {% if refresh == seconds %}selected{% endif %}>{{ label }}</option>{% endfor %}
-      </select>
-    </label>
-    <button type="submit">Apply / refresh</button>
-    <a href="/" id="reset-refresh">Reset</a>
-  </form>
-  <section id="batch-controls-section" aria-labelledby="control-heading"{% if automatic_processing or matching_job %} class="control-occupied"{% endif %}>
+  <h1 id="control-heading" class="sr-only">Control</h1>
+  <div class="control-panel">
+    <img class="control-logo" src="{{ settings.CONTROL_LOGO_URL }}" alt="R3el">
+    <div class="control-settings">
+      <section id="batch-controls-section" aria-labelledby="control-heading"{% if automatic_processing or matching_job %} class="control-occupied"{% endif %}>
+      {% if automatic_processing or matching_job %}
+      <dl class="control-values">
+        <div class="media-directory"><dt>Source</dt><dd>{{ workspace.source_directory }}</dd></div>
+        <div class="media-directory"><dt>Destination</dt><dd>{{ workspace.destination_directory or 'Not available' }}</dd></div>
+        <div><dt>Batch Size</dt><dd>{{ workspace.requested_size }}</dd></div>
+      </dl>
+      {% else %}
+      <form method="post" action="{{ settings.NEW_BATCH_URL }}" aria-label="New batch" id="new-batch-form">
+        <input type="hidden" name="refresh" value="{{ refresh }}">
+        <label class="media-directory" for="media-directory">Source
+          <input id="media-directory" name="input_directory" type="text" value="{{ input_directory }}" required>
+        </label>
+        <label class="media-directory" for="output-directory">Destination
+          <input id="output-directory" name="output_directory" type="text" value="{{ output_directory or '' }}" required>
+        </label>
+        <label for="batch-size">Batch Size
+          <input id="batch-size" name="batch_size" type="number" min="1" max="{{ settings.MAX_BATCH_SIZE }}" step="1" value="{{ batch_size }}" required>
+        </label>
+      </form>
+
+      {% endif %}
+      </section>
+      <form method="get" action="/" aria-label="Control refresh" id="control-refresh">
+        <label>Refresh
+          <select name="refresh">
+            {% for seconds, label in [(0, 'Manual'), (5, '5 seconds'), (30, '30 seconds'), (60, '1 minute')] %}<option value="{{ seconds }}" {% if refresh == seconds %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+        <button type="submit">Update</button>
+        <a href="/" id="reset-refresh">Reset</a>
+      </form>
+    </div>
+  </div>
+  <div class="batch-panel">
+  <div class="batch-heading">
+    <h2>Current Batch</h2>
+    <span class="last-updated">Updated: <time datetime="{{ last_updated | utc_iso }}" data-local-time="batch">—</time></span>
+  </div>
   {% if workspace is not none %}
   <p id="batch-processing">{% if automatic_processing or matching_job %}{% if workspace.stop_requested %}Stopping after the current operation...{% else %}Batch is being processed automatically...{% endif %}{% elif workspace.stop_requested %}Batch stopped. Completed work has been preserved.{% else %}Batch processing has stopped. Review the results below.{% endif %}</p>
   {% endif %}
-  {% if automatic_processing or matching_job %}
-  <dl class="control-values">
-    <div class="media-directory"><dt>Media Directory</dt><dd>{{ workspace.source_directory }}</dd></div>
-    <div class="media-directory"><dt>Output Directory</dt><dd>{{ workspace.destination_directory or 'Not available' }}</dd></div>
-    <div><dt>Batch Size</dt><dd>{{ workspace.requested_size }}</dd></div>
-  </dl>
-  <button type="button" disabled aria-describedby="batch-processing">New Batch</button>
-  {% else %}
-  <form method="post" action="{{ settings.NEW_BATCH_URL }}" aria-label="New batch">
-    <input type="hidden" name="refresh" value="{{ refresh }}">
-    <label class="media-directory" for="media-directory">Media Directory
-      <input id="media-directory" name="input_directory" type="text" value="{{ input_directory }}" required>
-    </label>
-    <label class="media-directory" for="output-directory">Output Directory
-      <input id="output-directory" name="output_directory" type="text" value="{{ output_directory or '' }}" required>
-    </label>
-    <label for="batch-size">Batch Size
-      <input id="batch-size" name="batch_size" type="number" min="1" max="{{ settings.MAX_BATCH_SIZE }}" step="1" value="{{ batch_size }}" required>
-    </label>
-    <button type="submit" aria-describedby="batch-note">New Batch</button>
-  </form>
-  <p class="note" id="batch-note">Media Directory is the input directory. New Batch clears the finished workspace and starts a fresh selection. Saved catalogue records and event history are preserved. Resolved movies are catalogued and moved into the output directory.</p>
-  {% endif %}
-  </section>
+  <div id="new-batch-action">
+    {% if automatic_processing or matching_job %}
+    <button type="button" disabled aria-describedby="batch-processing">New Batch</button>
+    {% else %}
+    <button form="new-batch-form" type="submit" aria-describedby="batch-note">New Batch</button>
+    <p class="note" id="batch-note">Source is the input directory. New Batch clears the finished workspace and starts a fresh selection. Saved catalogue records and event history are preserved. Resolved movies are catalogued and moved into the output directory.</p>
+    {% endif %}
+  </div>
   {% if workspace is not none %}
-  <h2>Current batch</h2>
   {% include 'workspace.html' %}
   {% endif %}
+  </div>
   {% if result %}
   <p role="status">
     {% if result == messages.ACCEPTED %}

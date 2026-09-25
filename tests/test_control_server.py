@@ -133,13 +133,13 @@ class ControlServerTests(unittest.TestCase):
     def test_empty_workspace_shows_batch_controls(self):
         status, _, body = self.request('/')
         self.assertEqual(status, 200)
-        self.assertIn('Media Directory', body)
+        self.assertIn('Source', body)
         self.assertIn('value="/exports/disk1/archive/film"', body)
         self.assertIn('value="5"', body)
         self.assertIn('step="1" value="10" required', body)
         self.assertIn('type="submit" aria-describedby="batch-note">New Batch', body)
         self.assertIn('/static/r3el.png', body)
-        self.assertIn('Last updated:', body)
+        self.assertIn('Updated:', body)
         self.assertNotIn('http-equiv="refresh"', body)
         self.workspace.assert_called_once()
         self.db.close.assert_called_once()
@@ -178,7 +178,7 @@ class ControlServerTests(unittest.TestCase):
                 self.assertLess(body.index('z&lt;&amp;&gt;.mkv'), body.index('a.mkv'))
                 for label in ('Pending', 'Identified', 'Unresolved — identification', 'Unresolved — hidden file'):
                     self.assertIn(label, body)
-                self.assertIn('<h1 id="control-heading">Control</h1>', body)
+                self.assertIn('<h1 id="control-heading" class="sr-only">Control</h1>', body)
                 self.assertIn('id="batch-processing"', body)
                 active = self.workspace.return_value.in_progress
                 self.assertEqual('class="control-occupied"' in body, active)
@@ -195,8 +195,8 @@ class ControlServerTests(unittest.TestCase):
                 self.assertIn('class="file-action"', body)
                 self.assertEqual(bool(re.search(r'<form[^>]*aria-label="New batch"', body)), not active)
                 self.assertNotIn('http-equiv="refresh"', body)
-                header = re.search(r'<header.*?</header>', body, re.S).group(0)
-                self.assertRegex(header, r'Last updated: <time datetime="[^"]+\+00:00" data-local-time="full">—</time>')
+                header = re.search(r'<div class="batch-heading">.*?</div>', body, re.S).group(0)
+                self.assertRegex(header, r'Updated: <time datetime="[^"]+\+00:00" data-local-time="batch">—</time>')
 
     def test_process_batch_is_enabled_after_identification_even_with_pending_actions(self):
         batch = MediaFileBatch('batch-1', 5, '/tmp', files=[
@@ -720,7 +720,7 @@ class InstalledControlTests(unittest.TestCase):
             self.assertIn('--port', result.stdout)
             render = """from r3el.server.EventPages import EventPages
 page = EventPages().render('control.html', workspace=None, refresh=0)
-assert b'Media Directory' in page
+assert b'Source' in page
 from r3el.entity.MediaFile import MediaFile
 from r3el.entity.MediaFileBatch import MediaFileBatch
 batch = MediaFileBatch('batch-1', 5, '/tmp', files=[MediaFile('file-1', '/tmp/Film.mkv')])

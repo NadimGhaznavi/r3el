@@ -17,8 +17,9 @@ entries return 404.
 
 `r3el-control.service` is a standalone Jinja2 report server. It displays the
 MariaDB event log while the identification service is running or stopped and
-does not require Qwen. When the workspace is empty, the landing page provides a Media Directory text box prefilled from `DR3el.FILM_DIR`,
-an Output Directory text box prefilled from `DR3el.MEDIA_DIR`, a free-form Batch Size
+does not require Qwen. The landing page places the logo beside vertically aligned
+settings in a bordered panel. When the workspace is empty, it provides a Source text box prefilled from `DR3el.FILM_DIR`,
+a Destination text box prefilled from `DR3el.MEDIA_DIR`, a free-form Batch Size
 number input (positive whole numbers, default 10), and a New Batch button. The maximum
 is 4,294,967,295, matching the database column's capacity. The button sends the directories
 and size to the identification server over ZeroMQ. Labels and result messages
@@ -140,13 +141,15 @@ After New Batch is accepted, the control page reloads once after two seconds to
 show the discovered files. It returns to `/`, removing the acceptance flag so the
 reload does not repeat or resubmit the batch. During automatic processing, the
 table updates every two seconds until the batch finishes or fails. The Refresh dropdown offers Manual
-(the default), 5 seconds, 30 seconds, and 1 minute, with Apply / refresh and Reset
-controls like the event log. Refresh updates only the file table, button readiness,
-and last-updated timestamp; the page and form inputs stay in place. Apply and Reset
+(the default), 5 seconds, 30 seconds, and 1 minute, with Update and Reset
+controls. Refresh updates only the file table, button readiness,
+and last-updated timestamp; the page and form inputs stay in place. Update and Reset
 update the interval without navigation. Refresh waits while an action menu is
 focused or a save is in progress. The selected interval stays in the URL and is retained
 after New Batch acceptance and Process Batch completion.
-“Last updated” at the top right reports the page's latest workspace read in the browser's local timezone,
+The Current Batch panel contains the file table in its own bordered box.
+Long batches scroll within that box, with the column headers fixed at its top.
+“Updated” on the right of its header uses `MM-DD HH:MM:SS` and reports the page's latest workspace read in the browser's local timezone,
 not the time the file last changed. Pending files stay Pending until an outcome
 is saved. Reads use the shared workspace interface without taking the processor's
 exclusive lock. A database failure shows Workspace unavailable with no button.
