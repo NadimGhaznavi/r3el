@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-25 @ 05:00
+
 ### Changed
 
 - After three zero-result identification retries, search TMDB one year earlier and then one year later; accept only a single match, otherwise leave the file for manual TMDB ID matching. Checkpoint these searches for resume and retry.
