@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-25 @ 04:38
+
 ### Changed
 
 - Offer the manual TMDB ID field and button for No matches rows after batch processing stops, using the existing lookup and catalogue workflow.
