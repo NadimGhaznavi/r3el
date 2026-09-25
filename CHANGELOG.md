@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Size manual TMDB ID fields to 15 characters and keep each field and its button on one line, allowing the table to expand as needed.
+
 ## [1.1.0] - 2026-09-25 @ 04:38
 
 ### Changed
