@@ -150,6 +150,7 @@
     const nextControls = page.getElementById('batch-controls-section');
     if (Boolean(controls.querySelector('form')) !== Boolean(nextControls.querySelector('form'))) {
       controls.replaceWith(nextControls);
+      document.getElementById('new-batch-action').replaceWith(page.getElementById('new-batch-action'));
       const refreshInput = nextControls.querySelector('input[name="refresh"]');
       if (refreshInput) refreshInput.value = document.querySelector('#control-refresh select').value;
     }
