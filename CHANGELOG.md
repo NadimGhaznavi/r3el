@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-25 @ 19:02
+
 ### Changed
 
 - Remove the explanatory note beneath New Batch.
