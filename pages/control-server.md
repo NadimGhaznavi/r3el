@@ -141,10 +141,10 @@ After New Batch is accepted, the control page reloads once after two seconds to
 show the discovered files. It returns to `/`, removing the acceptance flag so the
 reload does not repeat or resubmit the batch. During automatic processing, the
 table updates every two seconds until the batch finishes or fails. The Refresh dropdown offers Manual
-(the default), 5 seconds, 30 seconds, and 1 minute, with Update and Reset
-controls. Refresh updates only the file table, button readiness,
-and last-updated timestamp; the page and form inputs stay in place. Update and Reset
-update the interval without navigation. Refresh waits while an action menu is
+(the default), 5 seconds, 30 seconds, and 1 minute, with an Update button.
+Refresh updates only the file table, button readiness,
+and last-updated timestamp; the page and form inputs stay in place. Update
+applies the interval without navigation. Refresh waits while an action menu is
 focused or a save is in progress. The selected interval stays in the URL and is retained
 after New Batch acceptance and Process Batch completion.
 The Current Batch panel contains the file table in its own bordered box.

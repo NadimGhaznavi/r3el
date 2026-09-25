@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove the Reset link beside the Control page's Update button.
+
 ## [1.3.0] - 2026-09-25 @ 18:45
 
 ### Summary 

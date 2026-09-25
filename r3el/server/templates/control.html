@@ -37,7 +37,6 @@
           </select>
         </label>
         <button type="submit">Update</button>
-        <a href="/" id="reset-refresh">Reset</a>
       </form>
     </div>
   </div>
@@ -108,11 +107,6 @@
     refreshTable();
   }
   refreshForm.addEventListener('submit', event => { event.preventDefault(); applyRefresh(); });
-  document.getElementById('reset-refresh').addEventListener('click', event => {
-    event.preventDefault();
-    refreshForm.elements.refresh.value = '0';
-    applyRefresh();
-  });
   scheduleRefresh();
 </script>
 {% if result == messages.ACCEPTED %}
