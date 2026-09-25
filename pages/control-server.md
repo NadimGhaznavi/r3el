@@ -117,6 +117,8 @@ If neither year gives any matches, use the manual TMDB ID field. The file become
 `unresolved_llm` and later Process Batch requests leave it exhausted. The batch
 continues to other files. API failures do not count as zero-result searches;
 failed adjacent-year requests can be retried without repeating completed years.
+The Status column shows Pending while identification retries, adjacent-year
+requests, and LLM multiple-choice selection are running.
 Retry counts and outcomes are checkpointed with their events and survive restarts;
 install/upgrade applies the new `media_files.retries` column. Form-correction
 attempts within an identification conversation remain a separate counter.

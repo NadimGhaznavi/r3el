@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Show Pending while adjacent-year TMDB searches run, as already happens during identification retries and multiple-choice selection. Clear the pending status on completion or failure.
+
 ## [1.2.1] - 2026-09-25 @ 05:18
 
 ### Changed
