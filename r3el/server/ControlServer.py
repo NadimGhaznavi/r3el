@@ -206,6 +206,9 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 db = DbMgr()
                 try:
                     workspace = WorkspaceDb(db).snapshot()
+                    latest_event = (EventLogDb(db).latest_for_processes(
+                        [workspace.id] + [item.id for item in workspace.files])
+                        if workspace is not None else None)
                 finally:
                     db.close()
             except pymysql.MySQLError:
@@ -216,7 +219,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             active_job = (job if workspace is not None and job is not None
                           and job['batch_id'] == workspace.id and job['status'] == 'running' else None)
             self.respond(status, pages.render('control.html', workspace=workspace, refresh=refresh,
-                                             matching_job=active_job, **values))
+                                             matching_job=active_job, latest_event=latest_event, **values))
 
         def do_POST(self):
             if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):

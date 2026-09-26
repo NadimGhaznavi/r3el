@@ -176,7 +176,7 @@ class ControlServerTests(unittest.TestCase):
                 self.assertIn('Current batch files', body)
                 self.assertIn('z&lt;&amp;&gt;.mkv', body)
                 self.assertLess(body.index('z&lt;&amp;&gt;.mkv'), body.index('a.mkv'))
-                for label in ('Pending', 'Identified', 'Unresolved — identification', 'Unresolved — hidden file'):
+                for label in ('Pending', 'Imported', 'Unresolved — identification', 'Unresolved — hidden file'):
                     self.assertIn(label, body)
                 self.assertIn('<h1 id="control-heading" class="sr-only">Control</h1>', body)
                 self.assertIn('id="batch-processing"', body)
@@ -211,6 +211,8 @@ class ControlServerTests(unittest.TestCase):
                 self.assertNotIn('Process Batch', body)
                 self.assertNotIn('processBatch', body)
                 self.assertLess(panel.index('id="control-refresh"'), panel.index('class="batch-buttons"'))
+                self.assertLess(panel.index('>Clear Current Batch</button>'), panel.index('id="batch-processing"'))
+                self.assertEqual(body.count('id="batch-processing"'), 1)
 
     def test_automatic_pipeline_polls_without_action_dropdown(self):
         self.workspace.return_value = MediaFileBatch('batch', 5, '/tmp',

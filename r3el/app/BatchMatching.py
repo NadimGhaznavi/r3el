@@ -252,7 +252,7 @@ class BatchMatching:
             if result.copied_files:
                 SourceDirectoryCleanup().finish(result.source_directory or result.source_path, result.copied_files,
                                                 preserve_directory=result.source_directory is not None
-                                                or result.preserve_source_directory)
+                                                or result.preserve_source_directory, log=log)
                 log.write(Categories.File.DELETE, Names.FILE_DELETE,
                           {'outcome': 'deleted', 'paths': [copy['source'] for copy in result.copied_files],
                            'source_directory': result.source_directory or result.source_path,

@@ -80,6 +80,11 @@ class EventPages:
         if template == 'control.html':
             values['control_url'] = '/?refresh=' + str(values['refresh']) if values['refresh'] else '/'
             values.setdefault('matching_job', None)
+            event = values.setdefault('latest_event', None)
+            values['latest_event_message'] = (
+                self.message_template(event['name']).render(
+                    event=event, message=self.message(event['content']))
+                if event is not None else '')
             workspace = values['workspace']
             values['automatic_processing'] = workspace is not None and workspace.in_progress
             values['stop_ready'] = (workspace is not None and not workspace.stop_requested

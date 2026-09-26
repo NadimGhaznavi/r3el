@@ -181,7 +181,7 @@ class PendingSelectionTests(unittest.TestCase):
             item.tmdb_match = replace(match, selection_pending=pending, selected_number=number)
             body = EventPages().render('control.html', workspace=batch, refresh=0).decode()
             self.assertNotIn('class="file-action"', body)
-            self.assertIn('<td>Pending</td>' if pending else '<td>Identified</td>', body)
+            self.assertIn('<td>Pending</td>' if pending else '<td>Imported</td>', body)
             self.assertIn(f'href="/matches/batch/file">{label}</a>', body)
 
     @patch('r3el.app.BatchMatching.MovieSelection.run', side_effect=RuntimeError('bug'))
