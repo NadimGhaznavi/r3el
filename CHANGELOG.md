@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-09-26 @ 03:27
+
 ### Added
 - Log TMDB TV series, season and episode detail requests, results and failures; include episode numbers in catalogue-save and move messages shown in the Event Log and Current Task.
 
