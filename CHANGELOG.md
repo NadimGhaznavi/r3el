@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.0] - 2026-09-26 @ 08:09
+
+### Changed
+- Add two spaces on either side of Search Index letters and omit letters without movie or TV show titles.
+- Give Numbers and Symbols its own Search Index line, followed by three alphabet lines (a–i, j–r, s–z).
+
 ## [5.1.0] - 2026-09-26 @ 08:00
 
 ### Added

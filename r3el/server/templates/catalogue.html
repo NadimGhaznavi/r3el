@@ -67,10 +67,12 @@
 <section class="batch-panel catalogue-index" aria-labelledby="index-search-heading">
   <h2 id="index-search-heading">Search Index</h2>
   <nav aria-label="Search by title initial">
-    {% for letters in ['abcdefg', 'hijklmnopq', 'rstuvwxyz'] %}
     <div class="catalogue-index-row">
-      {% if loop.first %}<a href="/catalogue?index=symbols"{% if search_index == 'symbols' %} aria-current="true"{% endif %}>Numbers and Symbols</a> <span aria-hidden="true">|</span> {% endif %}
-      {% for letter in letters %}<a href="/catalogue?index={{ letter }}"{% if search_index == letter %} aria-current="true"{% endif %}>{{ letter }}</a>{% if not loop.last %} <span aria-hidden="true">|</span> {% endif %}{% endfor %}
+      <a href="/catalogue?index=symbols"{% if search_index == 'symbols' %} aria-current="true"{% endif %}>Numbers and Symbols</a>
+    </div>
+    {% for letters in ['abcdefghi', 'jklmnopqr', 'stuvwxyz'] %}
+    <div class="catalogue-index-row">
+      {% for letter in letters if letter in available_initials %}<a href="/catalogue?index={{ letter }}"{% if search_index == letter %} aria-current="true"{% endif %}>&nbsp;&nbsp;{{ letter }}&nbsp;&nbsp;</a>{% if not loop.last %} <span aria-hidden="true">|</span> {% endif %}{% endfor %}
     </div>
     {% endfor %}
   </nav>

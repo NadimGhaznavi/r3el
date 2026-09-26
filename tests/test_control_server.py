@@ -45,7 +45,10 @@ class ControlServerTests(unittest.TestCase):
             initial.assert_called_with(value)
             self.assertIn('Search Results (0)', body)
             self.assertIn(f'name="index" value="{value}"', body)
-            self.assertEqual(body.count('class="catalogue-index-row"'), 3)
+            self.assertEqual(body.count('class="catalogue-index-row"'), 4)
+            self.assertIn('&nbsp;&nbsp;a&nbsp;&nbsp;', body)
+            self.assertIn('&nbsp;&nbsp;z&nbsp;&nbsp;', body)
+            self.assertNotIn('href="/catalogue?index=b"', body)
             nav = body.split('<nav aria-label="Main navigation">')[1].split('</nav>')[0]
             self.assertLess(nav.index('Catalogue'), nav.index('Control'))
             self.assertLess(nav.index('Control'), nav.index('Event log'))
@@ -109,6 +112,9 @@ class ControlServerTests(unittest.TestCase):
                                   return_value={'movies':780,'tv_shows':12,'tv_seasons':24,'tv_episodes':1234})
         self.counts_patch.start()
         self.addCleanup(self.counts_patch.stop)
+        self.initials_patch = patch('r3el.server.ControlServer.CatalogueDb.available_initials', return_value=['a', 'z'])
+        self.initials_patch.start()
+        self.addCleanup(self.initials_patch.stop)
         self.reference_patch = patch('r3el.server.ControlServer.TMDBReferenceDb.load',
                                      return_value=TMDBReference([], []))
         self.reference_patch.start()
