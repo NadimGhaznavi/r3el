@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-26 @ 00:43
+
 ### Changed
 - Redesign movie detail pages with a boxed poster and summary layout, separate Director, Producers, and Cast panels, and no redundant back-to-catalogue link.
 
