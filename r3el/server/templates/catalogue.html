@@ -7,7 +7,7 @@
   {% set entry_url = '/catalogue/tv/' ~ movie.series_id if is_episode else '/catalogue/' ~ ('tv/' if movie.media_type is defined and movie.media_type == 'tv' else '') ~ movie.tmdb_id %}
   <a class="catalogue-card" href="{{ entry_url }}{% if is_episode %}#episode-{{ movie.tmdb_id }}{% endif %}">
     {% if movie.poster_path %}
-    <img src="{{ entry_url }}/{% if is_episode %}episodes/{{ movie.tmdb_id }}/still{% else %}poster{% endif %}" alt="{{ movie.title }} {{ 'still' if is_episode else 'poster' }}" loading="lazy">
+    <img src="{{ entry_url }}/poster" alt="{{ movie.series_title if is_episode else movie.title }} poster" loading="lazy">
     {% else %}<span class="catalogue-no-poster">No poster available</span>{% endif %}
     <span class="catalogue-card-title">{% if is_episode %}{{ movie.series_title }} · S{{ '%02d' | format(movie.season_number) }}E{{ '%02d' | format(movie.episode_number) }} — {% endif %}{{ movie.title }}</span>
     <span class="catalogue-card-year">{% if is_episode %}Episode · {% elif movie.media_type is defined and movie.media_type == 'tv' %}TV · {% endif %}{{ movie.release_year or 'Year unknown' }}</span>
