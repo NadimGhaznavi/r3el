@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from r3el.activity.DirectoryDiscovery import DirectoryDiscovery
 from r3el.activity.EventWriter import EventWriter
-from r3el.activity.DirectoryMediaCopy import DirectoryMediaCopy
+from r3el.activity.DirectoryMediaMove import DirectoryMediaMove
 from r3el.app.BatchRunner import BatchRunner
 from r3el.app.SubmissionHandler import SubmissionHandler
 from r3el.app.ToolConversation import ToolConversation
@@ -172,7 +172,7 @@ class DirectoryTests(unittest.TestCase):
         Path(a).write_bytes(b'video a')
         Path(b).write_bytes(b'video b')
         movie = replace(TMDBCatalogue.from_details(movie_payload(), 42), poster_path=None, backdrop_path=None)
-        files, _ = DirectoryMediaCopy().prepare(movie, item, str(self.root / 'output'), self.log)
+        files, _ = DirectoryMediaMove().prepare(movie, item, str(self.root / 'output'), self.log)
         copied = [file for file in files.associated if file['kind'] == 'subtitle']
         self.assertEqual([Path(file['path']).name for file in copied],
                          ['Movie (2020) Part 2.srt', 'Movie (2020) Part 1.srt'])
@@ -237,8 +237,8 @@ class PartSubmissionTests(unittest.TestCase):
             ToolConversation._tool_call(body)
 
 
-class CopyTests(unittest.TestCase):
-    def test_copies_paired_names_preserves_sources_skips_unresolved_and_resumes(self):
+class MoveTests(unittest.TestCase):
+    def test_stages_paired_names_preserves_sources_skips_unresolved_and_resumes(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             attachments = []
@@ -253,15 +253,15 @@ class CopyTests(unittest.TestCase):
                             poster_path=None, backdrop_path=None)
             log = EventWriter(Mock(return_value=1), {'batch_id': 'batch', 'item_id': 'item'})
             output = str(root / 'output')
-            files, copies = DirectoryMediaCopy().prepare(movie, item, output, log)
+            files, copies = DirectoryMediaMove().prepare(movie, item, output, log)
             self.assertEqual(len(files.associated), 4)
-            self.assertEqual(DirectoryMediaCopy().prepare(movie, item, output, log), (files, copies))
+            self.assertEqual(DirectoryMediaMove().prepare(movie, item, output, log), (files, copies))
             for copy in copies:
                 target = Path(copy['destination'])
                 part = 1 if Path(copy['source']).stem == 'b' else 2
                 self.assertEqual(target.name, f'Under Capricorn (2020) Part {part}{target.suffix}')
                 self.assertEqual(target.read_bytes(), Path(copy['source']).read_bytes())
-                self.assertFalse(target.samefile(copy['source']))
+                self.assertTrue(target.samefile(copy['source']))
                 CatalogueFiles().finish(copy['source'], copy['destination'], copy['stage_id'], preserve_source=True)
                 CatalogueFiles().finish(copy['source'], copy['destination'], copy['stage_id'], preserve_source=True)
                 self.assertTrue(Path(copy['source']).exists())
@@ -269,7 +269,7 @@ class CopyTests(unittest.TestCase):
             self.assertFalse(list((root / 'output').rglob('unknown.srt')))
             self.assertFalse(list((root / 'output').rglob('.r3el-*')))
             with self.assertRaises(FileExistsError):
-                DirectoryMediaCopy().prepare(movie, item, output, log)
+                DirectoryMediaMove().prepare(movie, item, output, log)
 
 
 class PipelineTests(unittest.IsolatedAsyncioTestCase):
