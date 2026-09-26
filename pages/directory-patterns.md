@@ -6,6 +6,8 @@ layout: single
 
 [Documentation index](../index.md) · [Batch overview](01-high-level-flow.md) · [Import and cleanup](import-cleanup.md)
 
+TV patterns are checked before the movie patterns below; see [TV show imports](tv-shows.md).
+
 Directory discovery runs after ordinary files. Only immediate child directories
 of the source are candidates. Each candidate is scanned recursively using
 `find -ls`; the destination is excluded. Supported media must be **larger than

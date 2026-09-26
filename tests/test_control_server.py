@@ -174,6 +174,20 @@ class ControlServerTests(unittest.TestCase):
         for path in ('/catalogue/0', '/catalogue/4294967296', '/catalogue/abc'):
             self.assertEqual(self.request(path)[0], 404)
 
+    @patch('r3el.server.ControlServer.TVCatalogueDb.get')
+    def test_tv_catalogue_detail_uses_tv_identity(self, get):
+        get.return_value = dict(tmdb_id=42,title='Show',release_year=2020,original_title='Show',
+            release_date='2020-01-01',runtime=None,overview='Series overview',genres=[],rating=8,
+            vote_count=10,imdb_id=None,credits=[],files=[{'path':'/media/tv/episode.mkv'}],
+            artwork=[{'kind':'poster'}],episodes=[dict(season_number=1,episode_number=2,title='Episode')])
+        status, _, body = self.request('/catalogue/tv/42')
+        self.assertEqual(status,200)
+        get.assert_called_once_with(42)
+        self.assertIn('/catalogue/tv/42/poster',body)
+        self.assertIn('https://www.themoviedb.org/tv/42',body)
+        self.assertIn('S01E02 — Episode',body)
+        self.assertIn('TV series',body)
+
     @patch('r3el.server.ControlServer.CatalogueDb.artwork_path')
     def test_catalogue_serves_only_registered_artwork(self, artwork):
         with TemporaryDirectory() as directory:

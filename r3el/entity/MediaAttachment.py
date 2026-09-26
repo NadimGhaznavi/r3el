@@ -9,3 +9,6 @@ class MediaAttachment:
     kind: str = 'video'
     part: int | None = None
     media_path: str | None = None
+    season_number: int | None = None
+    episode_number: int | None = None
+    import_result: dict | None = None

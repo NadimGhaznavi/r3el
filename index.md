@@ -11,6 +11,7 @@ The **R3el Project uses** a locally hosted [Large Language Model (LLM)](https://
 ## Batch processing
 
 - [Batch process overview](pages/01-high-level-flow.md) — the main flowchart.
+- [TV show imports](pages/tv-shows.md) — series detection, episode mappings, and automatic TV destinations.
 - [Directory patterns](pages/directory-patterns.md) — two-part movies, separate dated movies, and SRT associations.
 - [Import and source cleanup](pages/import-cleanup.md) — moves, commits, conflicts, and cleanup.
 - [Runtime behaviour](pages/runtime-behaviour.md) — starting, stopping, and completing batches.

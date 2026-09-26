@@ -8,7 +8,7 @@
 {% elif match.discard_files %}<p class="note">Preferred file saved; completing duplicate cleanup.</p>
 {% elif match.file_moved %}<p class="note">Saved to catalogue and moved to {{ match.catalogue_path }}.</p>
 {% elif match.catalogue_saved %}<p class="note">Saved to catalogue; completing the file move.</p>{% endif %}
-<p class="note match-query">{{ file.filename }}<br>Query: {{ match.title if match.title is not none else '—' }} ({{ match.year if match.year is not none else '—' }}) · Movies</p>
+<p class="note match-query">{{ file.filename }}<br>Query: {{ match.title if match.title is not none else '—' }} ({{ match.year if match.year is not none else '—' }}) · {{ 'TV series' if file.media_type == 'tv' else 'Movies' }}</p>
 <section class="tmdb-match" aria-labelledby="tmdb-heading">
   <header class="match-header">
     <h2 id="tmdb-heading">TMDB MATCH</h2>
@@ -24,7 +24,7 @@
     <div class="movie-info">
       <h3 id="movie-{{ loop.index }}">{{ movie.title }}</h3>
       {% if movie.selected %}<p class="match-status match-status-resolved">Selected by LLM</p>{% endif %}
-      <p class="movie-subtitle">{{ movie.year }} · Movie · {{ movie.language }}</p>
+      <p class="movie-subtitle">{{ movie.year }} · {{ 'TV series' if movie.media_type == 'tv' else 'Movie' }} · {{ movie.language }}</p>
       <div class="movie-rating-row">
         <span class="movie-rating"><span aria-hidden="true">★</span> {{ movie.rating }}<span class="sr-only"> out of 10</span></span>
         {% if movie.votes is not none %}<span class="note">{{ movie.votes }} votes</span>{% endif %}
@@ -42,6 +42,17 @@
   {% endfor %}
   {% if result.total > result.movies | length %}<p class="match-explanation note">Showing {{ result.movies | length }} of {{ result.total }} results from the downloaded first page.</p>{% endif %}
 </section>
+{% if file.media_type == 'tv' %}
+<section class="batch-panel">
+<h2>Episodes</h2>
+<ul>{% for attachment in file.attachments if attachment.kind == 'video' %}
+<li>{{ attachment.path }} — S{{ attachment.season_number }}E{{ attachment.episode_number }}:
+{% if attachment.import_result and attachment.import_result.moved is defined and attachment.import_result.moved %}Imported
+{% elif attachment.import_result and attachment.import_result.error is defined %}{{ attachment.import_result.error }}
+{% else %}Pending{% endif %}</li>
+{% endfor %}</ul>
+</section>
+{% endif %}
 {% if match.response is not none %}<details class="match-json"><summary>View saved JSON</summary><pre>{{ response_json }}</pre></details>{% endif %}
 <p><a href="/">Back to batch</a></p>
 {% endblock %}

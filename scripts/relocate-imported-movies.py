@@ -28,7 +28,7 @@ class ImportedMovieRepair:
             raise ValueError(f'Expected a real movies directory: {destination}')
         moves = []
         for source in sorted(root.iterdir()):
-            if source.name in ('movies', 'music', 'tv-shows'):
+            if source.name in ('movies', 'music', 'tv', 'tv-shows'):
                 continue
             if source.is_symlink() or not source.is_dir():
                 continue

@@ -37,6 +37,7 @@ class MediaFile:
     retries: int = 0
     updated_at: datetime | None = None
 
+    media_type: str = 'movie'
     source_directory: str | None = None
     find_ls: str | None = None
     attachments: list[MediaAttachment] = field(default_factory=list)
@@ -45,8 +46,19 @@ class MediaFile:
     def directory_context(self) -> dict | None:
         if self.find_ls is None:
             return None
+        if self.media_type == 'tv':
+            return {'find-ls': self.find_ls, 'episodes': {
+                file.path: {'season_number': file.season_number, 'episode_number': file.episode_number}
+                for file in self.attachments if file.kind == 'video'}}
         videos = [file.path for file in self.attachments if file.kind == 'video']
         return {'find-ls': self.find_ls, 'media_file_a': videos[0], 'media_file_b': videos[1]}
+
+    def assign_episodes(self, episodes: list[dict]) -> None:
+        mapping = {row['path']: row for row in episodes}
+        for file in self.attachments:
+            row = mapping.get(file.path if file.kind == 'video' else file.media_path)
+            if row:
+                file.season_number, file.episode_number = row['season_number'], row['episode_number']
 
     def assign_parts(self, part_one: str, part_two: str) -> None:
         parts = {part_one: 1, part_two: 2}

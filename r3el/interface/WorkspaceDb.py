@@ -19,6 +19,7 @@ from r3el.entity.BatchStopped import BatchStopped
 from r3el.constants.DEventCategory import DEventCategory as Categories
 from r3el.constants.DEventName import DEventName as Names
 from r3el.activity.EventWriter import EventWriter
+from r3el.interface.TVCatalogueDb import TVCatalogueDb
 from r3el.interface.CatalogueDb import CatalogueDb
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
@@ -98,11 +99,13 @@ class WorkspaceDb:
         by_id = {item.id: item for item in items}
         for attachment in attachments:
             by_id[attachment['file_id']].attachments.append(MediaAttachment(
-                attachment['path'], attachment['kind'], attachment['part'], attachment['media_path']))
+                attachment['path'], attachment['kind'], attachment['part'], attachment['media_path'],
+                attachment['season_number'], attachment['episode_number'],
+                json.loads(attachment['import_result']) if attachment['import_result'] else None))
         return MediaFileBatch(
             id=row['batch_id'], requested_size=row['requested_size'],
             source_directory=row['source_directory'], state=MediaFileBatchState(row['state']),
-            destination_directory=row['destination_directory'],
+            destination_directory=row['destination_directory'], tv_destination_directory=row['tv_destination_directory'],
             stop_requested=bool(row['stop_requested']),
             started_event_id=row['started_event_id'], files=items,
             directories_scanned=bool(row['directories_scanned']),
@@ -113,7 +116,7 @@ class WorkspaceDb:
         identification = json.loads(row['identification']) if row['identification'] is not None else None
         return MediaFile(
             id=row['file_id'], path=row['path'], state=MediaFileState(row['state']),
-            find_ls=row['find_ls'], source_directory=row['source_directory'],
+            find_ls=row['find_ls'], source_directory=row['source_directory'], media_type=row['media_type'],
             identification=Identification(**identification) if identification is not None else None,
             issues=[MediaFileIssue(**issue) for issue in json.loads(row['issues'])],
             attempts=row['attempts'], action=MediaFileAction(row['action']),
@@ -141,6 +144,8 @@ class WorkspaceDb:
                 (batch.id, batch.requested_size, batch.source_directory, batch.destination_directory,
                  batch.state, event_id),
             )
+            self._db.execute('UPDATE media_file_batches SET tv_destination_directory = %s WHERE batch_id = %s',
+                             (batch.tv_destination_directory, batch.id))
             for position, item in enumerate(batch.files):
                 self._db.execute(
                     'INSERT INTO media_files '
@@ -156,15 +161,15 @@ class WorkspaceDb:
             for position, item in enumerate(items, len(batch.files)):
                 self._db.execute(
                     'INSERT INTO media_files '
-                    '(file_id, batch_id, position, path, state, issues, attempts, action, find_ls, source_directory, updated_at) '
-                    'VALUES (%s, %s, %s, %s, %s, %s, 0, %s, %s, %s, UTC_TIMESTAMP(6))',
+                    '(file_id, batch_id, position, path, state, issues, attempts, action, find_ls, source_directory, media_type, updated_at) '
+                    'VALUES (%s, %s, %s, %s, %s, %s, 0, %s, %s, %s, %s, UTC_TIMESTAMP(6))',
                     (item.id, batch.id, position, item.path, item.state,
-                     json.dumps([asdict(issue) for issue in item.issues]), item.action, item.find_ls, item.source_directory))
+                     json.dumps([asdict(issue) for issue in item.issues]), item.action, item.find_ls, item.source_directory, item.media_type))
                 for index, attachment in enumerate(item.attachments):
                     self._db.execute(
-                        'INSERT INTO media_attachments (file_id, position, path, kind, part, media_path) '
-                        'VALUES (%s, %s, %s, %s, %s, %s)',
-                        (item.id, index, attachment.path, attachment.kind, attachment.part, attachment.media_path))
+                        'INSERT INTO media_attachments (file_id, position, path, kind, part, media_path, season_number, episode_number) '
+                        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
+                        (item.id, index, attachment.path, attachment.kind, attachment.part, attachment.media_path, attachment.season_number, attachment.episode_number))
             self._db.execute('UPDATE media_file_batches SET directories_scanned = TRUE WHERE batch_id = %s',
                              (batch.id,))
             self._events.record_in_transaction(event)
@@ -185,8 +190,8 @@ class WorkspaceDb:
                  batch_id, item.id),
             )
             for position, attachment in enumerate(item.attachments):
-                self._db.execute('UPDATE media_attachments SET part = %s WHERE file_id = %s AND position = %s',
-                                 (attachment.part, item.id, position))
+                self._db.execute('UPDATE media_attachments SET part = %s, season_number = %s, episode_number = %s WHERE file_id = %s AND position = %s',
+                                 (attachment.part, attachment.season_number, attachment.episode_number, item.id, position))
             self._events.record_in_transaction(event)
 
     def save_action(self, batch_id: str, file_id: str, action: MediaFileAction) -> MediaFileBatch:
@@ -266,6 +271,20 @@ class WorkspaceDb:
             self._db.execute('UPDATE media_files SET tmdb_match = %s, path = %s WHERE batch_id = %s AND file_id = %s',
                              (json.dumps(asdict(result), allow_nan=False), rows[0]['path'] if files.associated else files.video, batch_id, file_id))
             self._events.record_in_transaction(event)
+
+    def save_tv_episode(self, batch_id, item, position, checkpoint, event,
+                        *, series=None, season=None, episode=None, artwork=None):
+        with self._db.transaction():
+            rows = self._db.query('SELECT file_id FROM media_files WHERE batch_id=%s AND file_id=%s FOR UPDATE',
+                                  (batch_id, item.id))
+            if not rows:
+                raise WorkspaceActionConflict('The series is no longer in the workspace.')
+            if series is not None:
+                TVCatalogueDb(self._db).save_in_transaction(series, season, episode, checkpoint['files'], artwork)
+            self._db.execute('UPDATE media_attachments SET import_result=%s WHERE file_id=%s AND position=%s',
+                             (json.dumps(checkpoint, allow_nan=False), item.id, position))
+            self._events.record_in_transaction(event)
+        item.attachments[position].import_result = checkpoint
 
     def catalogue_paths(self, movie_id: int) -> list[str]:
         return [row['path'] for row in self._db.query(
