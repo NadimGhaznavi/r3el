@@ -46,7 +46,7 @@ class CatalogueFiles:
             self._sync_directory(target.parent)
 
     def prepare(self, movie: CatalogueMovie, source: str, destination: str | None,
-                file_id: str, log: EventWriter, *, part: int | None = None, copy: bool = False) -> MovieFiles:
+                file_id: str, log: EventWriter, *, part: int | None = None, copy: bool = False, replace_existing: bool = False) -> MovieFiles:
         if not destination:
             raise ValueError('The batch needs an output directory before files can be catalogued.')
         if movie.release_date is None:
@@ -72,7 +72,9 @@ class CatalogueFiles:
         stage = self._stage(target, file_id)
         if target.is_symlink() or stage.is_symlink():
             raise ValueError('The video destination must not be a symbolic link.')
-        if target.exists() and origin != target:
+        if target.exists() and not target.is_file():
+            raise ValueError('The destination media must be a regular file.')
+        if target.exists() and origin != target and not replace_existing:
             if not stage.exists() or not target.samefile(stage):
                 raise FileExistsError(f'The destination video already exists: {target}')
         poster = self._image(movie.poster_path, folder, 'poster', log)
@@ -101,7 +103,18 @@ class CatalogueFiles:
                 os.link(stage, target)
             except FileExistsError:
                 if not target.samefile(stage):
-                    raise
+                    if not replace_existing or target.is_symlink() or not target.is_file():
+                        raise
+                    # Keep the durable stage for retries and atomically publish its bytes.
+                    replacement = stage.with_suffix('.replacement')
+                    if not replacement.exists():
+                        os.link(stage, replacement)
+                    if replacement.is_symlink() or not replacement.samefile(stage):
+                        raise ValueError('The replacement stage no longer matches the prepared media.')
+                    os.replace(replacement, target)
+                    log.write(Categories.File.MOVE, Names.FILE_MOVE,
+                              {'outcome': 'replaced', 'source_path': str(origin),
+                               'destination_path': str(target), 'error': None}, source='CatalogueFiles')
         self._sync_directory(folder)
         return MovieFiles(str(target), poster, backdrop)
 

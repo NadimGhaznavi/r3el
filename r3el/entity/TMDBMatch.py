@@ -22,6 +22,14 @@ class TMDBMatch:
     discard_files: list[dict] = field(default_factory=list)
     year_offset: int = 0
     copied_files: list[dict] = field(default_factory=list)
+    replace_local_media: bool = False
+
+    @property
+    def entry_exists(self) -> bool:
+        # Recognize already-persisted conflicts from the original copy implementation.
+        return bool(self.catalogue_error and self.catalogue_error.startswith(
+            'The destination video already exists: '))
+
 
     @property
     def needs_manual_match(self) -> bool:
@@ -43,6 +51,8 @@ class TMDBMatch:
             return 'Skipped'
         if self.error is not None:
             return 'Match failed'
+        if self.entry_exists:
+            return 'Entry exists'
         if self.catalogue_error is not None:
             return 'Catalogue failed'
         if self.selected_number:

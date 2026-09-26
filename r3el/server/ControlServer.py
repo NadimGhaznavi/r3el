@@ -44,11 +44,14 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
     pages = EventPages()
     batches = BatchControl(endpoint)
 
-    def execute_match(batch_id: str, *, file_id: str | None = None, movie_id: int | None = None) -> None:
+    def execute_match(batch_id: str, *, file_id: str | None = None, movie_id: int | None = None,
+                      replace_media: bool = False) -> None:
         db = DbMgr()
         try:
             matcher = BatchMatching(WorkspaceDb(db), EventLogDb(db).record)
-            if file_id is None:
+            if replace_media:
+                matcher.replace_media(batch_id, file_id)
+            elif file_id is None:
                 matcher.run(batch_id)
             else:
                 matcher.match_id(batch_id, file_id, movie_id)
@@ -206,7 +209,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                                              matching_job=active_job, **values))
 
         def do_POST(self):
-            if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL):
+            if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL):
                 self.send_error(404)
                 return
             # Browser form submissions must originate from this control server.
@@ -231,6 +234,10 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                             or not re.fullmatch(r'[0-9]{1,10}', payload['movie_id'])
                             or not 1 <= int(payload['movie_id']) <= 4294967295):
                         raise ValueError('Supply a valid batch, file, and TMDB movie ID.')
+                elif self.path == DR3el.REPLACE_MEDIA_URL:
+                    if (set(payload) != {'batch_id', 'file_id'}
+                            or any(not re.fullmatch(r'[A-Za-z0-9-]{1,36}', value) for value in payload.values())):
+                        raise ValueError('Supply a valid batch and file ID.')
                 elif self.path in (DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL):
                     if set(payload) != {'batch_id'} or not re.fullmatch(r'[A-Za-z0-9-]{1,36}', payload['batch_id']):
                         raise ValueError('Supply a valid batch_id.')
@@ -244,13 +251,16 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     payload['batch_size'] = int(payload['batch_size'])
                     parameters = BatchConfiguration.resolve(payload)
             except (KeyError, ValueError):
-                if self.path in (DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL):
+                if self.path in (DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL):
                     self.respond(400, b'{"saved":false}', 'application/json')
                     return
                 self.respond_control(400, result=DMessage.INVALID_PARAMETERS)
                 return
             if self.path == DR3el.MATCH_TMDB_ID_URL:
                 self.match_batch(payload['batch_id'], file_id=payload['file_id'], movie_id=int(payload['movie_id']))
+                return
+            if self.path == DR3el.REPLACE_MEDIA_URL:
+                self.match_batch(payload['batch_id'], file_id=payload['file_id'], replace_media=True)
                 return
             if self.path == DR3el.STOP_BATCH_URL:
                 self.stop_batch(payload['batch_id'])

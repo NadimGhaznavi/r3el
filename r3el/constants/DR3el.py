@@ -16,6 +16,7 @@ class DR3el:
     STOP_BATCH_URL: Final[str] = '/workspace/stop'
     NEW_BATCH_URL: Final[str] = "/batches"
     FILE_ACTION_URL: Final[str] = "/workspace/actions"
+    REPLACE_MEDIA_URL: Final[str] = "/workspace/replace-media"
     MATCH_TMDB_ID_URL: Final[str] = "/workspace/match-id"
     MATCH_TMDB_URL: Final[str] = "/workspace/match"
     AUTO_APPROVE_CONFIDENCE: Final[int] = 10

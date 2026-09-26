@@ -10,7 +10,7 @@
 } %}
 <div class="table-wrap workspace-table-wrap" tabindex="0" role="region" aria-label="Scrollable current batch details">
   <table class="workspace-files" data-batch-id="{{ workspace.id }}" data-stop-requested="{{ 'true' if workspace.stop_requested else 'false' }}" data-automatic-processing="{{ 'true' if automatic_processing else 'false' }}" aria-label="Current batch files">
-    <thead><tr><th scope="col">#</th><th scope="col" title="Last saved change (local time)">Updated</th><th scope="col">Filename</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Retries</th><th scope="col">Status</th><th scope="col">Action</th>{% if has_match_results %}<th scope="col">Match Results</th>{% endif %}{% if has_manual_matches %}<th scope="col">Manual match</th>{% endif %}</tr></thead>
+    <thead><tr><th scope="col">#</th><th scope="col" title="Last saved change (local time)">Updated</th><th scope="col">Filename / Directory</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Retries</th><th scope="col">Status</th>{% if has_match_results %}<th scope="col">Match Results</th>{% endif %}<th scope="col">Action</th></tr></thead>
     <tbody>
       {% for file in workspace.files %}
       <tr>
@@ -22,6 +22,13 @@
         <td>{{ file.identification.confidence if file.identification is not none else '—' }}</td>
         <td>{{ file.retries }}</td>
         <td>{{ 'Pending' if file.pending else status_labels[file.state] if file.state else 'Not available' }}</td>
+        {% if has_match_results %}
+        <td class="match-result">
+          {% if file.tmdb_match is none %}—
+          {% elif file.tmdb_match.skipped %}Skipped
+          {% else %}<a href="/matches/{{ workspace.id }}/{{ file.id }}">{{ file.tmdb_match.label }}</a>{% endif %}
+        </td>
+        {% endif %}
         <td>
           <select class="file-action" aria-label="Action for {{ file.filename }}"
                   data-file-id="{{ file.id }}" data-saved-action="{{ file.action }}"
@@ -30,28 +37,21 @@
             <option value="{{ action }}"{% if file.action == action %} selected{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
-        </td>
-        {% if has_match_results %}
-        <td class="match-result">
-          {% if file.tmdb_match is none %}—
-          {% elif file.tmdb_match.skipped %}Skipped
-          {% else %}<a href="/matches/{{ workspace.id }}/{{ file.id }}">{{ file.tmdb_match.label }}</a>{% endif %}
-        </td>
-        {% endif %}
-        {% if has_manual_matches %}
-        <td>
-          {% if file.tmdb_match is not none and file.tmdb_match.needs_manual_match and file.action not in (file_actions.IGNORE, file_actions.DELETE) %}
+          {% if not automatic_processing and file.tmdb_match is not none and file.tmdb_match.needs_manual_match and file.action not in (file_actions.IGNORE, file_actions.DELETE) %}
           <form class="manual-match" data-file-id="{{ file.id }}">
             <input name="movie_id" type="text" inputmode="numeric" pattern="[0-9]{1,10}" required aria-label="TMDB ID for {{ file.filename }}"{% if matching_job %} disabled{% endif %}>
             <button type="submit"{% if matching_job %} disabled{% endif %}>TMDB ID</button>
           </form>
           {% if file.tmdb_match.selection_error %}<p role="status">{{ file.tmdb_match.selection_error }}</p>{% endif %}
-          {% else %}—{% endif %}
+          {% elif not automatic_processing and file.tmdb_match is not none and file.tmdb_match.entry_exists and file.action not in (file_actions.IGNORE, file_actions.DELETE) %}
+          <form class="replace-media" data-file-id="{{ file.id }}">
+            <button type="submit"{% if matching_job %} disabled{% endif %}>Replace Local Media</button>
+          </form>
+          {% endif %}
         </td>
-        {% endif %}
       </tr>
       {% else %}
-      <tr><td colspan="{{ 9 + has_match_results + has_manual_matches }}">No files in this batch.</td></tr>
+      <tr><td colspan="{{ 9 + has_match_results }}">No files in this batch.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -168,7 +168,7 @@
     matchingInProgress = true;
     revision += 1;
     document.querySelectorAll('.file-action').forEach(select => { select.disabled = true; });
-    document.querySelectorAll('.manual-match input, .manual-match button').forEach(control => { control.disabled = true; });
+    document.querySelectorAll('.manual-match input, .manual-match button, .replace-media button').forEach(control => { control.disabled = true; });
     document.querySelector('#new-batch-action button').disabled = true;
     stopBatch.disabled = stopRequested;
     document.getElementById('match-running').hidden = false;
@@ -217,6 +217,23 @@
       const response = await fetch({{ settings.MATCH_TMDB_ID_URL | tojson }}, {
         method: 'POST', body: new URLSearchParams({batch_id: {{ workspace.id | tojson }},
                                                   file_id: form.dataset.fileId, movie_id: movieId})
+      });
+      if (!response.ok) throw new Error();
+      const result = await response.json();
+      if (result.accepted !== true) throw new Error();
+      pollMatching(result.job_id);
+    } catch { matchingFailed(); }
+  });
+  document.addEventListener('submit', async event => {
+    const form = event.target.closest('.replace-media');
+    if (!form) return;
+    event.preventDefault();
+    if (savingAction || uncertainAction || matchingInProgress) return;
+    showMatching();
+    try {
+      const response = await fetch({{ settings.REPLACE_MEDIA_URL | tojson }}, {
+        method: 'POST', body: new URLSearchParams({batch_id: {{ workspace.id | tojson }},
+                                                  file_id: form.dataset.fileId})
       });
       if (!response.ok) throw new Error();
       const result = await response.json();
