@@ -59,10 +59,11 @@ class SubmissionHandler:
                     raise ValueError('Assign each supplied media path exactly once to part_one and part_two.')
                 parts = {'part_one': one, 'part_two': two}
                 data = {key: data[key] for key in ('title', 'year', 'confidence')}
-            identification = ValidateIdentification().run(data)
+            identification = ValidateIdentification().run(data, series=log.context.get('phase') == 'tv_series')
         except ValueError as error:
             prompt = InvalidIdentification(str(error), tool_name=(
                 'submit_tv' if 'tv_episodes' in log.context else
+                'submit_tv_series' if log.context.get('phase') == 'tv_series' else
                 'submit_two_parts' if 'media_files' in log.context else 'submit_identification'))
             result = {'status': 'rejected', 'reason': str(error),
                       'prompt': json.loads(prompt.to_json()), 'source_name': prompt.source_name}

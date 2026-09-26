@@ -23,6 +23,16 @@ async def submit_identification(
     ).submit(title, year, confidence)
 
 
+@mcp.tool(description='Submit the TV series name and confidence. Do not guess or submit a year; TMDB resolves the series identity.')
+async def submit_tv_series(
+    title: Annotated[Any, Field(json_schema_extra={'type': 'string'})],
+    confidence: Annotated[Any, Field(json_schema_extra={'type': 'integer', 'minimum': 0, 'maximum': 10})],
+) -> str:
+    return await SubmitIdentification(
+        os.environ['R3EL_ZMQ_ENDPOINT'], os.environ['R3EL_ATTEMPT_ID'],
+    ).submit_payload({'title': title, 'confidence': confidence})
+
+
 @mcp.tool(description='Submit the matching candidate number, or 0 when no confident choice is possible.')
 async def submit_multiple_choice(
     number: Annotated[Any, Field(json_schema_extra={'type': 'integer', 'minimum': 0})],

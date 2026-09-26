@@ -6,5 +6,5 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Identification:
     title: str
-    year: int
+    year: int | None
     confidence: int

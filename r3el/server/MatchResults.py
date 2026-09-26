@@ -17,6 +17,7 @@ class MatchResults:
             return dict(status='Match failed', tone='failed', explanation=match.error, movies=[], total=0)
         noun = 'series' if match.media_type == 'tv' else 'movie'
         plural = 'series' if match.media_type == 'tv' else 'movies'
+        query = 'title' if match.media_type == 'tv' else 'title and year'
         response = match.resolved_response
         total = response['total_results']
         selected = bool(match.selected_number)
@@ -27,8 +28,8 @@ class MatchResults:
             explanation=(f'The LLM selected candidate {match.selected_number}.' if selected else
                          match.selection_error if match.selection_error else
                          'The LLM could not confidently select a title.' if match.selected_number == 0 else
-                         f'Exactly one {noun} matches the queried title and year.' if total == 1 else
-                         f'No {plural} match the queried title and year.' if total == 0 else
+                         f'Exactly one {noun} matches the queried {query}.' if total == 1 else
+                         f'No {plural} match the queried {query}.' if total == 0 else
                          f'{total:,} {plural} found. No {noun} has been selected.'),
             movies=movies, total=total,
         )
