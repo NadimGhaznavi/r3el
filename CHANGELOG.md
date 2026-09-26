@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.8.0] - 2026-09-26 @ 06:05
+
+### Changed
+- Map TV episodes in separate LLM conversations per season, with sorted file IDs restarting at 1 for each conversation. Save the combined mapping only after every group succeeds; show season progress in the existing Event Log and Current Task.
+
 ## [4.7.0] - 2026-09-26 @ 05:58
 
 ### Added

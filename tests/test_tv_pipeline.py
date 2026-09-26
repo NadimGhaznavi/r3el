@@ -399,6 +399,72 @@ class TVPhaseBoundaryTests(unittest.TestCase):
 
     @patch('r3el.app.TVEpisodeMapping.ToolConversation')
     @patch('r3el.app.TVEpisodeMapping.ZMQServer')
+    def test_seasons_use_separate_conversations_and_commit_only_complete_mapping(self, server, conversation):
+        from unittest.mock import AsyncMock
+        from r3el.app.TVEpisodeMapping import TVEpisodeMapping
+        from r3el.app.prompts.DirectoryEpisodesTV import DirectoryEpisodesTV
+        for failure in (False, True):
+            with self.subTest(failure=failure):
+                conversation.reset_mock()
+                workspace = Mock()
+                item = MediaFile('item', '/source/Show', media_type='tv', find_ls='listing', attachments=[
+                    MediaAttachment('/source/Show/Show-S02E01.mkv', season_number=2, episode_number=1),
+                    MediaAttachment('/source/Show/Show-S01E02.mkv', season_number=1, episode_number=2),
+                    MediaAttachment('/source/Show/Show-S01E01.mkv', season_number=1, episode_number=1)])
+                batch = MediaFileBatch('batch', 1, '/source', files=[item])
+                log = EventWriter.for_item(Mock(return_value=1), batch, item)
+                result = TMDBMatch('Show', None, media_type='tv', response={'total_results': 1,
+                    'results': [dict(id=42, name='Confirmed Show')]})
+                first = [dict(path=a.path, season_number=1, episode_number=a.episode_number)
+                         for a in item.attachments if a.season_number == 1]
+                second = [dict(path=item.attachments[0].path, season_number=2, episode_number=1)]
+                conversation.return_value.run = AsyncMock(side_effect=[
+                    dict(status='identified', episodes=first),
+                    dict(status='unresolved_llm', reason='Uncertain') if failure else
+                    dict(status='identified', episodes=second)])
+                mapped = TVEpisodeMapping(workspace, Mock()).run(batch, item, result, log)
+                self.assertEqual(conversation.call_count, 2)
+                for season, call in enumerate(conversation.call_args_list, 1):
+                    directory = call.kwargs['directory']
+                    self.assertEqual(directory['season_number'], season)
+                    self.assertEqual({row['season_number'] for row in directory['episodes'].values()}, {season})
+                    prompt = json.loads(json.loads(DirectoryEpisodesTV(directory).to_json())['content'])['data']
+                    self.assertEqual(prompt['show'], 'Confirmed Show')
+                    self.assertEqual(prompt['season_number'], season)
+                    self.assertEqual(list(prompt['files']), ['1', '2'] if season == 1 else ['1'])
+                self.assertEqual(mapped.episodes_mapped, not failure)
+                if failure:
+                    workspace.save_file.assert_not_called()
+                    self.assertIn('Season 2: Uncertain', mapped.catalogue_error)
+                else:
+                    workspace.save_file.assert_called_once()
+                    self.assertEqual(json.loads(workspace.save_file.call_args.args[2].message)['data']['count'], 3)
+                render_events([call.args[0] for call in log.record.call_args_list])
+
+    @patch('r3el.app.TVEpisodeMapping.ToolConversation')
+    @patch('r3el.app.TVEpisodeMapping.ZMQServer')
+    def test_unknown_season_cannot_duplicate_a_known_episode(self, server, conversation):
+        from unittest.mock import AsyncMock
+        from r3el.app.TVEpisodeMapping import TVEpisodeMapping
+        workspace = Mock()
+        item = MediaFile('item', '/source/Show', media_type='tv', find_ls='listing', attachments=[
+            MediaAttachment('/source/Show/Show-S00E01.mkv', season_number=0, episode_number=1),
+            MediaAttachment('/source/Show/Show-01.mkv', episode_number=1)])
+        batch = MediaFileBatch('batch', 1, '/source', files=[item])
+        log = EventWriter.for_item(Mock(return_value=1), batch, item)
+        result = TMDBMatch('Show', None, media_type='tv', response={'total_results': 1,
+            'results': [dict(id=42, name='Show')]})
+        conversation.return_value.run = AsyncMock(side_effect=[dict(status='identified', episodes=[
+            dict(path=a.path, season_number=0, episode_number=1)]) for a in item.attachments])
+        mapped = TVEpisodeMapping(workspace, Mock()).run(batch, item, result, log)
+        self.assertEqual([call.kwargs['directory']['season_number'] for call in conversation.call_args_list], [0, None])
+        self.assertFalse(mapped.episodes_mapped)
+        self.assertIn('same episode across season groups', mapped.catalogue_error)
+        self.assertIsNone(item.attachments[1].season_number)
+        workspace.save_file.assert_not_called()
+
+    @patch('r3el.app.TVEpisodeMapping.ToolConversation')
+    @patch('r3el.app.TVEpisodeMapping.ZMQServer')
     def test_mapping_uses_confirmed_identity_and_checkpoints_before_import(self, server, conversation):
         from unittest.mock import AsyncMock
         from r3el.app.TVEpisodeMapping import TVEpisodeMapping
