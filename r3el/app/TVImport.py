@@ -22,11 +22,13 @@ class TVImport:
             return
         errors = []
         client = TMDB.from_environment()
+        series_id = result.resolved_response['results'][0]['id']
         try:
-            series = TVCatalogue.series(client.tv_details(result.resolved_response['results'][0]['id']))
+            series = self._details(log, series_id, 'series',
+                                   lambda: TVCatalogue.series(client.tv_details(series_id)))
             if series.release_date is None:
                 raise TMDBError('A series first-air date is required for naming.')
-        except (TMDBError, ValueError) as error:
+        except (TMDBError, ValueError, httpx.HTTPError) as error:
             self._finish(batch, item, result, log, [str(error)])
             return
         destination = batch.tv_destination_directory
@@ -49,12 +51,15 @@ class TVImport:
                     if season_number is None or episode_number is None:
                         raise ValueError('Episode season/number is unresolved.')
                     if season_number not in seasons:
-                        seasons[season_number] = TVCatalogue.season(client.tv_season(series.tmdb_id, season_number), season_number)
+                        seasons[season_number] = self._details(log, series_id, 'season',
+                            lambda: TVCatalogue.season(client.tv_season(series_id, season_number), season_number),
+                            season_number)
                     season = seasons[season_number]
                     if not any(row.get('episode_number') == episode_number for row in season['episodes']):
                         raise ValueError(f'TMDB does not contain S{season_number:02}E{episode_number:02}.')
-                    episode = TVCatalogue.episode(client.tv_episode(series.tmdb_id, season_number, episode_number),
-                                                  season_number, episode_number)
+                    episode = self._details(log, series_id, 'episode',
+                        lambda: TVCatalogue.episode(client.tv_episode(series_id, season_number, episode_number),
+                                                     season_number, episode_number), season_number, episode_number)
                     files, artwork = [], []
                     for attachment_position, attachment in enumerate(item.attachments):
                         if attachment is not video and not (
@@ -81,7 +86,8 @@ class TVImport:
                     self.workspace.save_tv_episode(batch.id, item, position, checkpoint, log.prepare(
                         Categories.DB.CREATE_RECORD, Names.DB_CREATE_RECORD,
                         {'movie_id': series.tmdb_id, 'title': series.title, 'path': files[0]['destination'],
-                         'episode_id': episode['id'], 'outcome': 'saved'}, source='TVCatalogueDb'),
+                         'episode_id': episode['id'], 'season': season_number, 'episode': episode_number,
+                         'outcome': 'saved'}, source='TVCatalogueDb'),
                         series=series, season=season, episode=episode, artwork=artwork)
                 SourceDirectoryCleanup().finish(item.source_directory, checkpoint['files'], preserve_directory=True)
                 for file in checkpoint['files']:
@@ -102,6 +108,19 @@ class TVImport:
                       {'outcome': 'deleted', 'paths': [], 'source_directory': item.source_directory,
                        'directory_preserved': False, 'error': None}, source='TVImport')
         self._finish(batch, item, result, log, errors)
+
+    @staticmethod
+    def _details(log, series_id, kind, fetch, season=None, episode=None):
+        data = dict(series_id=series_id, kind=kind, season=season, episode=episode, error=None)
+        log.write(Categories.TMDB.DETAILS, Names.TMDB_DETAILS, dict(data, outcome='started'), source='TVImport')
+        try:
+            value = fetch()
+        except (TMDBError, ValueError, httpx.HTTPError) as error:
+            log.write(Categories.TMDB.DETAILS, Names.TMDB_DETAILS,
+                      dict(data, outcome='failed', error=str(error)), source='TVImport', level='ERROR')
+            raise
+        log.write(Categories.TMDB.DETAILS, Names.TMDB_DETAILS, dict(data, outcome='received'), source='TVImport')
+        return value
 
     def _finish(self, batch, item, result, log, errors):
         result = replace(result, catalogue_saved=not errors, file_moved=not errors,

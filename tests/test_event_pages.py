@@ -23,6 +23,19 @@ class EventPagesTests(unittest.TestCase):
         return self.pages.render('events.html', events=[self.event], category=None,
                                  subcategory=None, name=None, refresh=0).decode()
 
+    def test_tv_detail_progress_is_readable_and_escaped(self):
+        self.event.update(name='tmdb_details',category='TMDB',subcategory='Details')
+        for outcome, text in [('started','Fetching'),('received','Received'),('failed','Failed to fetch')]:
+            self.event['content'] = json.dumps(dict(context=dict(filename='<Show>'),data=dict(
+                series_id=42,kind='episode',season=1,episode=2,outcome=outcome,
+                error='<failure>' if outcome == 'failed' else None)))
+            body = self.render()
+            self.assertIn(text + ' TMDB TV episode details',body)
+            self.assertIn('Season 01, Episode 02',body)
+            self.assertIn('&lt;Show&gt;',body)
+            if outcome == 'failed':
+                self.assertIn('&lt;failure&gt;',body)
+
     def add_template(self, source):
         self.pages._templates.loader = ChoiceLoader([
             DictLoader({'messages/batch_completed.html': source}),

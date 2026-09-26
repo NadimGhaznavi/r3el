@@ -1,6 +1,7 @@
 """TV discovery, constrained episode mapping and metadata-only imports."""
 
 from dataclasses import asdict
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -132,6 +133,13 @@ class TVImportTests(unittest.TestCase):
         self.assertFalse(self.source.exists())
         self.assertTrue(self.workspace.save_match.call_args.args[2].file_moved)
         self.assertFalse((self.root/'media/movies').exists())
+        details = [json.loads(call.args[0].message)['data'] for call in self.log.record.call_args_list
+                   if call.args[0].name == 'tmdb_details']
+        self.assertEqual([(row['kind'],row['outcome'],row['episode']) for row in details], [
+            ('series','started',None),('series','received',None),
+            ('season','started',None),('season','received',None),
+            ('episode','started',1),('episode','received',1),
+            ('episode','started',2),('episode','received',2)])
 
     def test_missing_episode_retains_source_and_successful_episode_imports(self):
         self.client.tv_season.return_value['episodes'] = [{'episode_number':1}]
@@ -157,6 +165,10 @@ class TVImportTests(unittest.TestCase):
         self.run_import()
         self.assertTrue(all(Path(a.path).exists() for a in self.attachments))
         self.assertFalse(self.workspace.save_match.call_args.args[2].file_moved)
+        failures = [call.args[0] for call in self.log.record.call_args_list
+                    if call.args[0].name == 'tmdb_details' and call.args[0].level == 'ERROR']
+        self.assertEqual(len(failures),2)
+        self.assertEqual(json.loads(failures[0].message)['data']['episode'],1)
 
     def test_existing_episode_requires_explicit_replacement(self):
         from dataclasses import replace
