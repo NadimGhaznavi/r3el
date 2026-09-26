@@ -9,7 +9,7 @@ from r3el.constants.DEventName import DEventName as Names
 from r3el.interface.CatalogueFiles import CatalogueFiles
 from r3el.interface.DirectoryFiles import DirectoryFiles
 from r3el.interface.SourceDirectoryCleanup import SourceDirectoryCleanup
-from r3el.interface.TMDB import TMDB, TMDBError
+from r3el.interface.TMDB import TMDB, TMDBError, TMDBNotFound
 from r3el.interface.TVCatalogue import TVCatalogue
 
 
@@ -53,13 +53,12 @@ class TVImport:
                     if season_number not in seasons:
                         seasons[season_number] = self._details(log, series_id, 'season',
                             lambda: TVCatalogue.season(client.tv_season(series_id, season_number), season_number),
-                            season_number)
+                            season_number, missing=lambda: TVCatalogue.missing_season(season_number))
                     season = seasons[season_number]
-                    if not any(row.get('episode_number') == episode_number for row in season['episodes']):
-                        raise ValueError(f'TMDB does not contain S{season_number:02}E{episode_number:02}.')
                     episode = self._details(log, series_id, 'episode',
                         lambda: TVCatalogue.episode(client.tv_episode(series_id, season_number, episode_number),
-                                                     season_number, episode_number), season_number, episode_number)
+                                                     season_number, episode_number), season_number, episode_number,
+                        missing=lambda: TVCatalogue.missing_episode(season_number, episode_number))
                     files, artwork = [], []
                     for attachment_position, attachment in enumerate(item.attachments):
                         if attachment is not video and not (
@@ -110,11 +109,19 @@ class TVImport:
         self._finish(batch, item, result, log, errors)
 
     @staticmethod
-    def _details(log, series_id, kind, fetch, season=None, episode=None):
+    def _details(log, series_id, kind, fetch, season=None, episode=None, *, missing=None):
         data = dict(series_id=series_id, kind=kind, season=season, episode=episode, error=None)
         log.write(Categories.TMDB.DETAILS, Names.TMDB_DETAILS, dict(data, outcome='started'), source='TVImport')
         try:
             value = fetch()
+        except TMDBNotFound as error:
+            if missing is None:
+                log.write(Categories.TMDB.DETAILS, Names.TMDB_DETAILS,
+                          dict(data, outcome='failed', error=str(error)), source='TVImport', level='ERROR')
+                raise
+            log.write(Categories.TMDB.DETAILS, Names.TMDB_DETAILS,
+                      dict(data, outcome='missing', error=str(error)), source='TVImport', level='WARNING')
+            return missing()
         except (TMDBError, ValueError, httpx.HTTPError) as error:
             log.write(Categories.TMDB.DETAILS, Names.TMDB_DETAILS,
                       dict(data, outcome='failed', error=str(error)), source='TVImport', level='ERROR')

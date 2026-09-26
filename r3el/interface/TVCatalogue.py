@@ -9,6 +9,17 @@ from r3el.interface.TMDBCatalogue import TMDBCatalogue
 
 
 class TVCatalogue:
+    MISSING_DESCRIPTION = "Hmmm.... That's strange! There's supposed to be a description and cast members here."
+
+    @staticmethod
+    def missing_season(number: int) -> dict:
+        return dict(id=0, season_number=number, name=f'Season {number}', episodes=[])
+
+    @staticmethod
+    def missing_episode(season: int, number: int) -> dict:
+        return dict(id=0, season_number=season, episode_number=number, name=f'Episode {number}',
+                    overview=TVCatalogue.MISSING_DESCRIPTION, credits={'cast': [], 'crew': []})
+
     @staticmethod
     def series(data: dict) -> CatalogueSeries:
         movie = TMDBCatalogue.from_details(dict(data, title=data.get('name'),
@@ -44,5 +55,7 @@ class TVCatalogue:
 
     @staticmethod
     def episode_credits(data: dict):
+        if data['id'] == 0:
+            return []
         return TMDBCatalogue.from_details(dict(data, title=data['name'], genres=[],
             release_date=data.get('air_date'), credits=data['credits']), data['id']).credits
