@@ -47,9 +47,28 @@
 {% if media_type == 'tv' %}
 <section class="batch-panel catalogue-results" aria-labelledby="episodes-heading">
   <h2 id="episodes-heading">Imported episodes</h2>
-  <ul>{% for episode in movie.episodes %}
-    <li>S{{ '%02d' | format(episode.season_number) }}E{{ '%02d' | format(episode.episode_number) }} — {{ episode.title }}</li>
-  {% endfor %}</ul>
+  {% for episode in movie.episodes %}
+  <article class="movie-card catalogue-detail" aria-labelledby="episode-{{ episode.tmdb_id }}">
+    <div class="movie-poster">
+      {% if episode.has_still %}
+      <img src="/catalogue/tv/{{ movie.tmdb_id }}/episodes/{{ episode.tmdb_id }}/still" alt="Still from {{ episode.title }}" loading="lazy">
+      {% else %}<span>No episode image available</span>{% endif %}
+    </div>
+    <div class="movie-info">
+      <h3 id="episode-{{ episode.tmdb_id }}">S{{ '%02d' | format(episode.season_number) }}E{{ '%02d' | format(episode.episode_number) }} — {{ episode.title }}</h3>
+      <p class="movie-subtitle">{{ episode.air_date or 'Air date unknown' }}{% if episode.runtime is not none %} · {{ episode.runtime }} minutes{% endif %}</p>
+      <p class="movie-overview">{{ episode.overview or 'No episode summary available.' }}</p>
+      {% if episode.credits %}
+      <details>
+        <summary>Episode credits</summary>
+        <ul>{% for credit in episode.credits %}
+          <li>{{ credit.name }} — {{ credit.role }}{% if credit.character_name %} ({{ credit.character_name }}){% endif %}</li>
+        {% endfor %}</ul>
+      </details>
+      {% endif %}
+    </div>
+  </article>
+  {% else %}<p>No imported episodes.</p>{% endfor %}
 </section>
 {% endif %}
 <section class="batch-panel" aria-labelledby="files-heading">

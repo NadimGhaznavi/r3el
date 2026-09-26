@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Display saved episode summaries, air dates, runtimes, credits and still images on TV catalogue pages using the existing catalogue theme.
+
 ## [4.0.0] - 2026-09-26 @ 03:10
 
 ### Added

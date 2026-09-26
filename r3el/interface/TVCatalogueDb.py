@@ -81,9 +81,27 @@ class TVCatalogueDb:
                 'SELECT f.path FROM tv_episode_files f JOIN tv_episodes e ON e.tmdb_id=f.episode_id '
                 'WHERE e.series_id=%s ORDER BY e.season_number,e.episode_number,f.kind', (series_id,))
             series['episodes'] = self.db.query(
-                'SELECT season_number,episode_number,title FROM tv_episodes WHERE series_id=%s '
+                'SELECT tmdb_id,season_number,episode_number,title,overview,air_date,runtime '
+                'FROM tv_episodes WHERE series_id=%s '
                 'ORDER BY season_number,episode_number', (series_id,))
+            credits = self.db.query(
+                'SELECT c.episode_id,p.name,r.name AS role,c.character_name FROM tv_episode_credits c '
+                'JOIN tv_episodes e ON e.tmdb_id=c.episode_id '
+                'JOIN people p ON p.tmdb_id=c.person_id JOIN credit_roles r ON r.role_id=c.role_id '
+                'WHERE e.series_id=%s ORDER BY c.position', (series_id,))
+            stills = self.db.query(
+                "SELECT DISTINCT episode_id FROM tv_artwork WHERE series_id=%s AND kind='still'",
+                (series_id,))
+            still_ids = {row['episode_id'] for row in stills}
+            for episode in series['episodes']:
+                episode['credits'] = [row for row in credits if row['episode_id'] == episode['tmdb_id']]
+                episode['has_still'] = episode['tmdb_id'] in still_ids
             return series
+
+    def episode_still_path(self, series_id: int, episode_id: int) -> str | None:
+        rows = self.db.query("SELECT path FROM tv_artwork WHERE series_id=%s AND episode_id=%s "
+                             "AND kind='still' ORDER BY path LIMIT 1", (series_id,episode_id))
+        return rows[0]['path'] if rows else None
 
     def artwork_path(self, series_id: int, kind: str) -> str | None:
         rows = self.db.query('SELECT path FROM tv_artwork WHERE series_id=%s AND kind=%s '

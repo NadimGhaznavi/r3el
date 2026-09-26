@@ -179,7 +179,9 @@ class ControlServerTests(unittest.TestCase):
         get.return_value = dict(tmdb_id=42,title='Show',release_year=2020,original_title='Show',
             release_date='2020-01-01',runtime=None,overview='Series overview',genres=[],rating=8,
             vote_count=10,imdb_id=None,credits=[],files=[{'path':'/media/tv/episode.mkv'}],
-            artwork=[{'kind':'poster'}],episodes=[dict(season_number=1,episode_number=2,title='Episode')])
+            artwork=[{'kind':'poster'}],episodes=[dict(tmdb_id=123,season_number=1,episode_number=2,
+                title='Episode',overview='<Saved summary>',air_date='2020-01-08',runtime=48,has_still=True,
+                credits=[dict(name='<Actor>',role='Actor',character_name='Hero')])])
         status, _, body = self.request('/catalogue/tv/42')
         self.assertEqual(status,200)
         get.assert_called_once_with(42)
@@ -187,6 +189,30 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('https://www.themoviedb.org/tv/42',body)
         self.assertIn('S01E02 — Episode',body)
         self.assertIn('TV series',body)
+        for text in ('&lt;Saved summary&gt;', '2020-01-08', '48 minutes',
+                     '/catalogue/tv/42/episodes/123/still', '&lt;Actor&gt; — Actor (Hero)'):
+            self.assertIn(text,body)
+        episode = get.return_value['episodes'][0]
+        episode.update(overview=None,air_date=None,runtime=None,has_still=False,credits=[])
+        body = self.request('/catalogue/tv/42')[2]
+        self.assertIn('No episode summary available.',body)
+        self.assertIn('Air date unknown',body)
+        self.assertNotIn('/episodes/123/still',body)
+
+    @patch('r3el.server.ControlServer.TVCatalogueDb.episode_still_path')
+    def test_tv_episode_still_uses_registered_series_and_episode(self, artwork):
+        with TemporaryDirectory() as directory:
+            still = Path(directory) / 'still.jpg'
+            still.write_bytes(b'image')
+            artwork.return_value = str(still)
+            status, headers, body = self.request('/catalogue/tv/42/episodes/123/still')
+            self.assertEqual((status,headers['Content-Type'],body),(200,'image/jpeg','image'))
+            artwork.assert_called_once_with(42,123)
+            artwork.return_value = None
+            self.assertEqual(self.request('/catalogue/tv/42/episodes/124/still')[0],404)
+            for path in ('/catalogue/tv/0/episodes/123/still', '/catalogue/tv/42/episodes/0/still',
+                         '/catalogue/tv/42/episodes/4294967296/still'):
+                self.assertEqual(self.request(path)[0],404)
 
     @patch('r3el.server.ControlServer.CatalogueDb.artwork_path')
     def test_catalogue_serves_only_registered_artwork(self, artwork):
