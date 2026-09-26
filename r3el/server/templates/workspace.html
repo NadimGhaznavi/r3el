@@ -1,6 +1,6 @@
 {% set status_labels = {
   file_states.PENDING: 'Pending',
-  file_states.IDENTIFIED: 'Identified',
+  file_states.IDENTIFIED: 'Imported',
   file_states.UNRESOLVED_LLM: 'Unresolved — identification',
   file_states.UNRESOLVED_HIDDEN_FILE: 'Unresolved — hidden file'
 } %}
@@ -77,7 +77,7 @@
       document.getElementById('stop-feedback').textContent = 'Batch stopped. Completed work has been preserved.';
     }
     document.querySelector('.last-updated').replaceWith(page.querySelector('.last-updated'));
-    document.getElementById('batch-processing').textContent = page.getElementById('batch-processing').textContent;
+    document.getElementById('batch-processing').replaceWith(page.getElementById('batch-processing'));
     const newBatchDisabled = matchingInProgress || page.querySelector('#new-batch-action button').disabled;
     const controls = document.getElementById('batch-controls-section');
     const nextControls = page.getElementById('batch-controls-section');

@@ -4,7 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.BatchMatching import BatchMatching
@@ -86,7 +86,7 @@ class SourceCleanupTests(unittest.TestCase):
             if exists:
                 bad.write_bytes(b'wrong bytes')
             with self.assertRaises(ValueError):
-                SourceDirectoryCleanup().finish(str(self.source), copies, preserve_directory=False)
+                SourceDirectoryCleanup().finish(str(self.source), copies, preserve_directory=False, log=self.log)
             self.assertTrue(a.exists())
             self.assertTrue(b.exists())
 
@@ -96,6 +96,20 @@ class SourceCleanupTests(unittest.TestCase):
         target.write_bytes(origin.read_bytes())
         with self.assertRaises(ValueError):
             SourceDirectoryCleanup().finish(str(self.source),
-                [{'source': str(origin), 'destination': str(target)}], preserve_directory=False)
+                [{'source': str(origin), 'destination': str(target)}], preserve_directory=False, log=self.log)
         self.assertTrue(origin.exists())
         self.assertTrue(target.exists())
+
+    def test_verification_reports_progress_and_completion(self):
+        import json
+        origin = self.source / 'part1.avi'
+        origin.write_bytes(b'x' * (2 * 1024 * 1024 + 1))
+        target = self.root / 'verified.avi'
+        target.write_bytes(origin.read_bytes())
+        with patch('r3el.interface.SourceDirectoryCleanup.time.monotonic', side_effect=[0, 6, 12, 18]):
+            self.assertTrue(SourceDirectoryCleanup._verify(origin, target, self.log))
+        reports = [json.loads(call.args[0].message)['data'] for call in self.log.record.call_args_list]
+        self.assertEqual([report['verified_bytes'] for report in reports],
+                         [0, 1024 * 1024, 2 * 1024 * 1024, 2 * 1024 * 1024 + 1, 2 * 1024 * 1024 + 1])
+        self.assertEqual(reports[-1]['outcome'], 'verified')
+        self.assertTrue(origin.exists())

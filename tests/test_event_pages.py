@@ -29,6 +29,27 @@ class EventPagesTests(unittest.TestCase):
             self.pages._templates.loader,
         ])
 
+    def test_control_shows_latest_batch_event_using_event_log_template(self):
+        from r3el.entity.MediaFileBatch import MediaFileBatch
+        batch = MediaFileBatch('batch', 1, '/source')
+        self.event.update(name='file_copy', content=json.dumps({
+            'context': {'batch_id': 'batch'},
+            'data': {'outcome': 'verifying', 'verified_bytes': 10, 'total_bytes': 20,
+                     'source_path': '/source/<movie>.avi'}}))
+        body = self.pages.render('control.html', workspace=batch, refresh=0,
+                                 latest_event=self.event).decode()
+        status = body.split('<p id="batch-processing"', 1)[1].split('</p>', 1)[0]
+        self.assertIn('Verifying copied media: 10 / 20 bytes', status)
+        self.assertIn('&lt;movie&gt;.avi', status)
+        self.assertIn('href="/events/42"', status)
+        self.assertLess(body.index('Clear Current Batch'), body.index('<p id="batch-processing"'))
+        self.assertLess(body.index('<p id="batch-processing"'), body.index('Current Batch</h2>'))
+        batch.stop_requested = True
+        body = self.pages.render('control.html', workspace=batch, refresh=0,
+                                 latest_event=self.event).decode()
+        self.assertIn('Stopping after the current operation...', body)
+        self.assertIn('Verifying copied media: 10 / 20 bytes', body)
+
     def test_default_preserves_plain_text_and_limits_preview(self):
         self.event['name'] = 'default_test_event'
         for length in (1200, 1201):

@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-25 @ 22:43
+
+### Changed
+- Show the current batch’s latest Event Log message beneath the batch controls, with a link to its details and automatic progress refresh.
+
+
+### Changed
+
+- Report byte-level verification progress in the Event Log and verify copied media in larger blocks before deleting sources.
+
+- Move the batch-processing status beneath the New Batch, Stop Batch, and Clear Current Batch buttons and display it in bold yellow.
+
+### Changed
+
+- Rename the displayed batch status from Identified to Imported.
+
 ## [1.6.0] - 2026-09-25 @ 22:31
 
 ### Added

@@ -52,6 +52,18 @@ class EventLogDb:
             tuple(values) + (limit,),
         )
 
+    def latest_for_processes(self, process_ids: list[str]) -> dict | None:
+        """Read the latest event belonging to the current batch or its files."""
+        placeholders = ', '.join(['%s'] * len(process_ids))
+        rows = self._db.query(
+            "SELECT e.*, m.content FROM events e "
+            "JOIN event_messages m USING (event_id) "
+            f"WHERE e.process_id IN ({placeholders}) "
+            "ORDER BY e.occurred_at DESC, e.event_id DESC LIMIT 1",
+            tuple(process_ids),
+        )
+        return rows[0] if rows else None
+
     def get(self, event_id: int) -> dict | None:
         rows = self._db.query(
             "SELECT e.*, m.content FROM events e "
