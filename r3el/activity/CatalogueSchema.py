@@ -28,6 +28,8 @@ class CatalogueSchema:
                 CHECK (rating BETWEEN 0 AND 10)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ''')
+        self._db.execute('ALTER TABLE movies ADD COLUMN IF NOT EXISTS added_at DATETIME(6) NULL')
+        self._db.execute('UPDATE movies SET added_at = fetched_at WHERE added_at IS NULL')
         self._db.execute('''
             CREATE TABLE IF NOT EXISTS people (
                 tmdb_id INT UNSIGNED PRIMARY KEY,
