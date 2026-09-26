@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.2] - 2026-09-26 @ 08:52
+
 ### Changed
 - Put Title Search's Type selector on its own line, wrap index letters within a narrower width than Numbers and Symbols, and give Category Search the remaining row width.
 
