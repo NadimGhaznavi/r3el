@@ -41,6 +41,22 @@ class WorkspaceDb:
         self._db = db
         self._events = EventLogDb(db)
 
+    def clear(self, batch_id: str) -> None:
+        """Clear only the requested idle workspace; retain catalogue and event history."""
+        with self.processing(), self.matching(), self._db.transaction():
+            rows = self._db.query('SELECT batch_id, state, stop_requested, started_event_id '
+                                  'FROM media_file_batches FOR UPDATE')
+            if not rows or rows[0]['batch_id'] != batch_id:
+                raise WorkspaceActionConflict('The batch is no longer in the workspace.')
+            row = rows[0]
+            if (row['state'] in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING)
+                    or (row['state'] == MediaFileBatchState.CANCELLED and not row['stop_requested'])):
+                raise WorkspaceBusy('The batch is finishing its current operation.')
+            event = EventWriter(self._events.record, {'batch_id': batch_id}, row['started_event_id']).prepare(
+                Categories.Batch.LIFECYCLE, Names.BATCH_CLEARED, {}, source='WorkspaceDb')
+            self._events.record_in_transaction(event)
+            self._db.execute('DELETE FROM media_file_batches WHERE batch_id = %s', (batch_id,))
+
     def snapshot(self) -> MediaFileBatch | None:
         """Read the current workspace without taking the processor's exclusive lock."""
         with self._db.transaction():

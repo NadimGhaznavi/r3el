@@ -330,6 +330,33 @@ class ControlServerTests(unittest.TestCase):
             time.sleep(0.01)
         replace_media.assert_called_once_with('batch-1', 'file-1')
 
+    @patch('r3el.server.ControlServer.ClearWorkspace.run')
+    def test_clear_button_and_endpoint(self, clear):
+        self.workspace.return_value = None
+        body = self.request('/')[2]
+        self.assertIn('id="clear-batch" type="button" disabled>Clear Current Batch', body)
+        self.workspace.return_value = MediaFileBatch('batch-1', 1, '/tmp')
+        for state in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING_COMPLETED):
+            self.workspace.return_value.state = state
+            body = self.request('/')[2]
+            self.assertIn('id="clear-batch" type="button">Clear Current Batch', body)
+            self.assertLess(body.index('>Stop Batch</button>'), body.index('>Clear Current Batch</button>'))
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        for payload in ('batch_id=', 'batch_id=../bad', 'batch_id=x&file_id=y'):
+            self.assertEqual(self.request('/workspace/clear', 'POST', payload, headers)[0], 400)
+        self.assertEqual(self.request('/workspace/clear', 'POST', 'batch_id=batch-1',
+            dict(headers, Origin='http://elsewhere.invalid'))[0], 403)
+        clear.assert_not_called()
+        status, _, body = self.request('/workspace/clear', 'POST', 'batch_id=batch-1', headers)
+        self.assertEqual(status, 202)
+        job_id = json.loads(body)['job_id']
+        deadline = time.monotonic() + 2
+        while json.loads(self.request('/workspace/clear/status/' + job_id)[2])['status'] == 'running':
+            self.assertLess(time.monotonic(), deadline)
+            time.sleep(0.01)
+        clear.assert_called_once_with('batch-1')
+        self.assertEqual(json.loads(self.request('/workspace/clear/status/' + job_id)[2])['status'], 'completed')
+
     @patch('r3el.server.ControlServer.BatchMatching.match_id')
     def test_manual_id_request_validates_and_runs_in_background(self, match_id):
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -632,7 +659,7 @@ class ControlServerTests(unittest.TestCase):
     def test_dropdowns_follow_selected_branch(self):
         for query, expected_subcategories, expected_events in (
             ('category=Batch', {'Lifecycle', 'Discovery', 'BatchIdentification'},
-             {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'batch_stop_requested', 'files_retrieved', 'item_started', 'item_completed', 'identification_group_completed',
+             {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'batch_stop_requested', 'batch_cleared', 'files_retrieved', 'item_started', 'item_completed', 'identification_group_completed',
               'directory_scan_started', 'directory_scan_completed', 'directories_scanned',
               'two_parts_detected', 'subtitle_association'}),
             ('category=Batch&subcategory=BatchIdentification',
@@ -651,7 +678,7 @@ class ControlServerTests(unittest.TestCase):
             ('category=DB&subcategory=Create+Record', {'Create Record'}, {'db_create_record'}),
             ('subcategory=Lifecycle',
              {'Lifecycle', 'Discovery', 'BatchIdentification', 'ToolConversation', 'SubmissionHandler', 'LLMPrompt', 'Search', 'Result', 'Move', 'Delete', 'Download', 'Create Record'},
-             {'started', 'stopped', 'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'batch_stop_requested'}),
+             {'started', 'stopped', 'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'batch_stop_requested', 'batch_cleared'}),
         ):
             with self.subTest(query=query):
                 status, _, body = self.request('/events?' + query)
