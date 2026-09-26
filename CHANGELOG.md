@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Link movie and episode files to local file URLs, mapping the stored `/exports/` prefix to `/imports/`.
+
 ## [5.2.3] - 2026-09-26 @ 10:09
 
 ### Added

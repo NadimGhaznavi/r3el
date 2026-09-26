@@ -93,7 +93,7 @@ class TVCatalogueDb:
                 'SELECT DISTINCT kind FROM tv_artwork WHERE series_id=%s AND season_number IS NULL '
                 'AND episode_id IS NULL', (series_id,))
             series['files'] = self.db.query(
-                'SELECT f.path FROM tv_episode_files f JOIN tv_episodes e ON e.tmdb_id=f.episode_id '
+                'SELECT f.path,f.episode_id FROM tv_episode_files f JOIN tv_episodes e ON e.tmdb_id=f.episode_id '
                 'WHERE e.series_id=%s ORDER BY e.season_number,e.episode_number,f.kind', (series_id,))
             series['episodes'] = self.db.query(
                 'SELECT tmdb_id,season_number,episode_number,title,overview,air_date,runtime '
@@ -109,6 +109,7 @@ class TVCatalogueDb:
                 (series_id,))
             still_ids = {row['episode_id'] for row in stills}
             for episode in series['episodes']:
+                episode['files'] = [row for row in series['files'] if row['episode_id'] == episode['tmdb_id']]
                 episode['credits'] = [row for row in credits if row['episode_id'] == episode['tmdb_id']]
                 episode['has_still'] = episode['tmdb_id'] in still_ids
             return series
