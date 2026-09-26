@@ -32,6 +32,6 @@ button.
 The explicit `--run-batch` diagnostic mode runs identification without the normal
 automatic matching/import pipeline.
 
-See the [batch overview](01-high-level-flow.md),
+See the [batch overview](flowchart.md),
 [directory patterns](directory-patterns.md), [import and cleanup](import-cleanup.md),
 and [persistent workspace](file-states.md).

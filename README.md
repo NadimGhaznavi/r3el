@@ -1,6 +1,6 @@
 # R3el
 
-[Documentation index](index.md) · [Batch flowcharts](pages/01-high-level-flow.md)
+[Documentation index](index.md) · [Batch flowcharts](pages/flowchart.md)
 
 AI-assisted media cataloging for local movie and TV collections.
 
