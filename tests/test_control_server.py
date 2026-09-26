@@ -602,9 +602,11 @@ class ControlServerTests(unittest.TestCase):
     def test_dropdowns_follow_selected_branch(self):
         for query, expected_subcategories, expected_events in (
             ('category=Batch', {'Lifecycle', 'Discovery', 'BatchIdentification'},
-             {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'batch_stop_requested', 'files_retrieved', 'item_started', 'item_completed'}),
+             {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'batch_stop_requested', 'files_retrieved', 'item_started', 'item_completed', 'identification_group_completed',
+              'directory_scan_started', 'directory_scan_completed', 'directories_scanned',
+              'two_parts_detected', 'subtitle_association'}),
             ('category=Batch&subcategory=BatchIdentification',
-             {'Lifecycle', 'Discovery', 'BatchIdentification'}, {'item_started', 'item_completed'}),
+             {'Lifecycle', 'Discovery', 'BatchIdentification'}, {'item_started', 'item_completed', 'identification_group_completed'}),
             ('category=Prompt&subcategory=ToolConversation',
              {'ToolConversation', 'SubmissionHandler', 'LLMPrompt'}, {'attempt_started', 'attempt_failed', 'attempt_cancelled', 'reply_received', 'tool_started', 'tool_completed'}),
             ('category=Prompt&subcategory=SubmissionHandler',
@@ -614,7 +616,7 @@ class ControlServerTests(unittest.TestCase):
             ('category=TMDB', {'Search', 'Result'}, {'tmdb_search', 'tmdb_result'}),
             ('category=TMDB&subcategory=Search', {'Search', 'Result'}, {'tmdb_search'}),
             ('category=TMDB&subcategory=Result', {'Search', 'Result'}, {'tmdb_result'}),
-            ('category=File', {'Move', 'Delete'}, {'file_move', 'file_delete'}),
+            ('category=File', {'Move', 'Delete'}, {'file_move', 'file_delete', 'file_copy'}),
             ('category=Artifact', {'Download'}, {'artifact_download'}),
             ('category=DB&subcategory=Create+Record', {'Create Record'}, {'db_create_record'}),
             ('subcategory=Lifecycle',

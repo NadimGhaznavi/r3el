@@ -6,6 +6,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from r3el.entity.Identification import Identification
+from r3el.entity.MediaAttachment import MediaAttachment
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.entity.TMDBMatch import TMDBMatch
 
@@ -35,6 +36,21 @@ class MediaFile:
     tmdb_match: TMDBMatch | None = None
     retries: int = 0
     updated_at: datetime | None = None
+
+    find_ls: str | None = None
+    attachments: list[MediaAttachment] = field(default_factory=list)
+
+    @property
+    def directory_context(self) -> dict | None:
+        if self.find_ls is None:
+            return None
+        videos = [file.path for file in self.attachments if file.kind == 'video']
+        return {'find-ls': self.find_ls, 'media_file_a': videos[0], 'media_file_b': videos[1]}
+
+    def assign_parts(self, part_one: str, part_two: str) -> None:
+        parts = {part_one: 1, part_two: 2}
+        for file in self.attachments:
+            file.part = parts.get(file.path if file.kind == 'video' else file.media_path)
 
     @property
     def filename(self) -> str:

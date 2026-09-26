@@ -3,6 +3,7 @@
 import asyncio
 
 from r3el.activity.EventWriter import EventWriter
+from r3el.activity.DirectoryDiscovery import DirectoryDiscovery
 from r3el.app.BatchIdentification import BatchIdentification
 from r3el.app.BatchMatching import BatchMatching
 from r3el.app.SubmissionHandler import SubmissionHandler
@@ -60,16 +61,17 @@ class BatchRunner:
                     self._submissions, EventLogDb(db).record, workspace,
                 ).run(request.batch_size, destination_directory=request.output_directory,
                       new_batch=offset == 0 and resume_id is None, offset=offset,
-                      expected_batch_id=resume_id, limit=DR3el.PROCESSING_GROUP_SIZE,
+                      expected_batch_id=resume_id, ordinary_only=True, limit=DR3el.PROCESSING_GROUP_SIZE,
                       completion_state=MediaFileBatchState.MATCHING)
                 batch = workspace.load()
-                group = batch.files[offset:offset + DR3el.PROCESSING_GROUP_SIZE]
-                finished = offset + DR3el.PROCESSING_GROUP_SIZE >= len(batch.files)
+                ordinary = [item for item in batch.files if item.find_ls is None]
+                group = ordinary[offset:offset + DR3el.PROCESSING_GROUP_SIZE]
+                finished = offset + DR3el.PROCESSING_GROUP_SIZE >= len(ordinary)
             finally:
                 db.close()
             # The matching thread owns its connection and async MCP conversations.
             # Await the whole group, including selection and retries, before advancing.
-            matching = asyncio.create_task(asyncio.to_thread(self._match, batch.id, [item.id for item in group], finished))
+            matching = asyncio.create_task(asyncio.to_thread(self._match, batch.id, [item.id for item in group], False))
             try:
                 await asyncio.shield(matching)
             except asyncio.CancelledError:
@@ -79,8 +81,46 @@ class BatchRunner:
                 finally:
                     raise
             if finished:
+                await self._directories(request, batch.id)
                 return
             offset += DR3el.PROCESSING_GROUP_SIZE
+
+    async def _directories(self, request: BatchRequest, batch_id: str) -> None:
+        db = DbMgr()
+        try:
+            workspace = WorkspaceDb(db)
+            batch = workspace.load()
+            log = EventWriter(EventLogDb(db).record, {'batch_id': batch_id}, batch.started_event_id)
+            with workspace.processing():
+                DirectoryDiscovery().run(batch, workspace, log)
+            for position, item in enumerate(batch.files):
+                if item.find_ls is None:
+                    continue
+                await BatchIdentification(
+                    FileMgr(request.input_directory), LLM(self._llm_url), self.endpoint,
+                    self._submissions, log.record, workspace,
+                ).run(request.batch_size, expected_batch_id=batch_id, offset=position, limit=1,
+                      completion_state=MediaFileBatchState.MATCHING)
+                matching = asyncio.create_task(asyncio.to_thread(self._match, batch_id, [item.id], False))
+                try:
+                    await asyncio.shield(matching)
+                except asyncio.CancelledError:
+                    try:
+                        await matching
+                    finally:
+                        raise
+            self._match(batch_id, [], True)
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            state = MediaFileBatchState.CANCELLED if isinstance(error, BatchStopped) else MediaFileBatchState.FAILED
+            name = Names.BATCH_CANCELLED if isinstance(error, BatchStopped) else Names.BATCH_FAILED
+            workspace.save_batch_state(batch_id, state, log.prepare(
+                Categories.Batch.LIFECYCLE, name, {'stage': 'directories', 'error': str(error)},
+                source='BatchRunner', level='ERROR' if state == MediaFileBatchState.FAILED else 'WARNING'))
+            raise
+        finally:
+            db.close()
 
     def _match(self, batch_id: str, file_ids: list[str], finished: bool) -> None:
         db = DbMgr()
@@ -100,6 +140,7 @@ class BatchRunner:
                 raise
             if not finished:
                 return
+            workspace.check_stop(batch_id)
             workspace.save_batch_state(batch_id, MediaFileBatchState.MATCHING_COMPLETED,
                 log.prepare(Categories.Batch.LIFECYCLE, Names.BATCH_COMPLETED,
                             {'stage': 'matching', 'count': len(batch.files),

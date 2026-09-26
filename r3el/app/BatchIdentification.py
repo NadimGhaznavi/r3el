@@ -25,7 +25,7 @@ class BatchIdentification:
 
     async def run(self, batch_size: int, *, destination_directory: str | None = None,
                   new_batch: bool = False, offset: int = 0, limit: int | None = None,
-                  expected_batch_id: str | None = None,
+                  expected_batch_id: str | None = None, ordinary_only: bool = False,
                   completion_state: MediaFileBatchState = MediaFileBatchState.IDENTIFICATION_COMPLETED) -> list[dict]:
         with self._workspace.processing():
             batch = self._workspace.load()
@@ -43,14 +43,17 @@ class BatchIdentification:
                 self._set_state(batch, MediaFileBatchState.PROCESSING, Names.BATCH_RESUMED,
                                 {'pending': sum(item.state == MediaFileState.PENDING for item in batch.files)})
             try:
-                files = batch.files[offset:] if limit is None else batch.files[offset:offset + limit]
+                candidates = [item for item in batch.files if item.find_ls is None] if ordinary_only else batch.files
+                files = candidates[offset:] if limit is None else candidates[offset:offset + limit]
                 for item in files:
                     self._workspace.check_stop(batch.id)
                     if item.state != MediaFileState.PENDING:
                         continue
                     await self._identify(batch, item)
                 self._workspace.check_stop(batch.id)
-                self._set_state(batch, completion_state, Names.BATCH_COMPLETED,
+                event_name = (Names.IDENTIFICATION_GROUP_COMPLETED if completion_state == MediaFileBatchState.MATCHING
+                              else Names.BATCH_COMPLETED)
+                self._set_state(batch, completion_state, event_name,
                                 {'count': len(files),
                                  'unresolved_llm': sum(item.state == MediaFileState.UNRESOLVED_LLM
                                                        for item in files),
@@ -90,18 +93,22 @@ class BatchIdentification:
         log = EventWriter(self._record, context, batch.started_event_id)
         log.parent_event_id = log.write(Categories.Batch.BATCH_IDENTIFICATION,
                                        Names.ITEM_STARTED, {}, source='BatchIdentification')
-        if self._files.is_hidden(item.filename):
+        if item.find_ls is None and self._files.is_hidden(item.filename):
             item.state = MediaFileState.UNRESOLVED_HIDDEN_FILE
             item.issues = [MediaFileIssue('hidden_file', 'Hidden filename; identification skipped.')]
         else:
-            result = await ToolConversation(self._llm, self._endpoint, self._handler, log).run()
+            options = {'directory': item.directory_context} if item.find_ls is not None else {}
+            result = await ToolConversation(self._llm, self._endpoint, self._handler, log, **options).run()
             item.state = MediaFileState(result['status'])
             item.attempts = result['attempts']
             if item.state == MediaFileState.IDENTIFIED:
                 item.identification = Identification(**result['identification'])
-                item.issues = []
+                if item.find_ls is not None:
+                    item.assign_parts(**result['parts'])
+                item.issues = [issue for issue in item.issues if issue.code == 'unresolved_srt']
             else:
-                item.issues = [MediaFileIssue('unresolved_llm', result['reason'])]
+                item.issues = ([issue for issue in item.issues if issue.code == 'unresolved_srt']
+                               + [MediaFileIssue('unresolved_llm', result['reason'])])
         item.action = (MediaFileAction.APPROVE if item.identification is not None
                        and item.identification.confidence == DR3el.AUTO_APPROVE_CONFIDENCE
                        else MediaFileAction.PENDING)
@@ -112,7 +119,9 @@ class BatchIdentification:
     def _set_state(self, batch: MediaFileBatch, state: MediaFileBatchState,
                    name: str, data: dict, level: str = 'INFO') -> None:
         log = EventWriter(self._record, {'batch_id': batch.id}, batch.started_event_id)
-        event = log.prepare(Categories.Batch.LIFECYCLE, name, data,
+        category = (Categories.Batch.BATCH_IDENTIFICATION if name == Names.IDENTIFICATION_GROUP_COMPLETED
+                    else Categories.Batch.LIFECYCLE)
+        event = log.prepare(category, name, data,
                             source='BatchIdentification', level=level)
         self._workspace.save_batch_state(batch.id, state, event)
         batch.state = state

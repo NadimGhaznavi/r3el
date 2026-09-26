@@ -74,6 +74,8 @@ class CatalogueSchema:
                 FOREIGN KEY (movie_id) REFERENCES movies(tmdb_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ''')
+        self._db.execute('ALTER TABLE movie_files ADD COLUMN IF NOT EXISTS part TINYINT UNSIGNED NULL')
+        self._db.execute("ALTER TABLE movie_files ADD COLUMN IF NOT EXISTS kind ENUM('video', 'subtitle') NOT NULL DEFAULT 'video'")
         self._db.execute('''
             CREATE TABLE IF NOT EXISTS movie_artwork (
                 path_hash BINARY(32) PRIMARY KEY,

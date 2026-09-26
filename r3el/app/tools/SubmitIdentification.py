@@ -13,11 +13,11 @@ class SubmitIdentification:
         self._client = ZMQClient(endpoint)
         self._attempt_id = attempt_id
 
-    async def submit(self, title, year, confidence) -> str:
+    async def submit(self, title, year, confidence, **parts) -> str:
         response = await asyncio.to_thread(self._client.request, ZMQMsg(
             sender=DMessage.MCP_IDENTIFICATION, target=DMessage.IDENTIFICATION,
             method=DMessage.SUBMIT_IDENTIFICATION,
             payload={'attempt_id': self._attempt_id,
-                     'submission': {'title': title, 'year': year, 'confidence': confidence}},
+                     'submission': {'title': title, 'year': year, 'confidence': confidence, **parts}},
         ))
         return json.dumps(response.payload, ensure_ascii=False, allow_nan=False)

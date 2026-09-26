@@ -47,6 +47,21 @@ class WorkspaceSchema:
                 FOREIGN KEY (batch_id) REFERENCES media_file_batches(batch_id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """)
+        self._db.execute('ALTER TABLE media_file_batches ADD COLUMN IF NOT EXISTS '
+                         'directories_scanned BOOLEAN NOT NULL DEFAULT FALSE')
+        self._db.execute('ALTER TABLE media_files ADD COLUMN IF NOT EXISTS find_ls LONGTEXT NULL')
+        self._db.execute("""
+            CREATE TABLE IF NOT EXISTS media_attachments (
+                file_id CHAR(36) NOT NULL,
+                position INT UNSIGNED NOT NULL,
+                path TEXT NOT NULL,
+                kind ENUM('video', 'subtitle') NOT NULL,
+                part TINYINT UNSIGNED NULL CHECK (part IN (1, 2)),
+                media_path TEXT NULL,
+                PRIMARY KEY (file_id, position),
+                FOREIGN KEY (file_id) REFERENCES media_files(file_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
         # NULL marks only unmigrated rows. Reapplying the upgrade preserves user choices.
         self._db.execute('ALTER TABLE media_files ADD COLUMN IF NOT EXISTS tmdb_match JSON NULL')
         self._db.execute('ALTER TABLE media_files ADD COLUMN IF NOT EXISTS '
