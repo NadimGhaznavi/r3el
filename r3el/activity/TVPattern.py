@@ -33,23 +33,32 @@ class TVPattern:
         return episodes if len(set(pairs)) == len(pairs) else None
 
     @staticmethod
-    def validate(mapping, expected: dict) -> list[dict]:
+    def numbered_files(expected: dict) -> list[dict]:
+        return [dict(file_id=number, path=path, **expected[path])
+                for number, path in enumerate(sorted(expected), 1)]
+
+    @staticmethod
+    def validate(mapping, expected: list[dict]) -> list[dict]:
         if not isinstance(mapping, list) or len(mapping) != len(expected):
             raise ValueError('Supply one episode mapping for every supplied video.')
-        paths, numbers = set(), set()
+        files = {row['file_id']: row for row in expected}
+        used_ids, numbers, resolved = set(), set(), []
         for row in mapping:
-            if not isinstance(row, dict) or set(row) != {'path', 'season_number', 'episode_number'}:
-                raise ValueError('Each episode needs path, season_number and episode_number.')
-            path, season, episode = row['path'], row['season_number'], row['episode_number']
-            if not isinstance(path, str) or path not in expected or path in paths:
-                raise ValueError('Use every supplied video path exactly once.')
+            if not isinstance(row, dict) or set(row) != {'file_id', 'season_number', 'episode_number'}:
+                raise ValueError('Each episode needs file_id, season_number and episode_number.')
+            file_id, season, episode = row['file_id'], row['season_number'], row['episode_number']
+            if type(file_id) is not int or file_id not in files:
+                raise ValueError(f'Unknown file_id {file_id!r}; use the supplied integer IDs.')
+            if file_id in used_ids:
+                raise ValueError(f'Duplicate file_id {file_id}; use each supplied ID exactly once.')
             if type(season) is not int or not 0 <= season <= 999 or type(episode) is not int or not 1 <= episode <= 999:
                 raise ValueError('Use season 0–999 and episode 1–999.')
-            known = expected[path]
-            if any(known[key] is not None and known[key] != row[key] for key in known):
+            known = files[file_id]
+            if any(known[key] is not None and known[key] != row[key] for key in ('season_number', 'episode_number')):
                 raise ValueError('Do not change explicit season or episode numbers.')
             if (season, episode) in numbers:
                 raise ValueError('Two videos cannot map to the same episode.')
-            paths.add(path)
+            used_ids.add(file_id)
+            resolved.append(dict(path=known['path'], season_number=season, episode_number=episode))
             numbers.add((season, episode))
-        return mapping
+        return resolved

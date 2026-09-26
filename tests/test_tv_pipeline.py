@@ -38,6 +38,22 @@ def render_events(events):
 
 
 class TVPatternTests(unittest.TestCase):
+    def test_numeric_ids_preserve_original_apostrophes_and_ignore_reply_order(self):
+        paths = ["/Bad-Monkey/Bad.Monkey.S01E02.You.Won’t.mkv",
+                 "/Bad-Monkey/Bad.Monkey.S01E04.Nothing’s.Wrong.Don’t.mkv",
+                 "/Bad-Monkey/Bad.Monkey.S01E09.Don't.Want.mkv"]
+        expected = TVPattern.numbered_files({p:dict(season_number=1,episode_number=n)
+                                             for p,n in zip(paths,(2,4,9))})
+        rows = [dict(file_id=r['file_id'],season_number=1,episode_number=r['episode_number'])
+                for r in reversed(expected)]
+        result = TVPattern.validate(rows,expected)
+        self.assertEqual([r['path'] for r in result],list(reversed(paths)))
+        for bad_id in (0,4,'1',True):
+            with self.subTest(file_id=bad_id), self.assertRaises(ValueError):
+                TVPattern.validate([dict(rows[0],file_id=bad_id),*rows[1:]],expected)
+        with self.assertRaises(ValueError):
+            TVPattern.validate(rows[:-1],expected)
+
     def test_three_directory_shapes(self):
         paths = [f'/film/11.22.63/11.22.63-{n:02}.mkv' for n in range(1, 9)]
         result = TVPattern.match(paths)
@@ -71,27 +87,27 @@ class TVPatternTests(unittest.TestCase):
         self.assertEqual(len(items[0].attachments), 2)
 
     def test_mapping_cannot_override_explicit_numbers_or_duplicate_episodes(self):
-        expected = {'one': dict(season_number=2, episode_number=1),
-                    'two': dict(season_number=None, episode_number=2)}
-        rows = [dict(path=p, season_number=2, episode_number=i) for i,p in enumerate(expected,1)]
-        self.assertEqual(TVPattern.validate(rows, expected), rows)
+        expected = TVPattern.numbered_files({'one': dict(season_number=2, episode_number=1),
+                    'two': dict(season_number=None, episode_number=2)})
+        rows = [dict(file_id=i, season_number=2, episode_number=i) for i in (1,2)]
+        self.assertEqual([r['path'] for r in TVPattern.validate(rows, expected)], ['one','two'])
         rows[0]['season_number'] = 1
         with self.assertRaises(ValueError):
             TVPattern.validate(rows, expected)
         rows[0]['season_number'] = 2
-        rows[1]['path'] = 'one'
+        rows[1]['file_id'] = 1
         with self.assertRaises(ValueError):
             TVPattern.validate(rows, expected)
 
     def test_tv_submission_validation(self):
         record = Mock(return_value=1)
         handler = SubmissionHandler(record)
-        handler.register({'attempt_id': 'a', 'batch_id': 'b', 'tv_episodes': {
-            '/show-01.mkv': dict(season_number=None, episode_number=1)}}, 1)
-        submission = dict(episodes=[dict(path='/show-01.mkv', season_number=1, episode_number=1)])
+        handler.register({'attempt_id': 'a', 'batch_id': 'b', 'tv_episodes': TVPattern.numbered_files({
+            '/show-01.mkv': dict(season_number=None, episode_number=1)})}, 1)
+        submission = dict(episodes=[dict(file_id=1, season_number=1, episode_number=1)])
         request = ZMQMsg(sender='test', target=DMessage.IDENTIFICATION, method=DMessage.SUBMIT_IDENTIFICATION,
                          payload={'attempt_id':'a','submission':submission})
-        self.assertEqual(handler.handle(request)['episodes'], submission['episodes'])
+        self.assertEqual(handler.handle(request)['episodes'], [dict(path='/show-01.mkv',season_number=1,episode_number=1)])
         submission['episodes'][0]['episode_number'] = 2
         self.assertEqual(handler.handle(request)['status'], 'rejected')
 
@@ -229,7 +245,7 @@ class TVConversationTests(unittest.IsolatedAsyncioTestCase):
         from r3el.zmq.ZMQServer import ZMQServer
         handler = SubmissionHandler(Mock(return_value=1))
         log = EventWriter(Mock(return_value=1),dict(batch_id='batch',item_id='item',filename='11.22.63'))
-        submission = (dict(episodes=[dict(path='/11.22.63-01.mkv',season_number=1,episode_number=1)])
+        submission = (dict(episodes=[dict(file_id=1,season_number=1,episode_number=1)])
                       if mapping else dict(title='11.22.63',confidence=10))
         directory = {'find-ls':'listing','episodes':{'/11.22.63-01.mkv':{
                     'season_number':None,'episode_number':1}}}
@@ -243,13 +259,21 @@ class TVConversationTests(unittest.IsolatedAsyncioTestCase):
             result = await ToolConversation(llm,listener.endpoint,handler,log,directory=directory).run()
         self.assertEqual(result['status'],'identified')
         if mapping:
-            self.assertEqual(result['episodes'],submission['episodes'])
+            self.assertEqual(result['episodes'],[dict(path='/11.22.63-01.mkv',season_number=1,episode_number=1)])
             self.assertIsNone(result['identification'])
         else:
             self.assertEqual(result['identification'],dict(submission,year=None))
             self.assertIsNone(result['episodes'])
         messages = llm.complete.call_args.args[0]['messages']
         self.assertIn('confirmed_series' if mapping else 'submit_tv_series',messages[1]['content'])
+        if mapping:
+            files = json.loads(messages[1]['content'])['data']['episodes']
+            self.assertEqual(files[0]['file_id'],1)
+            self.assertEqual(files[0]['path'],'/11.22.63-01.mkv')
+            definition = llm.complete.call_args.args[0]['tools'][0]['function']
+            fields = definition['parameters']['properties']['episodes']['items']
+            self.assertEqual(set(fields['required']),{'file_id','season_number','episode_number'})
+            self.assertNotIn('path',fields['properties'])
         if not mapping:
             self.assertNotIn('"episodes"',messages[1]['content'])
             definition = llm.complete.call_args.args[0]['tools'][0]['function']
