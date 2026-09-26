@@ -31,7 +31,7 @@ The **R3el Project uses** a locally hosted [Large Language Model (LLM)](https://
 ## Project information
 
 - [README](README.md)
-- [Changelog](CHANGELOG.md)
+- [Changelog]({{ '/changelog/' | relative_url }})
 - [Repository agent instructions](AGENTS.md)
 
 <footer style="margin-top: 3rem; text-align: center; font-size: 0.75em;">
