@@ -26,9 +26,24 @@ Results panel. Each card opens a movie page with a poster and summary, Director,
 Producers, Cast, and Files boxes. These pages read saved catalogue data and local
 artwork without querying TMDB.
 
-Movie file lists and individual episodes include local filesystem links. These
+Movie file lists and individual episodes include Play in VLC links. These
 use the stored path with the leading `/exports/` replaced by `/imports/`, for
-example `file:///imports/disk1/Movie.mkv`. Other path prefixes stay unchanged.
+example `r3el-vlc:///imports/disk1/Movie.mkv`. Other path prefixes stay unchanged.
+
+On the Linux desktop running Chrome and VLC, run this once as your desktop user
+(without sudo), from a checkout of R3el:
+
+```sh
+python3 scripts/vlc-link.py --install
+```
+
+Alternatively, copy just `scripts/vlc-link.py` to that desktop and run it with
+`--install`. It requires Python 3, VLC (`vlc` on PATH), and `xdg-mime` from
+xdg-utils. The installer registers a per-user `r3el-vlc:` link handler using a
+[desktop entry](https://specifications.freedesktop.org/desktop-entry/latest-single/).
+Click a media path and accept Chrome's external application prompt. The media
+must be mounted at `/imports/...` on that desktop. This opens the local file in
+VLC; it does not stream the media from the R3el server.
 
 Title Search, Search Index, Category Search, and Random Search share a row.
 Random Search has a single Search button that replaces Recent additions with four
