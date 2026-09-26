@@ -2,7 +2,8 @@
 {% block title %}Match Results{% endblock %}
 {% block content %}
 <h1>Match Results</h1>
-{% if match.catalogue_error %}<p class="match-status match-status-failed">Catalogue save failed: {{ match.catalogue_error }}</p>
+{% if match.entry_exists %}<p class="match-status match-status-failed">Entry exists: {{ match.catalogue_error }}</p>
+{% elif match.catalogue_error %}<p class="match-status match-status-failed">Catalogue save failed: {{ match.catalogue_error }}</p>
 {% elif match.duplicate and match.file_moved %}<p class="note">Lower-ranked format deleted. Preferred file: {{ match.catalogue_path }}.</p>
 {% elif match.discard_files %}<p class="note">Preferred file saved; completing duplicate cleanup.</p>
 {% elif match.file_moved %}<p class="note">Saved to catalogue and moved to {{ match.catalogue_path }}.</p>

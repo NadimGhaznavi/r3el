@@ -35,6 +35,23 @@ class BatchMatching:
         self._record = record
         self._llm = llm
 
+    def replace_media(self, batch_id: str, file_id: str) -> None:
+        with self._workspace.processing(), self._workspace.matching():
+            batch = self._workspace.load()
+            if batch is None or batch.id != batch_id or batch.in_progress:
+                raise WorkspaceActionConflict('Replacing media requires a finished batch.')
+            item = next((item for item in batch.files if item.id == file_id), None)
+            if (item is None or item.tmdb_match is None or not item.tmdb_match.entry_exists
+                    or item.action in (MediaFileAction.IGNORE, MediaFileAction.DELETE)):
+                raise WorkspaceActionConflict('The item no longer has a destination conflict.')
+            log = EventWriter(self._record, {'batch_id': batch_id, 'item_id': file_id,
+                                            'filename': item.filename}, batch.started_event_id)
+            result = replace(item.tmdb_match, replace_local_media=True)
+            self._workspace.save_match(batch_id, file_id, result, log.prepare(
+                Categories.File.MOVE, Names.FILE_MOVE, {'outcome': 'replacement_requested',
+                    'source_path': item.path, 'destination_path': None, 'error': None}, source='BatchMatching'))
+            self._catalogue(batch, item, result, log)
+
     def match_id(self, batch_id: str, file_id: str, movie_id: int) -> None:
         with self._workspace.processing(), self._workspace.matching():
             batch = self._workspace.load()
@@ -196,7 +213,7 @@ class BatchMatching:
             return
         try:
             movie_id = response['results'][0]['id']
-            preferred, discarded = ((item.path, []) if item.find_ls is not None else
+            preferred, discarded = ((item.path, []) if item.find_ls is not None or result.replace_local_media else
                                     MovieFormats.choose(item.path, self._workspace.catalogue_paths(movie_id)))
             discard_files = CatalogueFiles.discard_snapshot(discarded)
             if item.path in discarded:
@@ -209,9 +226,11 @@ class BatchMatching:
                 movie = TMDBCatalogue(TMDB.from_environment()).movie(movie_id)
             copied_files = []
             if item.find_ls is not None:
-                files, copied_files = TwoPartCopy().prepare(movie, item, batch.destination_directory, log)
+                files, copied_files = TwoPartCopy().prepare(movie, item, batch.destination_directory, log,
+                                                          replace_existing=result.replace_local_media)
             else:
-                files = CatalogueFiles().prepare(movie, item.path, batch.destination_directory, item.id, log)
+                files = CatalogueFiles().prepare(movie, item.path, batch.destination_directory, item.id, log,
+                                                **({'replace_existing': True} if result.replace_local_media else {}))
         except (TMDBError, OSError, ValueError, httpx.HTTPError) as error:
             self._catalogue_failure(batch.id, item.id, result, error, log)
             return
