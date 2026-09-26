@@ -11,6 +11,9 @@ class CatalogueDb:
     def __init__(self, db: DbMgr) -> None:
         self._db = db
 
+    def categories(self) -> list[dict]:
+        return self._db.query('SELECT name FROM tmdb_movie_genres ORDER BY name')
+
     def movies(self, title: str = '') -> list[dict]:
         return self._db.query(
             "SELECT tmdb_id, title, release_year, poster_path FROM movies "

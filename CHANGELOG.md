@@ -1,3 +1,10 @@
+---
+title: Changelog
+author_profile: true
+layout: single
+permalink: /changelog/
+---
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -8,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [Unreleased]
+
+### Changed
+- Rename catalogue Search to Title Search and add a Category Search panel listing all locally stored TMDB genres alphabetically.
+
+### Fixed
+- Publish the changelog as a Jekyll page and correct its documentation-index link.
 
 ## [2.0.0] - 2026-09-26 @ 01:17
 
