@@ -27,12 +27,13 @@ Producers, Cast, and Files boxes. These pages read saved catalogue data and loca
 artwork without querying TMDB.
 
 Title Search, Search Index, and Category Search share a row. The index contains
-four lines of links: Numbers and Symbols on its own line, then a–z across three lines, matching the first character
+Numbers and Symbols on its own line, with the alphabet wrapping into narrower rows below, matching the first character
 of movie or TV show titles (not episode titles). Leading spaces are ignored.
 Index results use the same poster/title/year cards and result count as the other
 searches. Letters without matching titles are omitted; each letter has two extra
-spaces on either side. The middle box fits its contents; the outer boxes share remaining width,
-and the boxes stack on narrow screens.
+spaces on either side. Title Search places Type on a separate line. The middle box
+fits its contents, Category Search takes the remaining width, and the boxes stack
+on narrow screens.
 
 `r3el-control.service` is a standalone Jinja2 report server. It displays the
 MariaDB event log while the identification service is running or stopped and

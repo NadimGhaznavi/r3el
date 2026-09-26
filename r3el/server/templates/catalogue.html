@@ -70,11 +70,9 @@
     <div class="catalogue-index-row">
       <a href="/catalogue?index=symbols"{% if search_index == 'symbols' %} aria-current="true"{% endif %}>Numbers and Symbols</a>
     </div>
-    {% for letters in ['abcdefghi', 'jklmnopqr', 'stuvwxyz'] %}
-    <div class="catalogue-index-row">
-      {% for letter in letters if letter in available_initials %}&nbsp;&nbsp;<a href="/catalogue?index={{ letter }}"{% if search_index == letter %} aria-current="true"{% endif %}>{{ letter }}</a>&nbsp;&nbsp;{% if not loop.last %} <span aria-hidden="true">|</span> {% endif %}{% endfor %}
+    <div class="catalogue-index-alphabet">
+      {% for letter in available_initials %}<span class="catalogue-index-letter">&nbsp;&nbsp;<a href="/catalogue?index={{ letter }}"{% if search_index == letter %} aria-current="true"{% endif %}>{{ letter }}</a>&nbsp;&nbsp;{% if not loop.last %}<span aria-hidden="true">|</span>{% endif %}</span>{% endfor %}
     </div>
-    {% endfor %}
   </nav>
 </section>
 <section class="batch-panel catalogue-categories" aria-labelledby="category-search-heading">

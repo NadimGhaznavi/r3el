@@ -45,7 +45,7 @@ class ControlServerTests(unittest.TestCase):
             initial.assert_called_with(value)
             self.assertIn('Search Results (0)', body)
             self.assertIn(f'name="index" value="{value}"', body)
-            self.assertEqual(body.count('class="catalogue-index-row"'), 4)
+            self.assertIn('class="catalogue-index-alphabet"', body)
             self.assertIn('>a</a>&nbsp;&nbsp;', body)
             self.assertIn('>z</a>&nbsp;&nbsp;', body)
             self.assertNotIn('>&nbsp;&nbsp;a', body)
