@@ -51,21 +51,23 @@ class CategorySearchTests(unittest.TestCase):
     def test_random_includes_movies_shows_and_episodes_without_duplicates(self):
         self.connection.create_function('RAND', 0, lambda: 0.5)
         self.connection.executescript("""
+            DELETE FROM movies WHERE tmdb_id > 2;
             ALTER TABLE tv_episodes ADD COLUMN title TEXT;
             ALTER TABLE tv_episodes ADD COLUMN air_date TEXT;
             ALTER TABLE tv_episodes ADD COLUMN episode_number INTEGER;
             INSERT INTO tv_series VALUES (1,'Show','2020-01-01','2020-01-01');
             INSERT INTO tv_episodes VALUES (1,1,2,'Episode','2021-01-01',3);
             INSERT INTO tv_artwork VALUES (1,'still','/still.jpg',2,1);
+            INSERT INTO tv_artwork VALUES (1,'poster','/poster.jpg',NULL,NULL);
         """)
         rows = self.catalogue.random()
-        self.assertEqual(len(rows), 6)
-        self.assertEqual(len({(r['media_type'], r['tmdb_id']) for r in rows}), 6)
+        self.assertEqual(len(rows), 4)
+        self.assertEqual(len({(r['media_type'], r['tmdb_id']) for r in rows}), 4)
         episode = next(r for r in rows if r['media_type'] == 'episode')
         self.assertEqual((episode['series_title'], episode['poster_path'], episode['release_year']),
-                         ('Show', '/still.jpg', 2021))
+                         ('Show', '/poster.jpg', 2021))
         self.connection.execute("INSERT INTO movies VALUES (5,'Extra',2020,NULL,'2020-01-01')")
-        self.assertEqual(len(self.catalogue.random()), 6)
+        self.assertEqual(len(self.catalogue.random()), 4)
         self.connection.executescript('DELETE FROM tv_episodes; DELETE FROM tv_series; DELETE FROM movies;')
         self.assertEqual(self.catalogue.random(), [])
         self.connection.execute("INSERT INTO movies VALUES (1,'Only',2020,NULL,'2020-01-01')")
