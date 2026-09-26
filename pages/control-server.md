@@ -16,6 +16,9 @@ and format-preference workflow. Failed lookups show an error and preserve the
 original match results for correction. Active, resolved, Ignore, and Delete
 rows do not offer manual matching.
 
+The site opens the **Catalogue**, with navigation ordered Catalogue, Control,
+then Event log. Control is available at `/control`.
+
 The **Catalogue** navigation link shows four recent additions beside the logo.
 Arrow buttons browse older/newer groups of four. Title search matches part of a
 title and displays poster/title/year cards five across in a separate Search
@@ -23,9 +26,16 @@ Results panel. Each card opens a movie page with a poster and summary, Director,
 Producers, Cast, and Files boxes. These pages read saved catalogue data and local
 artwork without querying TMDB.
 
+Title Search, Search Index, and Category Search share a row. The index contains
+three lines of links for Numbers and Symbols and a–z, matching the first character
+of movie or TV show titles (not episode titles). Leading spaces are ignored.
+Index results use the same poster/title/year cards and result count as the other
+searches. The middle box fits its contents; the outer boxes share remaining width,
+and the boxes stack on narrow screens.
+
 `r3el-control.service` is a standalone Jinja2 report server. It displays the
 MariaDB event log while the identification service is running or stopped and
-does not require Qwen. The landing page places the logo beside vertically aligned
+does not require Qwen. The Control page places the logo beside vertically aligned
 settings in a bordered panel. When the workspace is empty, it provides a Source text box prefilled from `DR3el.FILM_DIR`,
 a Destination text box prefilled from `DR3el.MEDIA_DIR`, a free-form Batch Size
 number input (positive whole numbers, default 10), and a New Batch button. The maximum
@@ -145,7 +155,7 @@ Changing an action never executes file operations. `POST /workspace/actions`
 accepts `batch_id`, `file_id`, and `action`, returning saved readiness as JSON.
 
 After New Batch is accepted, the control page reloads once after two seconds to
-show the discovered files. It returns to `/`, removing the acceptance flag so the
+show the discovered files. It returns to `/control`, removing the acceptance flag so the
 reload does not repeat or resubmit the batch. During automatic processing, the
 table updates every two seconds until the batch finishes or fails. The Refresh dropdown offers Manual
 (the default), 5 seconds, 30 seconds, and 1 minute, with an Update button.
