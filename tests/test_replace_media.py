@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from r3el.activity.EventWriter import EventWriter
-from r3el.activity.DirectoryMediaCopy import DirectoryMediaCopy
+from r3el.activity.DirectoryMediaMove import DirectoryMediaMove
 from r3el.app.BatchMatching import BatchMatching
 from r3el.entity.MediaAttachment import MediaAttachment
 from r3el.entity.MediaFile import MediaFile
@@ -42,10 +42,10 @@ class ReplacementTests(unittest.TestCase):
             movie = replace(TMDBCatalogue.from_details(movie_payload(), 42), poster_path=None, backdrop_path=None)
             log = EventWriter(Mock(return_value=1), {'batch_id': 'batch'})
             with self.assertRaisesRegex(FileExistsError, 'destination video already exists'):
-                DirectoryMediaCopy().prepare(movie, item, str(output), log)
+                DirectoryMediaMove().prepare(movie, item, str(output), log)
             self.assertEqual((folder / 'Movie (2020) Part 1.avi').read_bytes(), b'old content')
-            files, copies = DirectoryMediaCopy().prepare(movie, item, str(output), log, replace_existing=True)
-            self.assertEqual(DirectoryMediaCopy().prepare(movie, item, str(output), log, replace_existing=True), (files, copies))
+            files, copies = DirectoryMediaMove().prepare(movie, item, str(output), log, replace_existing=True)
+            self.assertEqual(DirectoryMediaMove().prepare(movie, item, str(output), log, replace_existing=True), (files, copies))
             for copy in copies:
                 self.assertEqual(Path(copy['destination']).read_bytes(), Path(copy['source']).read_bytes())
                 CatalogueFiles().finish(copy['source'], copy['destination'], copy['stage_id'], preserve_source=True)

@@ -45,14 +45,22 @@ class ImportedMovieRepair:
 
         updates = []
         for table in ('movie_files', 'movie_artwork'):
-            for row in self.db.query(f'SELECT path_hash, path, movie_id FROM {table}'):
+            rows = self.db.query(f'SELECT * FROM {table}')
+            by_path = {row['path']: row for row in rows}
+            for row in rows:
                 old = Path(row['path'])
                 for source, target, movie_id in moves:
                     if old.is_relative_to(source):
                         if row['movie_id'] != movie_id or not old.is_file():
                             raise ValueError(f'Catalogue identity or file mismatch: {old}')
                         new = str(target / old.relative_to(source))
-                        updates.append((table, row['path_hash'], new))
+                        existing = by_path.get(new)
+                        if existing is not None:
+                            metadata = lambda record: {key: value for key, value in record.items()
+                                                       if key not in ('path', 'path_hash')}
+                            if metadata(existing) != metadata(row):
+                                raise ValueError(f'Conflicting destination catalogue record: {new}')
+                        updates.append((table, row['path_hash'], new, existing is not None))
                         break
         for source, target, movie_id in moves:
             print(f'{source} -> {target} (TMDB {movie_id})')
@@ -68,7 +76,10 @@ class ImportedMovieRepair:
                         raise ValueError(f'Destination appeared during repair: {target}')
                     source.rename(target)
                     moved.append((source, target))
-                for table, old_hash, new in updates:
+                for table, old_hash, new, already_catalogued in updates:
+                    if already_catalogued:
+                        self.db.execute(f'DELETE FROM {table} WHERE path_hash = %s', (old_hash,))
+                        continue
                     self.db.execute(
                         f'UPDATE {table} SET path = %s, path_hash = %s WHERE path_hash = %s',
                         (new, sha256(new.encode('utf-8')).digest(), old_hash))

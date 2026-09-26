@@ -7,7 +7,7 @@ import httpx
 
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.activity.MovieFormats import MovieFormats
-from r3el.activity.DirectoryMediaCopy import DirectoryMediaCopy
+from r3el.activity.DirectoryMediaMove import DirectoryMediaMove
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.MovieSelection import MovieSelection
 from r3el.app.RetryIdentification import RetryIdentification
@@ -227,9 +227,9 @@ class BatchMatching:
                 return
             if movie is None:
                 movie = TMDBCatalogue(TMDB.from_environment()).movie(movie_id)
-            copied_files = []
+            moved_files = []
             if item.find_ls is not None or item.source_directory is not None:
-                files, copied_files = DirectoryMediaCopy().prepare(movie, item, batch.destination_directory, log,
+                files, moved_files = DirectoryMediaMove().prepare(movie, item, batch.destination_directory, log,
                                                           replace_existing=result.replace_local_media)
             else:
                 files = CatalogueFiles().prepare(movie, item.path, batch.destination_directory, item.id, log,
@@ -239,7 +239,7 @@ class BatchMatching:
             return
         result = replace(result, catalogue_saved=True, catalogue_error=None,
                          source_path=item.path, catalogue_path=files.video, discard_files=discard_files,
-                         copied_files=copied_files, source_directory=item.source_directory,
+                         moved_files=moved_files, source_directory=item.source_directory,
                          preserve_source_directory=any(issue.code == 'unresolved_srt' for issue in item.issues))
         self._workspace.save_catalogue(batch.id, item.id, movie, result, log.prepare(
             Categories.DB.CREATE_RECORD, Names.DB_CREATE_RECORD,
@@ -249,20 +249,20 @@ class BatchMatching:
 
     def _finish_move(self, batch_id: str, file_id: str, result: TMDBMatch, log: EventWriter) -> None:
         try:
-            if result.copied_files:
-                SourceDirectoryCleanup().finish(result.source_directory or result.source_path, result.copied_files,
+            if result.moved_files:
+                SourceDirectoryCleanup().finish(result.source_directory or result.source_path, result.moved_files,
                                                 preserve_directory=result.source_directory is not None
-                                                or result.preserve_source_directory, log=log)
+                                                or result.preserve_source_directory)
                 log.write(Categories.File.DELETE, Names.FILE_DELETE,
-                          {'outcome': 'deleted', 'paths': [copy['source'] for copy in result.copied_files],
+                          {'outcome': 'deleted', 'paths': [move['source'] for move in result.moved_files],
                            'source_directory': result.source_directory or result.source_path,
                            'directory_preserved': result.source_directory is not None or result.preserve_source_directory,
                            'error': None}, source='SourceDirectoryCleanup')
-                for copy in result.copied_files:
-                    CatalogueFiles().finish(copy['source'], copy['destination'], copy['stage_id'], preserve_source=True)
-                    log.write(Categories.File.MOVE, Names.FILE_COPY,
-                              {'source_path': copy['source'], 'destination_path': copy['destination'],
-                               'outcome': 'copied'}, source='CatalogueFiles')
+                for move in result.moved_files:
+                    CatalogueFiles().finish(move['source'], move['destination'], move['stage_id'], preserve_source=True)
+                    log.write(Categories.File.MOVE, Names.FILE_MOVE,
+                              {'source_path': move['source'], 'destination_path': move['destination'],
+                               'outcome': 'moved', 'error': None}, source='CatalogueFiles')
             elif not result.duplicate:
                 CatalogueFiles().finish(result.source_path, result.catalogue_path, file_id)
             self._cleanup_directory(result, log)
@@ -272,8 +272,8 @@ class BatchMatching:
             result = replace(result, file_moved=True, catalogue_error=None)
         if not result.duplicate:
             self._workspace.save_match(batch_id, file_id, result, log.prepare(
-                Categories.File.MOVE, Names.FILE_COPY if result.copied_files else Names.FILE_MOVE,
-                {'outcome': 'failed' if result.catalogue_error else ('copied' if result.copied_files else 'moved'),
+                Categories.File.MOVE, Names.FILE_MOVE,
+                {'outcome': 'failed' if result.catalogue_error else 'moved',
                  'source_path': result.source_path, 'destination_path': result.catalogue_path,
                  'error': result.catalogue_error}, source='CatalogueFiles',
                 level='ERROR' if result.catalogue_error else 'INFO'))
