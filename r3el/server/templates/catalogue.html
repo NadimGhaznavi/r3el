@@ -21,6 +21,7 @@
     <div class="catalogue-recent-heading">
       <h2 id="recent-heading">Recent additions</h2>
       <form method="get" action="/catalogue" aria-label="Browse recent additions" class="catalogue-pagination">
+        {% for category_id in selected_categories %}<input type="hidden" name="category" value="{{ category_id }}">{% endfor %}
         {% if search_title %}<input type="hidden" name="title" value="{{ search_title }}">{% endif %}
         {% if recent_page > 0 %}
         <button type="submit" name="recent_page" value="{{ recent_page - 1 }}" aria-label="Newer additions" title="Newer additions">←</button>
@@ -48,13 +49,21 @@
 </section>
 <section class="batch-panel catalogue-categories" aria-labelledby="category-search-heading">
   <h2 id="category-search-heading">Category Search</h2>
-  <p>{{ catalogue_categories | map(attribute='name') | join(', ') or 'No categories available.' }}</p>
+  <form method="get" action="/catalogue" class="category-search" aria-label="Category search">
+    <input type="hidden" name="recent_page" value="{{ recent_page }}">
+    <div class="category-options">
+      {% for category in catalogue_categories %}
+      <label><input type="checkbox" name="category" value="{{ category.genre_id }}"{% if category.genre_id in selected_categories %} checked{% endif %}> {{ category.name }}</label>
+      {% else %}<p>No categories available.</p>{% endfor %}
+    </div>
+    <button type="submit">Search</button>
+  </form>
 </section>
-{% if search_title %}
+{% if search_title or selected_categories %}
 <section class="batch-panel catalogue-results" aria-labelledby="search-results-heading">
   <h2 id="search-results-heading">Search Results</h2>
   {% if movies %}{{ cards(movies) }}
-  {% else %}<p role="status">No movies found for “{{ search_title }}”.</p>{% endif %}
+  {% else %}<p role="status">{% if selected_categories %}No movies found in the selected categories.{% else %}No movies found for “{{ search_title }}”.{% endif %}</p>{% endif %}
 </section>
 {% endif %}
 {% endblock %}
