@@ -16,6 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-09-26 @ 02:22
+
+### Summary
+
+- Added TV support to the TMDB query tool. Scoping out TV support...
+
+### Added
+- Add query-tmdb --type movie|tv, including optional first-air-year filtering and raw series details for TV searches. Movies remain the default.
+
+### Changed
+- Make the year optional in query-tmdb; title-only searches omit the release-year filter in both readable and raw output modes.
+
 ## [3.0.3] - 2026-09-26 @ 02:00
 
 ### Fixed
@@ -35,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add multi-category checkbox search to Catalogue, matching any selected genre and displaying the standard movie cards.
 
 ## [3.0.0] - 2026-09-26 @ 01:45
+
+### Summary
+
+- Added category search to the catalogue.
 
 ### Changed
 - Rename catalogue Search to Title Search and add a Category Search panel listing all locally stored TMDB genres alphabetically.

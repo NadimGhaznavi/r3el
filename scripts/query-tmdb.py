@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Search TMDB movies by title and four-digit release year."""
+"""Search TMDB movies or TV shows by title and optional four-digit year."""
 
 import argparse
 import json
@@ -22,14 +22,19 @@ def release_year(value: str) -> int:
     return int(value)
 
 
-def movie_title(value: str) -> str:
+def search_title(value: str) -> str:
     if not value.strip():
         raise argparse.ArgumentTypeError('title must not be blank')
     return value.strip()
 
 
-def format_results(title: str, year: int, response: dict, width: int) -> str:
-    rows = [f'TMDB movie search: {title} ({year:04d})',
+def format_results(title: str, year: int | None, response: dict, width: int, media_type: str = 'movie') -> str:
+    kind = 'TV' if media_type == 'tv' else 'movie'
+    title_key, original_key, date_key, date_label = (
+        ('name', 'original_name', 'first_air_date', 'First air date') if media_type == 'tv'
+        else ('title', 'original_title', 'release_date', 'Release date'))
+    heading = f'TMDB {kind} search: {title}' + (f' ({year:04d})' if year is not None else '')
+    rows = [heading,
             f"Results: {response['total_results']}"]
     movies = response['results']
     if not movies:
@@ -37,18 +42,18 @@ def format_results(title: str, year: int, response: dict, width: int) -> str:
     if len(movies) < response['total_results']:
         rows.append(f"Showing {len(movies)} of {response['total_results']} results (first page).")
     for number, movie in enumerate(movies, 1):
-        name = movie.get('title') or movie.get('original_title') or 'Untitled movie'
+        name = movie.get(title_key) or movie.get(original_key) or 'Untitled'
         rows.extend(['', f'{number}. {name}', '-' * min(width, 72)])
-        if movie.get('original_title') and movie['original_title'] != name:
-            rows.append(f"   Original title: {movie['original_title']}")
+        if movie.get(original_key) and movie[original_key] != name:
+            rows.append(f"   Original title: {movie[original_key]}")
         rows.extend([
-            f"   Release date: {movie.get('release_date') or 'Unknown'}",
+            f"   {date_label}: {movie.get(date_key) or 'Unknown'}",
             f"   Language: {movie.get('original_language') or 'Unknown'}",
             f"   TMDB ID: {movie['id']}",
         ])
         if movie.get('vote_average') is not None:
             rows.append(f"   Rating: {movie['vote_average']}/10 ({movie.get('vote_count', 0)} votes)")
-        rows.extend([f"   URL: https://www.themoviedb.org/movie/{movie['id']}", '',
+        rows.extend([f"   URL: https://www.themoviedb.org/{media_type}/{movie['id']}", '',
                      textwrap.fill(movie.get('overview') or 'No overview available.', width=width,
                                    initial_indent='   ', subsequent_indent='   ')])
     return '\n'.join(rows)
@@ -56,18 +61,22 @@ def format_results(title: str, year: int, response: dict, width: int) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__,
-        epilog='Reads TMDB_TOKEN from the environment, /etc/r3el/tmdb.env, or ~/.tmdb. Searches the first page with primary_release_year.')
-    parser.add_argument('title', type=movie_title, help='movie title (quote titles containing spaces)')
-    parser.add_argument('year', type=release_year, help='four-digit release year')
+        epilog='Reads TMDB_TOKEN from the environment, /etc/r3el/tmdb.env, or ~/.tmdb. Searches the first page; the optional year filters movie release year or TV first-air year.')
+    parser.add_argument('title', type=search_title, help='movie or TV title (quote titles containing spaces)')
+    parser.add_argument('year', nargs='?', type=release_year, help='optional four-digit release year or TV first-air year')
+    parser.add_argument('--type', choices=('movie', 'tv'), default='movie',
+                        help='type to search (default: movie)')
     parser.add_argument('-r', '--raw', action='store_true',
-                        help='fetch full movie details and related data for each hit and print JSON')
+                        help='fetch full movie or series details and related data for each hit and print JSON')
     args = parser.parse_args(argv)
     try:
         tmdb = TMDB(TMDBCredentials.token())
-        response = tmdb.search(args.title, args.year)
+        search = tmdb.search_tv if args.type == 'tv' else tmdb.search
+        response = search(args.title, args.year)
         if args.raw:
+            details = tmdb.tv_details if args.type == 'tv' else tmdb.details
             response = dict(response, results=[
-                dict(movie, **tmdb.details(movie['id'])) for movie in response['results']])
+                dict(movie, **details(movie['id'])) for movie in response['results']])
     except TMDBError as error:
         print(f'Error: {error}', file=sys.stderr)
         return 1
@@ -75,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(response, indent=2, ensure_ascii=False))
     else:
         width = max(40, min(shutil.get_terminal_size(fallback=(100, 24)).columns, 120))
-        print(format_results(args.title, args.year, response, width))
+        print(format_results(args.title, args.year, response, width, args.type))
     return 0
 
 

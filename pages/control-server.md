@@ -348,11 +348,24 @@ loads the public image without receiving API credentials.
 
 ## Command-line TMDB search
 
-Query a title and four-digit year:
+Query a title with an optional four-digit year:
 
 ```bash
+.venv/bin/python scripts/query-tmdb.py "Superman"
 .venv/bin/python scripts/query-tmdb.py "Superman" 2025
 ```
+
+Choose TV shows with --type tv; movies remain the default (--type movie).
+For TV, the optional year filters the first air date, not every episode's year.
+
+```bash
+.venv/bin/python scripts/query-tmdb.py --type tv "Breaking Bad"
+.venv/bin/python scripts/query-tmdb.py --type tv "Breaking Bad" 2008 --raw
+```
+
+TV raw output includes series details and related credits, keywords, external
+IDs, alternative titles, content ratings, translations, images, and videos.
+It does not fetch each season or episode separately.
 
 For a standalone CLI installation with its own virtual environment:
 
