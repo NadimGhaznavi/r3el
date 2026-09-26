@@ -88,8 +88,7 @@ class TVPatternTests(unittest.TestCase):
         handler = SubmissionHandler(record)
         handler.register({'attempt_id': 'a', 'batch_id': 'b', 'tv_episodes': {
             '/show-01.mkv': dict(season_number=None, episode_number=1)}}, 1)
-        submission = dict(title='Show', year=2020, confidence=9,
-                          episodes=[dict(path='/show-01.mkv', season_number=1, episode_number=1)])
+        submission = dict(episodes=[dict(path='/show-01.mkv', season_number=1, episode_number=1)])
         request = ZMQMsg(sender='test', target=DMessage.IDENTIFICATION, method=DMessage.SUBMIT_IDENTIFICATION,
                          payload={'attempt_id':'a','submission':submission})
         self.assertEqual(handler.handle(request)['episodes'], submission['episodes'])
@@ -219,26 +218,40 @@ class TVImportTests(unittest.TestCase):
 
 
 class TVConversationTests(unittest.IsolatedAsyncioTestCase):
-    async def test_real_mcp_dialogue_maps_numbered_series(self):
-        import json
+    async def test_real_mcp_dialogue_identifies_only_series(self):
+        await self.check_dialogue(False)
+
+    async def test_real_mcp_dialogue_maps_confirmed_series(self):
+        await self.check_dialogue(True)
+
+    async def check_dialogue(self, mapping):
         from unittest.mock import AsyncMock
         from r3el.zmq.ZMQServer import ZMQServer
         handler = SubmissionHandler(Mock(return_value=1))
         log = EventWriter(Mock(return_value=1),dict(batch_id='batch',item_id='item',filename='11.22.63'))
-        submission = dict(title='11.22.63',year=2016,confidence=10,
-                          episodes=[dict(path='/11.22.63-01.mkv',season_number=1,episode_number=1)])
+        submission = (dict(episodes=[dict(path='/11.22.63-01.mkv',season_number=1,episode_number=1)])
+                      if mapping else dict(title='11.22.63',year=2016,confidence=10))
+        directory = {'find-ls':'listing','episodes':{'/11.22.63-01.mkv':{
+                    'season_number':None,'episode_number':1}}}
+        if mapping:
+            directory['confirmed_series'] = dict(tmdb_id=123,name='11.22.63',first_air_date='2016-02-15')
         llm = Mock()
         llm.complete = AsyncMock(return_value=json.dumps({'choices':[{'message':{
             'role':'assistant','tool_calls':[{'id':'call','type':'function','function':{
-                'name':'submit_tv','arguments':json.dumps(submission)}}]}}]}))
+                'name':'submit_tv' if mapping else 'submit_identification','arguments':json.dumps(submission)}}]}}]}))
         with ZMQServer('tcp://127.0.0.1:*',handler.handle) as listener:
-            result = await ToolConversation(llm,listener.endpoint,handler,log,directory={
-                'find-ls':'listing','episodes':{'/11.22.63-01.mkv':{
-                    'season_number':None,'episode_number':1}}}).run()
+            result = await ToolConversation(llm,listener.endpoint,handler,log,directory=directory).run()
         self.assertEqual(result['status'],'identified')
-        self.assertEqual(result['episodes'],submission['episodes'])
+        if mapping:
+            self.assertEqual(result['episodes'],submission['episodes'])
+            self.assertIsNone(result['identification'])
+        else:
+            self.assertEqual(result['identification'],submission)
+            self.assertIsNone(result['episodes'])
         messages = llm.complete.call_args.args[0]['messages']
-        self.assertIn('first-air year',messages[1]['content'])
+        self.assertIn('confirmed_series' if mapping else 'first-air year',messages[1]['content'])
+        if not mapping:
+            self.assertNotIn('"episodes"',messages[1]['content'])
         render_events([call.args[0] for call in log.record.call_args_list]
                       + [call.args[0] for call in handler._record.call_args_list])
 
@@ -253,3 +266,68 @@ class TVSearchTests(unittest.TestCase):
         factory.return_value.search_tv.assert_called_once_with('Show',2020)
         factory.return_value.search.assert_not_called()
         render_events([call.args[0] for call in log.record.call_args_list])
+
+class TVPhaseBoundaryTests(unittest.TestCase):
+    @patch('r3el.app.BatchMatching.TVImport')
+    @patch('r3el.app.BatchMatching.TVEpisodeMapping')
+    def test_only_confirmed_series_reaches_mapping_and_only_mapped_files_import(self, mapping, importer):
+        from r3el.app.BatchMatching import BatchMatching
+        from dataclasses import replace
+        workspace = Mock()
+        item = MediaFile('item','/source/Show',media_type='tv')
+        batch = MediaFileBatch('batch',1,'/source',files=[item])
+        log = EventWriter.for_item(Mock(return_value=1),batch,item)
+        result = TMDBMatch('Guess',2011,media_type='tv',response={'total_results':0,'results':[]})
+        flow = BatchMatching(workspace,Mock())
+        flow._catalogue(batch,item,result,log)
+        mapping.assert_not_called()
+        result = replace(result,response={'total_results':1,'results':[{'id':42,'name':'Confirmed Show'}]})
+        mapping.return_value.run.return_value = replace(result,catalogue_error='Episode mapping unresolved')
+        flow._catalogue(batch,item,result,log)
+        importer.assert_not_called()
+        mapped = replace(result,episodes_mapped=True)
+        mapping.return_value.run.return_value = mapped
+        flow._catalogue(batch,item,result,log)
+        importer.return_value.run.assert_called_once_with(batch,item,mapped,log)
+        for invalid in (replace(result,selection_pending=True),replace(result,selection_error='Uncertain'),
+                        replace(result,response={'total_results':2,'results':[]}),
+                        replace(result,error='TMDB unavailable')):
+            mapping.reset_mock()
+            flow._catalogue(batch,item,invalid,log)
+            mapping.assert_not_called()
+
+    @patch('r3el.app.TVEpisodeMapping.ToolConversation')
+    @patch('r3el.app.TVEpisodeMapping.ZMQServer')
+    def test_mapping_uses_confirmed_identity_and_checkpoints_before_import(self, server, conversation):
+        from unittest.mock import AsyncMock
+        from r3el.app.TVEpisodeMapping import TVEpisodeMapping
+        workspace = Mock()
+        item = MediaFile('item','/source/Show',media_type='tv',find_ls='find output',attachments=[
+            MediaAttachment('/source/Show-01.mkv',episode_number=1)])
+        batch = MediaFileBatch('batch',1,'/source',files=[item])
+        log = EventWriter.for_item(Mock(return_value=1),batch,item)
+        result = TMDBMatch('Guessed Name',2011,media_type='tv',response={'total_results':1,'results':[
+            dict(id=42,name='Confirmed Name',first_air_date='2012-01-01',overview='Series overview')]})
+        conversation.return_value.run = AsyncMock(return_value=dict(status='identified',attempts=1,
+            episodes=[dict(path=item.attachments[0].path,season_number=1,episode_number=1)]))
+        mapped = TVEpisodeMapping(workspace,Mock()).run(batch,item,result,log)
+        supplied = conversation.call_args.kwargs['directory']
+        self.assertEqual(supplied['confirmed_series']['name'],'Confirmed Name')
+        self.assertEqual(supplied['confirmed_series']['first_air_date'],'2012-01-01')
+        self.assertEqual(supplied['find-ls'],'find output')
+        self.assertTrue(mapped.episodes_mapped)
+        self.assertEqual(item.attachments[0].season_number,1)
+        self.assertEqual(workspace.method_calls[-1][0],'save_file')
+        self.assertTrue(workspace.save_file.call_args.args[1].tmdb_match.episodes_mapped)
+        render_events([workspace.save_file.call_args.args[2]])
+        conversation.reset_mock()
+        self.assertEqual(TVEpisodeMapping(workspace).run(batch,item,mapped,log),mapped)
+        conversation.assert_not_called()
+        conversation.return_value.run = AsyncMock(return_value=dict(
+            status='unresolved_llm',attempts=3,reason='Cannot infer the season'))
+        workspace.reset_mock()
+        unresolved = TVEpisodeMapping(workspace,Mock()).run(batch,item,result,log)
+        self.assertFalse(unresolved.episodes_mapped)
+        self.assertEqual(unresolved.label,'Unresolved — episodes')
+        workspace.save_file.assert_not_called()
+        render_events([workspace.save_match.call_args.args[3]])

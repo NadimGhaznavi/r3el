@@ -45,8 +45,9 @@
 {% if file.media_type == 'tv' %}
 <section class="batch-panel">
 <h2>Episodes</h2>
+{% if not match.episodes_mapped %}<p>Episode mapping will follow confirmation of the TV series. Files have not yet been mapped by the LLM.</p>{% endif %}
 <ul>{% for attachment in file.attachments if attachment.kind == 'video' %}
-<li>{{ attachment.path }} — S{{ attachment.season_number }}E{{ attachment.episode_number }}:
+<li>{{ attachment.path }}{% if attachment.season_number is not none and attachment.episode_number is not none %} — S{{ '%02d' | format(attachment.season_number) }}E{{ '%02d' | format(attachment.episode_number) }}{% endif %}:
 {% if attachment.import_result and attachment.import_result.moved is defined and attachment.import_result.moved %}Imported
 {% elif attachment.import_result and attachment.import_result.error is defined %}{{ attachment.import_result.error }}
 {% else %}Pending{% endif %}</li>

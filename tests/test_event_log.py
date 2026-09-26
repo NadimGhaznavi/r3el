@@ -154,8 +154,16 @@ class EventDatabaseTests(unittest.TestCase):
         self.assertEqual(workspace.load().tv_destination_directory, '/media/tv')
         self.assertEqual(workspace.load().files[1].media_type,'tv')
         item.assign_episodes([dict(path=item.attachments[0].path,season_number=2,episode_number=3)])
+        item.tmdb_match = TMDBMatch('Show',2020,media_type='tv',episodes_mapped=True,
+                                   response={'total_results':1,'results':[{'id':42,'name':'Show'}]})
+        with self.assertRaises(pymysql.IntegrityError):
+            workspace.save_file(batch.id,item,self.event(message=None))
+        saved = workspace.load().files[1]
+        self.assertIsNone(saved.tmdb_match)
+        self.assertEqual(saved.attachments[0].season_number,1)
         workspace.save_file(batch.id,item,self.event())
         self.assertEqual(workspace.load().files[1].attachments[0].season_number,2)
+        self.assertTrue(workspace.load().files[1].tmdb_match.episodes_mapped)
         series = CatalogueSeries(**{field.name:getattr(self.catalogue_movie(),field.name)
                                     for field in __import__('dataclasses').fields(CatalogueSeries)})
         season = dict(id=100,season_number=2,name='Season 2',episodes=[{'episode_number':3}])

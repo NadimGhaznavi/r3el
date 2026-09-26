@@ -1,1 +1,4 @@
-<a href="/events/{{ event.event_id }}">Started item identification. Filename: {{ message.payload.context.filename }}</a>
+{% if message.payload.context.phase | default('') == 'tv_episodes' %}<a href="/events/{{ event.event_id }}">Episode mapping complete. Series: {{ message.payload.context.confirmed_series.name }}. Episodes: {{ message.payload.data.count }}.</a>
+{% elif message.payload.context.media_type | default('movie') == 'tv' %}<a href="/events/{{ event.event_id }}">Started TV series identification. Directory: {{ message.payload.context.filename }}.</a>
+{% else %}<a href="/events/{{ event.event_id }}">Started item identification. Filename: {{ message.payload.context.filename }}</a>
+{% endif %}
