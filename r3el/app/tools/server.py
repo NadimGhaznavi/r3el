@@ -55,13 +55,13 @@ async def submit_two_parts(
     ).submit(title, year, confidence, part_one=part_one, part_two=part_two)
 
 
-@mcp.tool(description='Map each supplied video to a season and episode of the confirmed TV series.')
+@mcp.tool(description='Map each supplied numeric file_id to a season and episode of the confirmed TV series. Do not return paths.')
 async def submit_tv(
     episodes: Annotated[Any, Field(json_schema_extra={'type': 'array', 'items': {
         'type': 'object', 'properties': {
-            'path': {'type': 'string'}, 'season_number': {'type': 'integer', 'minimum': 0},
+            'file_id': {'type': 'integer', 'minimum': 1}, 'season_number': {'type': 'integer', 'minimum': 0},
             'episode_number': {'type': 'integer', 'minimum': 1}},
-        'required': ['path', 'season_number', 'episode_number'], 'additionalProperties': False}})],
+        'required': ['file_id', 'season_number', 'episode_number'], 'additionalProperties': False}})],
 ) -> str:
     return await SubmitIdentification(
         os.environ['R3EL_ZMQ_ENDPOINT'], os.environ['R3EL_ATTEMPT_ID'],
