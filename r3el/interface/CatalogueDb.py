@@ -36,6 +36,13 @@ class CatalogueDb:
             + type_filter + "ORDER BY title,release_year,media_type,tmdb_id",
             (title,) if media_type == 'both' else (title,media_type))
 
+    def available_initials(self) -> list[str]:
+        letters = ' UNION ALL '.join(f"SELECT '{letter}' AS letter" for letter in 'abcdefghijklmnopqrstuvwxyz')
+        rows = self._db.query(f'SELECT DISTINCT letter FROM ({letters}) letters '
+                              'JOIN (SELECT title FROM movies UNION ALL SELECT title FROM tv_series) titles '
+                              'ON LOWER(SUBSTR(LTRIM(title),1,1))=letter ORDER BY letter')
+        return [row['letter'] for row in rows]
+
     def titles_by_initial(self, initial: str) -> list[dict]:
         first = 'LOWER(SUBSTR(LTRIM(title),1,1))'
         condition = f"{first} NOT BETWEEN 'a' AND 'z'" if initial == 'symbols' else f'{first}=%s'
