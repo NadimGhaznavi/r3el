@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.5.3] - 2026-09-26 @ 05:29
+
 ### Changed
 - Constrain the episode tool's file IDs to the labels in the current prompt and require the matching number of mappings; retain backend validation for duplicates and episode numbers.
 
