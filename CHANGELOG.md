@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.0] - 2026-09-26 @ 10:51
+
 ### Changed
 - Rename the workflow page to `flowchart.md` and separate batch processing and per-item identification into two flowcharts.
 
