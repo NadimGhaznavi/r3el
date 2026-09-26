@@ -38,7 +38,17 @@
   @media (max-width: 700px) {
     .catalogue-grid, .catalogue-recent { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
-  .control-logo { display: block; width: 100%; max-width: 20rem; height: auto; justify-self: center; }
+  .control-logo { position: relative; display: block; width: 100%; max-width: 20rem; justify-self: center; }
+  .control-logo img { display: block; width: 100%; height: auto; }
+  .robot-eyes { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; fill: #95417b; animation: robot-eye-colour 18s ease-in-out infinite; }
+  @keyframes robot-eye-colour {
+    0%, 100% { fill: #95417b; }
+    33% { fill: #8dd9cb; }
+    66% { fill: #ffd166; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .robot-eyes { animation: none; }
+  }
   .catalogue-brand { justify-self: center; width: 100%; max-width: 20rem; }
   .catalogue-brand .control-logo { margin-inline: auto; }
   .catalogue-counts { color: #95417b; text-align: center; margin-top: 1rem; }

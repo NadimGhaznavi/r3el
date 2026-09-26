@@ -17,7 +17,7 @@
 <h1 class="sr-only">Catalogue</h1>
 <div class="control-panel">
   <div class="catalogue-brand">
-    <img class="control-logo" src="{{ settings.CONTROL_LOGO_URL }}" alt="R3el">
+    {% include 'logo.html' %}
     <div class="catalogue-counts">
       <h2>Movies: {{ '{:,}'.format(catalogue_counts.movies) }}</h2>
       <h2>TV Shows: {{ '{:,}'.format(catalogue_counts.tv_shows) }}</h2>
