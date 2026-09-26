@@ -46,8 +46,9 @@ class ControlServerTests(unittest.TestCase):
             self.assertIn('Search Results (0)', body)
             self.assertIn(f'name="index" value="{value}"', body)
             self.assertEqual(body.count('class="catalogue-index-row"'), 4)
-            self.assertIn('&nbsp;&nbsp;a&nbsp;&nbsp;', body)
-            self.assertIn('&nbsp;&nbsp;z&nbsp;&nbsp;', body)
+            self.assertIn('>a</a>&nbsp;&nbsp;', body)
+            self.assertIn('>z</a>&nbsp;&nbsp;', body)
+            self.assertNotIn('>&nbsp;&nbsp;a', body)
             self.assertNotIn('href="/catalogue?index=b"', body)
             nav = body.split('<nav aria-label="Main navigation">')[1].split('</nav>')[0]
             self.assertLess(nav.index('Catalogue'), nav.index('Control'))

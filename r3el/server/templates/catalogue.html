@@ -72,7 +72,7 @@
     </div>
     {% for letters in ['abcdefghi', 'jklmnopqr', 'stuvwxyz'] %}
     <div class="catalogue-index-row">
-      {% for letter in letters if letter in available_initials %}<a href="/catalogue?index={{ letter }}"{% if search_index == letter %} aria-current="true"{% endif %}>&nbsp;&nbsp;{{ letter }}&nbsp;&nbsp;</a>{% if not loop.last %} <span aria-hidden="true">|</span> {% endif %}{% endfor %}
+      {% for letter in letters if letter in available_initials %}&nbsp;&nbsp;<a href="/catalogue?index={{ letter }}"{% if search_index == letter %} aria-current="true"{% endif %}>{{ letter }}</a>&nbsp;&nbsp;{% if not loop.last %} <span aria-hidden="true">|</span> {% endif %}{% endfor %}
     </div>
     {% endfor %}
   </nav>
