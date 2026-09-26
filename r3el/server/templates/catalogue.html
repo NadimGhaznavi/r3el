@@ -16,7 +16,13 @@
 {% block content %}
 <h1 class="sr-only">Catalogue</h1>
 <div class="control-panel">
-  <img class="control-logo" src="{{ settings.CONTROL_LOGO_URL }}" alt="R3el">
+  <div class="catalogue-brand">
+    <img class="control-logo" src="{{ settings.CONTROL_LOGO_URL }}" alt="R3el">
+    <div class="catalogue-counts">
+      <h2>Movies: {{ '{:,}'.format(catalogue_counts.movies) }}</h2>
+      <h2>TV Shows: {{ '{:,}'.format(catalogue_counts.tv_shows) }}</h2>
+    </div>
+  </div>
   <section class="control-settings" aria-labelledby="recent-heading">
     <div class="catalogue-recent-heading">
       <h2 id="recent-heading">Recent additions</h2>

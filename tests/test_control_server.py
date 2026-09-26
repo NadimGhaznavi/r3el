@@ -67,6 +67,10 @@ class ControlServerTests(unittest.TestCase):
         self.workspace_patch = patch('r3el.server.ControlServer.WorkspaceDb.snapshot', return_value=None)
         self.workspace = self.workspace_patch.start()
         self.addCleanup(self.workspace_patch.stop)
+        self.counts_patch = patch('r3el.server.ControlServer.CatalogueDb.counts',
+                                  return_value={'movies':780,'tv_shows':12})
+        self.counts_patch.start()
+        self.addCleanup(self.counts_patch.stop)
         self.reference_patch = patch('r3el.server.ControlServer.TMDBReferenceDb.load',
                                      return_value=TMDBReference([], []))
         self.reference_patch.start()
@@ -105,6 +109,8 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('&lt;Movie&gt;', body)
         self.assertIn('src="/catalogue/42/poster"', body)
         self.assertIn('Recent additions', body)
+        self.assertIn('Movies: 780</h2>', body)
+        self.assertIn('TV Shows: 12</h2>', body)
         self.assertIn('>Title Search</h2>', body)
         self.assertIn('>Category Search</h2>', body)
         self.assertIn('type="checkbox" name="category" value="28"', body)
