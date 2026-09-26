@@ -10,7 +10,7 @@ The **R3el Project uses** a locally hosted [Large Language Model (LLM)](https://
 
 ## Batch processing
 
-- [Batch process overview](pages/01-high-level-flow.md) — the main flowchart.
+- [Batch and per-item flowcharts](pages/flowchart.md) — batch processing and individual item identification.
 - [TV show imports](pages/tv-shows.md) — series detection, episode mappings, and automatic TV destinations.
 - [Directory patterns](pages/directory-patterns.md) — two-part movies, separate dated movies, and SRT associations.
 - [Import and source cleanup](pages/import-cleanup.md) — moves, commits, conflicts, and cleanup.
@@ -32,7 +32,7 @@ The **R3el Project uses** a locally hosted [Large Language Model (LLM)](https://
 ## Project information
 
 - [README](README.md)
-- [Changelog]({{ '/changelog/' | relative_url }})
+- [Changelog](CHANGELOG.md)
 - [Repository agent instructions](AGENTS.md)
 
 <footer style="margin-top: 3rem; text-align: center; font-size: 0.75em;">

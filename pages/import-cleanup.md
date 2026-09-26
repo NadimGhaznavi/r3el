@@ -4,7 +4,7 @@ author_profile: true
 layout: single
 ---
 
-[Documentation index](../index.md) · [Batch overview](01-high-level-flow.md) · [Directory patterns](directory-patterns.md)
+[Documentation index](../index.md) · [Batch overview](flowchart.md) · [Directory patterns](directory-patterns.md)
 
 One TMDB match, an accepted LLM selection, or a manual TMDB ID identifies the
 movie to import. Its TMDB title and release year determine the destination names.

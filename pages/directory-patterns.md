@@ -4,7 +4,7 @@ author_profile: true
 layout: single
 ---
 
-[Documentation index](../index.md) · [Batch overview](01-high-level-flow.md) · [Import and cleanup](import-cleanup.md)
+[Documentation index](../index.md) · [Batch overview](flowchart.md) · [Import and cleanup](import-cleanup.md)
 
 TV patterns are checked before the movie patterns below; see [TV show imports](tv-shows.md).
 
