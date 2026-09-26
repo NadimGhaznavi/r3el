@@ -12,6 +12,7 @@ class CategorySearchTests(unittest.TestCase):
         self.addCleanup(self.connection.close)
         self.connection.row_factory = sqlite3.Row
         self.connection.create_function('YEAR', 1, lambda value: int(value[:4]) if value else None)
+        self.connection.create_function('LOCATE', 2, lambda needle, value: value.find(needle) + 1)
         self.connection.executescript("""
             CREATE TABLE movies (
                 tmdb_id INTEGER PRIMARY KEY, title TEXT, release_year INTEGER, poster_path TEXT, added_at TEXT);
@@ -49,6 +50,17 @@ class CategorySearchTests(unittest.TestCase):
 
     def ids(self, categories):
         return {row['tmdb_id'] for row in self.catalogue.movies_in_categories(categories)}
+
+    def test_title_type_filters_and_categories_include_both(self):
+        self.connection.executescript("""
+            INSERT INTO tv_series VALUES (1,'Action show','2020-01-01','2020-01-01');
+            INSERT INTO tv_series_genres VALUES (1,28),(1,35);
+        """)
+        self.assertEqual({r['media_type'] for r in self.catalogue.movies('Action','movie')},{'movie'})
+        self.assertEqual([(r['tmdb_id'],r['media_type']) for r in self.catalogue.movies('Action','tv')],[(1,'tv')])
+        self.assertEqual(len(self.catalogue.movies('Action','both')),4)
+        self.assertEqual({(r['tmdb_id'],r['media_type']) for r in self.catalogue.movies_in_categories([28,35])},
+                         {(2,'movie'),(3,'movie'),(1,'tv')})
 
     def test_additional_categories_narrow_results(self):
         self.assertEqual(self.ids([28]), {1, 2, 3})

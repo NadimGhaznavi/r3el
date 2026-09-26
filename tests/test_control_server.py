@@ -32,6 +32,24 @@ from r3el.server.ControlServer import make_server
 
 
 class ControlServerTests(unittest.TestCase):
+    @patch('r3el.server.ControlServer.CatalogueDb.recent',return_value=[])
+    @patch('r3el.server.ControlServer.CatalogueDb.categories',return_value=[])
+    @patch('r3el.server.ControlServer.CatalogueDb.movies',return_value=[])
+    @patch('r3el.server.ControlServer.CatalogueDb.movies_in_categories',return_value=[])
+    def test_title_type_selector_does_not_filter_category_search(self, categories_search, titles, categories, recent):
+        for kind in ('movie','tv','both'):
+            status, _, body = self.request('/catalogue?title=Show&type='+kind)
+            self.assertEqual(status,200)
+            titles.assert_called_with('Show',kind)
+            self.assertIn(f'value="{kind}" selected',body)
+            self.assertIn(f'name="type" value="{kind}"',body)
+        titles.reset_mock()
+        self.assertEqual(self.request('/catalogue?category=28&type=movie')[0],200)
+        categories_search.assert_called_once_with([28])
+        titles.assert_not_called()
+        for query in ('type=invalid','type=tv&type=movie'):
+            self.assertEqual(self.request('/catalogue?'+query)[0],400)
+
     @patch('r3el.server.ControlServer.EventLogDb.latest_for_processes')
     def test_current_task_tracks_tv_episode_events(self, latest):
         self.workspace.return_value = MediaFileBatch('batch',1,'/source',files=[
@@ -120,14 +138,14 @@ class ControlServerTests(unittest.TestCase):
         self.assertNotIn('<Movie>', body)
         status, _, body = self.request('/catalogue?title=Other')
         self.assertEqual(status, 200)
-        movies.assert_called_once_with('Other')
+        movies.assert_called_once_with('Other', 'both')
         self.assertIn('href="/catalogue/43"', body)
         self.assertIn('No poster available', body)
         self.assertIn('value="Other"', body)
         recent.return_value = []
         self.assertIn('No movies in the catalogue yet.', self.request('/catalogue')[2])
         movies.return_value = []
-        self.assertIn('No movies found', self.request('/catalogue?title=absent')[2])
+        self.assertIn('No titles found', self.request('/catalogue?title=absent')[2])
         self.assertEqual(self.request('/catalogue?title=a&title=b')[0], 400)
 
     @patch('r3el.server.ControlServer.CatalogueDb.recent')
@@ -146,7 +164,7 @@ class ControlServerTests(unittest.TestCase):
         self.assertNotIn('href="/catalogue/5"', body)
         self.request('/catalogue?recent_page=1&title=Alien')
         recent.assert_called_with(offset=4, limit=5)
-        movies.assert_called_with('Alien')
+        movies.assert_called_with('Alien', 'both')
         recent.return_value = recent.return_value[:2]
         status, _, body = self.request('/catalogue?recent_page=2')
         self.assertEqual(status, 200)
@@ -171,7 +189,7 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('>Search Results (1)</h2>', body)
         self.assertIn('src="/catalogue/42/poster"', body)
         movies.return_value = []
-        self.assertIn('No movies found in the selected categories',
+        self.assertIn('No movies or TV shows found in the selected categories',
                       self.request('/catalogue?category=28')[2])
         for value in ('-1', 'abc', '0', '4294967296'):
             self.assertEqual(self.request('/catalogue?category=' + value)[0], 400)

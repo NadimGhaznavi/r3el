@@ -29,10 +29,12 @@ class CatalogueDb:
                 "AND a.season_number IS NULL AND a.episode_id IS NULL ORDER BY a.path LIMIT 1),"
                 "s.added_at,'tv' FROM tv_series s")
 
-    def movies(self, title: str = '') -> list[dict]:
+    def movies(self, title: str = '', media_type: str = 'both') -> list[dict]:
+        type_filter = '' if media_type == 'both' else 'AND media_type=%s '
         return self._db.query(
             f"SELECT * FROM ({self._titles()}) titles WHERE LOCATE(%s,title)>0 "
-            "ORDER BY title,release_year,media_type,tmdb_id", (title,))
+            + type_filter + "ORDER BY title,release_year,media_type,tmdb_id",
+            (title,) if media_type == 'both' else (title,media_type))
 
     def movies_in_categories(self, genre_ids: list[int]) -> list[dict]:
         placeholders = ', '.join(['%s'] * len(genre_ids))
