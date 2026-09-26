@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-09-25 @ 21:25
+
 ### Added
 
 - Label existing destination-media conflicts as Entry exists and offer Replace Local Media in the shared Action column alongside TMDB ID matching. Replacement applies only to the selected item’s destination media and associated subtitles, with durable retry permission and Event Log records.
