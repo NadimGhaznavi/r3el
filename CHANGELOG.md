@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.2] - 2026-09-26 @ 03:39
+
 ### Tests
 - Check actual TV dialogue, search, import, failure and cleanup event payloads against Event Log and Current Task templates to catch producer/display mismatches.
 
