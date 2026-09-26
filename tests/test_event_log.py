@@ -138,6 +138,49 @@ class EventDatabaseTests(unittest.TestCase):
         return MediaFileBatch(str(uuid4()), 10, '/tmp/films',
                               files=[MediaFile(str(uuid4()), '/tmp/films/a.mkv')])
 
+    def test_two_part_workspace_and_catalogue_round_trip(self):
+        from r3el.entity.MediaAttachment import MediaAttachment
+        workspace = WorkspaceDb(self.db)
+        batch = self.workspace_batch()
+        batch.started_event_id = workspace.create(batch, self.event(), self.event())
+        item = MediaFile(str(uuid4()), '/films/directory', find_ls='captured listing', attachments=[
+            MediaAttachment('/films/a.avi'), MediaAttachment('/films/b.avi'),
+            MediaAttachment('/films/a.srt', 'subtitle', media_path='/films/a.avi'),
+            MediaAttachment('/films/unknown.srt', 'subtitle')],
+            issues=[MediaFileIssue('unresolved_srt', '/films/unknown.srt')])
+        workspace.append_directories(batch, [item], self.event())
+        saved = workspace.load()
+        self.assertTrue(saved.directories_scanned)
+        self.assertEqual(saved.files[1].attachments, item.attachments)
+        self.assertEqual(saved.files[1].find_ls, 'captured listing')
+        self.assertEqual(saved.files[1].issues, item.issues)
+        item.assign_parts('/films/b.avi', '/films/a.avi')
+        item.state = MediaFileState.IDENTIFIED
+        item.identification = Identification('Movie', 2020, 10)
+        workspace.save_file(batch.id, item, self.event())
+        self.assertEqual(workspace.load().files[1].attachments, item.attachments)
+        # Assignment updates and identification must roll back if the event fails.
+        item.assign_parts('/films/a.avi', '/films/b.avi')
+        with patch.object(workspace._events, 'record_in_transaction', side_effect=RuntimeError('event failure')):
+            with self.assertRaisesRegex(RuntimeError, 'event failure'):
+                workspace.save_file(batch.id, item, self.event())
+        self.assertEqual(workspace.load().files[1].attachments[0].part, 2)
+        movie = CatalogueMovie(42, 'Movie', None, date(2020, 1, 1), None, None, None, None,
+                               None, None, None, [], [])
+        associated = [{'path': '/out/Movie (2020) Part 1.avi', 'kind': 'video', 'part': 1},
+                      {'path': '/out/Movie (2020) Part 2.avi', 'kind': 'video', 'part': 2},
+                      {'path': '/out/Movie (2020) Part 2.srt', 'kind': 'subtitle', 'part': 2}]
+        files = MovieFiles(associated[0]['path'], associated=associated)
+        workspace.save_catalogue(batch.id, item.id, movie, TMDBMatch('Movie', 2020, catalogue_saved=True),
+                                 self.event(), files)
+        self.assertEqual(workspace.load().files[1].path, '/films/directory')
+        self.assertEqual(self.db.query('SELECT path, kind, part FROM movie_files ORDER BY path'), associated)
+        self.assertEqual(workspace.catalogue_paths(42), [])
+        WorkspaceSchema(self.db).apply()
+        CatalogueSchema(self.db).apply()
+        self.assertTrue(workspace.load().directories_scanned)
+        self.assertEqual(workspace.load().files[1].attachments[0].part, 2)
+
     def test_stop_request_is_durable_and_does_not_wait_for_processing_lock(self):
         workspace = WorkspaceDb(self.db)
         batch = self.workspace_batch()

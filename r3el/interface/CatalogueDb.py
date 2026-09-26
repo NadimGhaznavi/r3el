@@ -69,9 +69,13 @@ class CatalogueDb:
                              'VALUES (%s, %s, %s, %s, %s, %s)',
                              (movie.tmdb_id, position, credit.person_id, roles[credit.role],
                               credit.character, credit.billing_order))
-        self._db.execute('INSERT INTO movie_files (path_hash, path, movie_id) VALUES (%s, %s, %s) '
-                         'ON DUPLICATE KEY UPDATE movie_id = VALUES(movie_id)',
-                         (sha256(files.video.encode('utf-8')).digest(), files.video, movie.tmdb_id))
+        entries = files.associated or [{'path': files.video, 'part': None, 'kind': 'video'}]
+        for entry in entries:
+            self._db.execute('INSERT INTO movie_files (path_hash, path, movie_id, part, kind) '
+                             'VALUES (%s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE movie_id = VALUES(movie_id), '
+                             'part = VALUES(part), kind = VALUES(kind)',
+                             (sha256(entry['path'].encode('utf-8')).digest(), entry['path'], movie.tmdb_id,
+                              entry['part'], entry['kind']))
         for kind, path in (('poster', files.poster), ('backdrop', files.backdrop)):
             if path is not None:
                 self._db.execute('INSERT INTO movie_artwork (path_hash, path, movie_id, kind) '

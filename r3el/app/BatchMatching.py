@@ -7,6 +7,7 @@ import httpx
 
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.activity.MovieFormats import MovieFormats
+from r3el.activity.TwoPartCopy import TwoPartCopy
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.MovieSelection import MovieSelection
 from r3el.app.RetryIdentification import RetryIdentification
@@ -195,7 +196,8 @@ class BatchMatching:
             return
         try:
             movie_id = response['results'][0]['id']
-            preferred, discarded = MovieFormats.choose(item.path, self._workspace.catalogue_paths(movie_id))
+            preferred, discarded = ((item.path, []) if item.find_ls is not None else
+                                    MovieFormats.choose(item.path, self._workspace.catalogue_paths(movie_id)))
             discard_files = CatalogueFiles.discard_snapshot(discarded)
             if item.path in discarded:
                 result = replace(result, catalogue_saved=True, catalogue_error=None, duplicate=True,
@@ -205,21 +207,32 @@ class BatchMatching:
                 return
             if movie is None:
                 movie = TMDBCatalogue(TMDB.from_environment()).movie(movie_id)
-            files = CatalogueFiles().prepare(movie, item.path, batch.destination_directory, item.id, log)
+            copied_files = []
+            if item.find_ls is not None:
+                files, copied_files = TwoPartCopy().prepare(movie, item, batch.destination_directory, log)
+            else:
+                files = CatalogueFiles().prepare(movie, item.path, batch.destination_directory, item.id, log)
         except (TMDBError, OSError, ValueError, httpx.HTTPError) as error:
             self._catalogue_failure(batch.id, item.id, result, error, log)
             return
         result = replace(result, catalogue_saved=True, catalogue_error=None,
-                         source_path=item.path, catalogue_path=files.video, discard_files=discard_files)
+                         source_path=item.path, catalogue_path=files.video, discard_files=discard_files,
+                         copied_files=copied_files)
         self._workspace.save_catalogue(batch.id, item.id, movie, result, log.prepare(
             Categories.DB.CREATE_RECORD, Names.DB_CREATE_RECORD,
             {'movie_id': movie.tmdb_id, 'title': movie.title, 'path': files.video,
-             'outcome': 'saved'}, source='CatalogueDb'), files)
+             'outcome': 'saved', 'associated_files': files.associated}, source='CatalogueDb'), files)
         self._finish_move(batch.id, item.id, result, log)
 
     def _finish_move(self, batch_id: str, file_id: str, result: TMDBMatch, log: EventWriter) -> None:
         try:
-            if not result.duplicate:
+            if result.copied_files:
+                for copy in result.copied_files:
+                    CatalogueFiles().finish(copy['source'], copy['destination'], copy['stage_id'], preserve_source=True)
+                    log.write(Categories.File.MOVE, Names.FILE_COPY,
+                              {'source_path': copy['source'], 'destination_path': copy['destination'],
+                               'outcome': 'copied'}, source='CatalogueFiles')
+            elif not result.duplicate:
                 CatalogueFiles().finish(result.source_path, result.catalogue_path, file_id)
         except (OSError, ValueError) as error:
             result = replace(result, catalogue_error=str(error))
@@ -227,8 +240,8 @@ class BatchMatching:
             result = replace(result, file_moved=True, catalogue_error=None)
         if not result.duplicate:
             self._workspace.save_match(batch_id, file_id, result, log.prepare(
-                Categories.File.MOVE, Names.FILE_MOVE,
-                {'outcome': 'failed' if result.catalogue_error else 'moved',
+                Categories.File.MOVE, Names.FILE_COPY if result.copied_files else Names.FILE_MOVE,
+                {'outcome': 'failed' if result.catalogue_error else ('copied' if result.copied_files else 'moved'),
                  'source_path': result.source_path, 'destination_path': result.catalogue_path,
                  'error': result.catalogue_error}, source='CatalogueFiles',
                 level='ERROR' if result.catalogue_error else 'INFO'))

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-25 @ 21:04
+
+### Added
+
+- After ordinary files, scan source subdirectories on the server for exactly two supported videos larger than 100 MiB. Process each matching directory as one movie and leave unmatched directories untouched.
+- Identify title, year, confidence, and part ordering with `DirectoryContextTwoParts`; validate that the response assigns each discovered video exactly once.
+- Persist directory listings, associated files, part assignments, and discovery progress for restart recovery.
+- Copy both parts and associated SRT subtitles using `Title (Year) Part N.ext`, preserve their sources, and catalogue all associated paths and part numbers.
+- Leave ambiguous subtitles untouched with a persisted `unresolved_srt` issue and an Event Log entry.
+- Log directory scans, pattern detections, subtitle associations, conversations, and copy checkpoints in the Event Log.
+
 ## [1.3.2] - 2026-09-25 @ 19:06
 
 ## [1.3.1] - 2026-09-25 @ 19:02

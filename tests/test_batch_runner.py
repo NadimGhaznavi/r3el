@@ -42,9 +42,11 @@ class BatchRunnerTests(unittest.IsolatedAsyncioTestCase):
         with (patch('r3el.app.BatchRunner.DbMgr') as database,
               patch('r3el.app.BatchRunner.WorkspaceDb') as workspaces,
               patch('r3el.app.BatchRunner.BatchIdentification') as identification,
-              patch('r3el.app.BatchRunner.BatchMatching') as matching):
+              patch('r3el.app.BatchRunner.BatchMatching') as matching,
+              patch('r3el.app.BatchRunner.DirectoryDiscovery')):
             first, second = Mock(), Mock()
-            database.side_effect = [first, second]
+            third, fourth = Mock(), Mock()
+            database.side_effect = [first, second, third, fourth]
             batch = MediaFileBatch('batch', 5, '/tmp', files=[MediaFile('file', '/tmp/a.mkv')],
                                    state=MediaFileBatchState.MATCHING)
             workspace = workspaces.return_value
@@ -60,7 +62,7 @@ class BatchRunnerTests(unittest.IsolatedAsyncioTestCase):
                              MediaFileBatchState.MATCHING)
             matching.return_value.run.assert_called_once_with('batch', file_ids=['file'])
             self.assertEqual(matching.call_args.args[2].url, 'http://configured-model:1234/v1/chat/completions')
-            self.assertEqual([call.args[0] for call in workspaces.call_args_list], [first, second])
+            self.assertEqual([call.args[0] for call in workspaces.call_args_list], [first, second, third, fourth])
             first.close.assert_called_once()
             second.close.assert_called_once()
             self.assertEqual(workspace.save_batch_state.call_args.args[1], MediaFileBatchState.MATCHING_COMPLETED)
@@ -69,7 +71,8 @@ class BatchRunnerTests(unittest.IsolatedAsyncioTestCase):
         with (patch('r3el.app.BatchRunner.DbMgr') as database,
               patch('r3el.app.BatchRunner.WorkspaceDb'),
               patch('r3el.app.BatchRunner.BatchIdentification') as identification,
-              patch('r3el.app.BatchRunner.BatchMatching') as matching):
+              patch('r3el.app.BatchRunner.BatchMatching') as matching,
+              patch('r3el.app.BatchRunner.DirectoryDiscovery')):
             identification.return_value.run = AsyncMock(side_effect=RuntimeError('identification failed'))
             with self.assertRaisesRegex(RuntimeError, 'identification failed'):
                 await BatchRunner('http://model', 'endpoint', Mock()).run(BatchRequest('/tmp', '/tmp/out', 5))
@@ -80,7 +83,8 @@ class BatchRunnerTests(unittest.IsolatedAsyncioTestCase):
         with (patch('r3el.app.BatchRunner.DbMgr') as database,
               patch('r3el.app.BatchRunner.WorkspaceDb') as workspaces,
               patch('r3el.app.BatchRunner.BatchIdentification') as identification,
-              patch('r3el.app.BatchRunner.BatchMatching') as matching):
+              patch('r3el.app.BatchRunner.BatchMatching') as matching,
+              patch('r3el.app.BatchRunner.DirectoryDiscovery')):
             identification.return_value.run = AsyncMock()
             matching.return_value.run.side_effect = RuntimeError('matching failed')
             workspaces.return_value.load.return_value = MediaFileBatch('batch', 5, '/tmp',
@@ -94,7 +98,8 @@ class BatchRunnerTests(unittest.IsolatedAsyncioTestCase):
     async def test_empty_batch_finishes_without_searching(self):
         with (patch('r3el.app.BatchRunner.DbMgr'), patch('r3el.app.BatchRunner.WorkspaceDb') as workspaces,
               patch('r3el.app.BatchRunner.BatchIdentification') as identification,
-              patch('r3el.app.BatchRunner.BatchMatching') as matching):
+              patch('r3el.app.BatchRunner.BatchMatching') as matching,
+              patch('r3el.app.BatchRunner.DirectoryDiscovery')):
             identification.return_value.run = AsyncMock()
             workspaces.return_value.load.return_value = MediaFileBatch('batch', 5, '/tmp', files=[])
             await BatchRunner('http://model', 'endpoint', Mock()).run(BatchRequest('/tmp', '/tmp/out', 5))

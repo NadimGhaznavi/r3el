@@ -30,3 +30,16 @@ async def submit_multiple_choice(
     return await SubmitMultipleChoice(
         os.environ['R3EL_ZMQ_ENDPOINT'], os.environ['R3EL_ATTEMPT_ID'],
     ).submit(number)
+
+
+@mcp.tool(description='Submit the movie identification and the two supplied media paths in part order.')
+async def submit_two_parts(
+    title: Annotated[Any, Field(json_schema_extra={'type': 'string'})],
+    year: Annotated[Any, Field(json_schema_extra={'type': 'integer'})],
+    confidence: Annotated[Any, Field(json_schema_extra={'type': 'integer', 'minimum': 0, 'maximum': 10})],
+    part_one: Annotated[Any, Field(json_schema_extra={'type': 'string'})],
+    part_two: Annotated[Any, Field(json_schema_extra={'type': 'string'})],
+) -> str:
+    return await SubmitIdentification(
+        os.environ['R3EL_ZMQ_ENDPOINT'], os.environ['R3EL_ATTEMPT_ID'],
+    ).submit(title, year, confidence, part_one=part_one, part_two=part_two)
