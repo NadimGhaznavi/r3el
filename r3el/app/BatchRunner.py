@@ -64,7 +64,7 @@ class BatchRunner:
                       expected_batch_id=resume_id, ordinary_only=True, limit=DR3el.PROCESSING_GROUP_SIZE,
                       completion_state=MediaFileBatchState.MATCHING)
                 batch = workspace.load()
-                ordinary = [item for item in batch.files if item.find_ls is None]
+                ordinary = [item for item in batch.files if item.find_ls is None and item.source_directory is None]
                 group = ordinary[offset:offset + DR3el.PROCESSING_GROUP_SIZE]
                 finished = offset + DR3el.PROCESSING_GROUP_SIZE >= len(ordinary)
             finally:
@@ -94,7 +94,7 @@ class BatchRunner:
             with workspace.processing():
                 DirectoryDiscovery().run(batch, workspace, log)
             for position, item in enumerate(batch.files):
-                if item.find_ls is None:
+                if item.find_ls is None and item.source_directory is None:
                     continue
                 await BatchIdentification(
                     FileMgr(request.input_directory), LLM(self._llm_url), self.endpoint,

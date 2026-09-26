@@ -661,7 +661,7 @@ class ControlServerTests(unittest.TestCase):
             ('category=Batch', {'Lifecycle', 'Discovery', 'BatchIdentification'},
              {'batch_started', 'batch_resumed', 'batch_completed', 'batch_failed', 'batch_cancelled', 'batch_stop_requested', 'batch_cleared', 'files_retrieved', 'item_started', 'item_completed', 'identification_group_completed',
               'directory_scan_started', 'directory_scan_completed', 'directories_scanned',
-              'two_parts_detected', 'subtitle_association'}),
+              'two_parts_detected', 'dated_movies_detected', 'subtitle_association'}),
             ('category=Batch&subcategory=BatchIdentification',
              {'Lifecycle', 'Discovery', 'BatchIdentification'}, {'item_started', 'item_completed', 'identification_group_completed'}),
             ('category=Prompt&subcategory=ToolConversation',

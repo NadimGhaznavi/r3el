@@ -113,7 +113,7 @@ class WorkspaceDb:
         identification = json.loads(row['identification']) if row['identification'] is not None else None
         return MediaFile(
             id=row['file_id'], path=row['path'], state=MediaFileState(row['state']),
-            find_ls=row['find_ls'],
+            find_ls=row['find_ls'], source_directory=row['source_directory'],
             identification=Identification(**identification) if identification is not None else None,
             issues=[MediaFileIssue(**issue) for issue in json.loads(row['issues'])],
             attempts=row['attempts'], action=MediaFileAction(row['action']),
@@ -156,10 +156,10 @@ class WorkspaceDb:
             for position, item in enumerate(items, len(batch.files)):
                 self._db.execute(
                     'INSERT INTO media_files '
-                    '(file_id, batch_id, position, path, state, issues, attempts, action, find_ls, updated_at) '
-                    'VALUES (%s, %s, %s, %s, %s, %s, 0, %s, %s, UTC_TIMESTAMP(6))',
+                    '(file_id, batch_id, position, path, state, issues, attempts, action, find_ls, source_directory, updated_at) '
+                    'VALUES (%s, %s, %s, %s, %s, %s, 0, %s, %s, %s, UTC_TIMESTAMP(6))',
                     (item.id, batch.id, position, item.path, item.state,
-                     json.dumps([asdict(issue) for issue in item.issues]), item.action, item.find_ls))
+                     json.dumps([asdict(issue) for issue in item.issues]), item.action, item.find_ls, item.source_directory))
                 for index, attachment in enumerate(item.attachments):
                     self._db.execute(
                         'INSERT INTO media_attachments (file_id, position, path, kind, part, media_path) '

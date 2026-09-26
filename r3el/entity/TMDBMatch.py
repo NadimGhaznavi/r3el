@@ -24,6 +24,7 @@ class TMDBMatch:
     copied_files: list[dict] = field(default_factory=list)
     replace_local_media: bool = False
     preserve_source_directory: bool = False
+    source_directory: str | None = None
 
     @property
     def entry_exists(self) -> bool:

@@ -128,7 +128,7 @@ class ZeroMatchRetryTests(unittest.TestCase):
         item = WorkspaceDb._file(dict(file_id=self.item.id, path=self.item.path, state=self.item.state,
             identification=json.dumps(asdict(self.item.identification)), issues='[]', attempts=self.item.attempts,
             action=self.item.action, retries=self.item.retries, updated_at=None,
-            tmdb_match=json.dumps(asdict(self.item.tmdb_match)), find_ls=None))
+            tmdb_match=json.dumps(asdict(self.item.tmdb_match)), find_ls=None, source_directory=None))
         self.assertEqual(item, self.item)
 
     def test_previous_year_single_match_is_accepted_and_reused(self):
