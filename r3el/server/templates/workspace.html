@@ -4,10 +4,6 @@
   file_states.UNRESOLVED_LLM: 'Unresolved — identification',
   file_states.UNRESOLVED_HIDDEN_FILE: 'Unresolved — hidden file'
 } %}
-{% set action_labels = {
-  file_actions.PENDING: 'Pending', file_actions.APPROVE: 'Approve',
-  file_actions.IGNORE: 'Ignore', file_actions.DELETE: 'Delete'
-} %}
 <div class="table-wrap workspace-table-wrap" tabindex="0" role="region" aria-label="Scrollable current batch details">
   <table class="workspace-files" data-batch-id="{{ workspace.id }}" data-stop-requested="{{ 'true' if workspace.stop_requested else 'false' }}" data-automatic-processing="{{ 'true' if automatic_processing else 'false' }}" aria-label="Current batch files">
     <thead><tr><th scope="col">#</th><th scope="col" title="Last saved change (local time)">Updated</th><th scope="col">Filename / Directory</th><th scope="col">Title</th><th scope="col">Year</th><th scope="col">Confidence</th><th scope="col">Retries</th><th scope="col">Status</th>{% if has_match_results %}<th scope="col">Match Results</th>{% endif %}<th scope="col">Action</th></tr></thead>
@@ -30,13 +26,6 @@
         </td>
         {% endif %}
         <td>
-          <select class="file-action" aria-label="Action for {{ file.filename }}"
-                  data-file-id="{{ file.id }}" data-saved-action="{{ file.action }}"
-                  {% if file.pending or matching_job or automatic_processing %}disabled{% else %}data-action-editable{% endif %}>
-            {% for action, label in action_labels.items() %}
-            <option value="{{ action }}"{% if file.action == action %} selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
           {% if not automatic_processing and file.tmdb_match is not none and file.tmdb_match.needs_manual_match and file.action not in (file_actions.IGNORE, file_actions.DELETE) %}
           <form class="manual-match" data-file-id="{{ file.id }}">
             <input name="movie_id" type="text" inputmode="numeric" pattern="[0-9]{1,10}" required aria-label="TMDB ID for {{ file.filename }}"{% if matching_job %} disabled{% endif %}>
@@ -47,7 +36,7 @@
           <form class="replace-media" data-file-id="{{ file.id }}">
             <button type="submit"{% if matching_job %} disabled{% endif %}>Replace Local Media</button>
           </form>
-          {% endif %}
+          {% else %}—{% endif %}
         </td>
       </tr>
       {% else %}
@@ -56,67 +45,19 @@
     </tbody>
   </table>
 </div>
-<p class="note">Actions save when changed. Pending files can be reviewed once identification or movie selection finishes.</p>
-<p role="status" id="action-feedback">
-  <span id="action-saving" hidden>Saving action...</span>
-  <span id="action-saved" hidden>Action saved.</span>
-  <span id="action-error" hidden>Could not confirm the saved action. Reload the page to check the workspace before continuing.</span>
-</p>
 <p role="status" id="match-feedback">
   <span id="match-running" hidden>Processing batch...</span>
   <span id="match-error" hidden>Could not confirm matching finished. Reload the page to check saved results before trying again.</span>
 </p>
 <script>
-  const actionMenus = () => [...document.querySelectorAll('[data-action-editable]')];
-  let savingAction = false;
-  let uncertainAction = false;
   let matchingInProgress = false;
   let revision = 0;
   let refreshSequence = 0;
   const stopBatch = document.getElementById('stop-batch');
   let stopRequested = {{ workspace.stop_requested | tojson }};
-  const feedback = [...document.querySelectorAll('#action-feedback span')];
-  const saving = document.getElementById('action-saving');
-  const saved = document.getElementById('action-saved');
-  const failed = document.getElementById('action-error');
-
-  document.addEventListener('change', async event => {
-      const menu = event.target.closest('.file-action[data-action-editable]');
-      if (!menu || savingAction || uncertainAction || matchingInProgress) return;
-      savingAction = true;
-      revision += 1;
-      actionMenus().forEach(select => { select.disabled = true; });
-      feedback.forEach(message => { message.hidden = message !== saving; });
-      try {
-        const response = await fetch({{ settings.FILE_ACTION_URL | tojson }}, {
-          method: 'POST',
-          body: new URLSearchParams({
-            batch_id: {{ workspace.id | tojson }}, file_id: menu.dataset.fileId, action: menu.value
-          })
-        });
-        if (!response.ok) throw new Error();
-        const result = await response.json();
-        if (result.saved !== true) throw new Error();
-        if (menu.dataset.savedAction !== menu.value) {
-          const matchCell = menu.closest('tr').querySelector('.match-result');
-          if (matchCell) matchCell.textContent = '—';
-        }
-        menu.dataset.savedAction = menu.value;
-        feedback.forEach(message => { message.hidden = message !== saved; });
-        actionMenus().forEach(select => { select.disabled = false; });
-      } catch {
-        uncertainAction = true;
-        menu.value = menu.dataset.savedAction;
-        feedback.forEach(message => { message.hidden = message !== failed; });
-      } finally {
-        savingAction = false;
-        revision += 1;
-      }
-  });
-
   async function refreshWorkspace(duringMatching = false) {
     const table = document.querySelector('.workspace-files');
-    if (savingAction || uncertainAction || (matchingInProgress && !duringMatching)
+    if ((matchingInProgress && !duringMatching)
         || table.contains(document.activeElement)) return;
     const requestedRevision = revision;
     const requestNumber = ++refreshSequence;
@@ -125,9 +66,9 @@
     const page = new DOMParser().parseFromString(await response.text(), 'text/html');
     const updated = page.querySelector('.workspace-files');
     if (!updated || updated.dataset.batchId !== table.dataset.batchId) throw new Error();
-    if (savingAction || uncertainAction || revision !== requestedRevision || requestNumber !== refreshSequence
+    if (revision !== requestedRevision || requestNumber !== refreshSequence
         || table.contains(document.activeElement)) return;
-    if (matchingInProgress) updated.querySelectorAll('select').forEach(select => { select.disabled = true; });
+    if (matchingInProgress) updated.querySelectorAll('input, button').forEach(control => { control.disabled = true; });
     table.replaceWith(updated);
     stopRequested = updated.dataset.stopRequested === 'true';
     stopBatch.disabled = page.getElementById('stop-batch').disabled;
@@ -167,7 +108,6 @@
   function showMatching() {
     matchingInProgress = true;
     revision += 1;
-    document.querySelectorAll('.file-action').forEach(select => { select.disabled = true; });
     document.querySelectorAll('.manual-match input, .manual-match button, .replace-media button').forEach(control => { control.disabled = true; });
     document.querySelector('#new-batch-action button').disabled = true;
     stopBatch.disabled = stopRequested;
@@ -204,7 +144,7 @@
     const form = event.target.closest('.manual-match');
     if (!form) return;
     event.preventDefault();
-    if (savingAction || uncertainAction || matchingInProgress) return;
+    if (matchingInProgress) return;
     const movieId = form.elements.movie_id.value.trim();
     if (!/^[0-9]{1,10}$/.test(movieId) || Number(movieId) < 1 || Number(movieId) > 4294967295) {
       form.elements.movie_id.setCustomValidity('Enter a positive TMDB movie ID.');
@@ -228,7 +168,7 @@
     const form = event.target.closest('.replace-media');
     if (!form) return;
     event.preventDefault();
-    if (savingAction || uncertainAction || matchingInProgress) return;
+    if (matchingInProgress) return;
     showMatching();
     try {
       const response = await fetch({{ settings.REPLACE_MEDIA_URL | tojson }}, {

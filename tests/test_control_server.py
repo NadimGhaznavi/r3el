@@ -192,7 +192,7 @@ class ControlServerTests(unittest.TestCase):
                     self.assertIn('type="submit">New Batch', body)
                 controls = re.search(r'<section.*?</section>', body, re.S).group(0)
                 self.assertNotIn('<select', controls)
-                self.assertIn('class="file-action"', body)
+                self.assertNotIn('class="file-action"', body)
                 self.assertEqual(bool(re.search(r'<form[^>]*aria-label="New batch"', body)), not active)
                 self.assertNotIn('http-equiv="refresh"', body)
                 header = re.search(r'<div class="batch-heading">.*?</div>', body, re.S).group(0)
@@ -212,14 +212,13 @@ class ControlServerTests(unittest.TestCase):
                 self.assertNotIn('processBatch', body)
                 self.assertLess(panel.index('id="control-refresh"'), panel.index('class="batch-buttons"'))
 
-    def test_automatic_pipeline_disables_menus_and_polls_without_matching_post(self):
+    def test_automatic_pipeline_polls_without_action_dropdown(self):
         self.workspace.return_value = MediaFileBatch('batch', 5, '/tmp',
             files=[MediaFile('file', '/tmp/a.mkv', MediaFileState.IDENTIFIED)])
         for state in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING):
             self.workspace.return_value.state = state
             body = self.request('/')[2]
-            menu = re.search(r'<select class="file-action".*?>', body, re.S).group(0)
-            self.assertIn('disabled', menu)
+            self.assertNotIn('class="file-action"', body)
             self.assertIn('data-automatic-processing="true"', body)
             self.assertIn('window.setTimeout(pollAutomaticBatch, 2000);', body)
 
