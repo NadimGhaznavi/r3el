@@ -37,6 +37,7 @@ class MediaFile:
     retries: int = 0
     updated_at: datetime | None = None
 
+    source_directory: str | None = None
     find_ls: str | None = None
     attachments: list[MediaAttachment] = field(default_factory=list)
 

@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from r3el.activity.DirectoryDiscovery import DirectoryDiscovery
 from r3el.activity.EventWriter import EventWriter
-from r3el.activity.TwoPartCopy import TwoPartCopy
+from r3el.activity.DirectoryMediaCopy import DirectoryMediaCopy
 from r3el.app.BatchRunner import BatchRunner
 from r3el.app.SubmissionHandler import SubmissionHandler
 from r3el.app.ToolConversation import ToolConversation
@@ -119,6 +119,43 @@ class DirectoryTests(unittest.TestCase):
         DirectoryDiscovery().run(self.batch, self.workspace, self.log)
         self.assertEqual([item.path for item in self.batch.files], [str(self.root / 'b-movie')])
 
+    def test_different_filename_years_select_individual_movies_as_one_directory(self):
+        self.batch.requested_size = 1
+        self.file('Alice-in-Wonderland/Alice-through-the-Looking-Glass-2016.avi')
+        self.file('Alice-in-Wonderland/Alice-in-Wonderland-2010.avi')
+        self.file('B-movie/1949-part-one.avi')
+        self.file('B-movie/part-two-(1949).avi')
+        DirectoryDiscovery().run(self.batch, self.workspace, self.log)
+        self.assertEqual(len(self.batch.files), 2)
+        self.assertTrue(all(item.source_directory == str(self.root / 'Alice-in-Wonderland')
+                            and item.find_ls is None for item in self.batch.files))
+        scans = [json.loads(event.message)['data'] for event in self.events
+                 if event.name == 'directory_scan_completed']
+        self.assertTrue(scans[0]['matched'])
+        self.assertEqual(scans[0]['pattern'], 'dated_movies')
+        self.assertEqual(scans[0]['reason'], 'different_years')
+        self.assertEqual(set(scans[0]['media_years']), {2010, 2016})
+        self.assertTrue((self.root / 'Alice-in-Wonderland/Alice-in-Wonderland-2010.avi').exists())
+
+    def test_year_check_only_uses_beginning_or_end_of_filename(self):
+        for filename, expected in (
+            ('2010-Alice.avi', 2010), ('(2016) Alice.avi', 2016),
+            ('Alice-2010.avi', 2010), ('Alice (2016).mkv', 2016),
+            ('[1949]_Part-One.avi', 1949), ('1949_part_two.avi', 1949),
+            ('Movie.1949.avi', 1949), ('/2016/movie.avi', None),
+            ('Movie-1949-CD1.avi', None), ('part1.avi', None),
+            ('20101-title.avi', None), ('title-12010.avi', None),
+            ('2001 A Space Odyssey (1968).avi', 1968),
+        ):
+            with self.subTest(filename=filename):
+                self.assertEqual(DirectoryDiscovery.filename_year(filename), expected)
+
+    def test_one_missing_year_still_allows_two_part_pattern(self):
+        self.file('movie/part-one-1949.avi')
+        self.file('movie/part-two.avi')
+        DirectoryDiscovery().run(self.batch, self.workspace, self.log)
+        self.assertEqual(len(self.batch.files), 1)
+
     def test_cd_folders_pair_different_basenames_and_copy_srt_with_assigned_part(self):
         a = self.file('Under.Capricorn/CD1/nogrp-uc-cd1.avi')
         b = self.file('Under.Capricorn/CD2/nogrp-uc-cd2.avi')
@@ -135,7 +172,7 @@ class DirectoryTests(unittest.TestCase):
         Path(a).write_bytes(b'video a')
         Path(b).write_bytes(b'video b')
         movie = replace(TMDBCatalogue.from_details(movie_payload(), 42), poster_path=None, backdrop_path=None)
-        files, _ = TwoPartCopy().prepare(movie, item, str(self.root / 'output'), self.log)
+        files, _ = DirectoryMediaCopy().prepare(movie, item, str(self.root / 'output'), self.log)
         copied = [file for file in files.associated if file['kind'] == 'subtitle']
         self.assertEqual([Path(file['path']).name for file in copied],
                          ['Movie (2020) Part 2.srt', 'Movie (2020) Part 1.srt'])
@@ -216,9 +253,9 @@ class CopyTests(unittest.TestCase):
                             poster_path=None, backdrop_path=None)
             log = EventWriter(Mock(return_value=1), {'batch_id': 'batch', 'item_id': 'item'})
             output = str(root / 'output')
-            files, copies = TwoPartCopy().prepare(movie, item, output, log)
+            files, copies = DirectoryMediaCopy().prepare(movie, item, output, log)
             self.assertEqual(len(files.associated), 4)
-            self.assertEqual(TwoPartCopy().prepare(movie, item, output, log), (files, copies))
+            self.assertEqual(DirectoryMediaCopy().prepare(movie, item, output, log), (files, copies))
             for copy in copies:
                 target = Path(copy['destination'])
                 part = 1 if Path(copy['source']).stem == 'b' else 2
@@ -232,7 +269,7 @@ class CopyTests(unittest.TestCase):
             self.assertFalse(list((root / 'output').rglob('unknown.srt')))
             self.assertFalse(list((root / 'output').rglob('.r3el-*')))
             with self.assertRaises(FileExistsError):
-                TwoPartCopy().prepare(movie, item, output, log)
+                DirectoryMediaCopy().prepare(movie, item, output, log)
 
 
 class PipelineTests(unittest.IsolatedAsyncioTestCase):

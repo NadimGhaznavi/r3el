@@ -18,6 +18,7 @@ class DEventName:
     DIRECTORY_SCAN_STARTED = 'directory_scan_started'
     DIRECTORY_SCAN_COMPLETED = 'directory_scan_completed'
     DIRECTORIES_SCANNED = 'directories_scanned'
+    DATED_MOVIES_DETECTED = "dated_movies_detected"
     TWO_PARTS_DETECTED = 'two_parts_detected'
     SUBTITLE_ASSOCIATION = 'subtitle_association'
     FILE_COPY = 'file_copy'
@@ -46,7 +47,7 @@ class DEventName:
         Categories.Server.LIFECYCLE: (SERVER_STARTED, SERVER_STOPPED),
         Categories.Batch.LIFECYCLE: (BATCH_STARTED, BATCH_RESUMED, BATCH_COMPLETED, BATCH_FAILED, BATCH_CANCELLED, BATCH_STOP_REQUESTED, BATCH_CLEARED),
         Categories.Batch.DISCOVERY: (FILES_RETRIEVED, DIRECTORY_SCAN_STARTED, DIRECTORY_SCAN_COMPLETED,
-                                     DIRECTORIES_SCANNED, TWO_PARTS_DETECTED, SUBTITLE_ASSOCIATION),
+                                     DIRECTORIES_SCANNED, TWO_PARTS_DETECTED, DATED_MOVIES_DETECTED, SUBTITLE_ASSOCIATION),
         Categories.Prompt.LLM_PROMPT: (PROMPT_SENT,),
         Categories.Prompt.SUBMISSION_HANDLER: (TOOL_RECEIVED, SUBMISSION_ACCEPTED, SUBMISSION_REJECTED),
         Categories.Prompt.TOOL_CONVERSATION: (

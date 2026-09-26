@@ -7,7 +7,7 @@ import httpx
 
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.activity.MovieFormats import MovieFormats
-from r3el.activity.TwoPartCopy import TwoPartCopy
+from r3el.activity.DirectoryMediaCopy import DirectoryMediaCopy
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.MovieSelection import MovieSelection
 from r3el.app.RetryIdentification import RetryIdentification
@@ -25,6 +25,7 @@ from r3el.entity.TMDBMatch import TMDBMatch
 from r3el.interface.TMDB import TMDB, TMDBError
 from r3el.interface.TMDBCatalogue import TMDBCatalogue
 from r3el.interface.CatalogueFiles import CatalogueFiles
+from r3el.interface.DirectoryFiles import DirectoryFiles
 from r3el.interface.SourceDirectoryCleanup import SourceDirectoryCleanup
 from r3el.interface.LLM import LLM
 from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict
@@ -219,15 +220,16 @@ class BatchMatching:
             discard_files = CatalogueFiles.discard_snapshot(discarded)
             if item.path in discarded:
                 result = replace(result, catalogue_saved=True, catalogue_error=None, duplicate=True,
-                                 source_path=item.path, catalogue_path=preferred, discard_files=discard_files)
+                                 source_path=item.path, catalogue_path=preferred, discard_files=discard_files,
+                                 source_directory=item.source_directory)
                 self._workspace.save_match(batch.id, item.id, result, None)
                 self._finish_move(batch.id, item.id, result, log)
                 return
             if movie is None:
                 movie = TMDBCatalogue(TMDB.from_environment()).movie(movie_id)
             copied_files = []
-            if item.find_ls is not None:
-                files, copied_files = TwoPartCopy().prepare(movie, item, batch.destination_directory, log,
+            if item.find_ls is not None or item.source_directory is not None:
+                files, copied_files = DirectoryMediaCopy().prepare(movie, item, batch.destination_directory, log,
                                                           replace_existing=result.replace_local_media)
             else:
                 files = CatalogueFiles().prepare(movie, item.path, batch.destination_directory, item.id, log,
@@ -237,7 +239,7 @@ class BatchMatching:
             return
         result = replace(result, catalogue_saved=True, catalogue_error=None,
                          source_path=item.path, catalogue_path=files.video, discard_files=discard_files,
-                         copied_files=copied_files,
+                         copied_files=copied_files, source_directory=item.source_directory,
                          preserve_source_directory=any(issue.code == 'unresolved_srt' for issue in item.issues))
         self._workspace.save_catalogue(batch.id, item.id, movie, result, log.prepare(
             Categories.DB.CREATE_RECORD, Names.DB_CREATE_RECORD,
@@ -248,12 +250,13 @@ class BatchMatching:
     def _finish_move(self, batch_id: str, file_id: str, result: TMDBMatch, log: EventWriter) -> None:
         try:
             if result.copied_files:
-                SourceDirectoryCleanup().finish(result.source_path, result.copied_files,
-                                                preserve_directory=result.preserve_source_directory)
+                SourceDirectoryCleanup().finish(result.source_directory or result.source_path, result.copied_files,
+                                                preserve_directory=result.source_directory is not None
+                                                or result.preserve_source_directory)
                 log.write(Categories.File.DELETE, Names.FILE_DELETE,
                           {'outcome': 'deleted', 'paths': [copy['source'] for copy in result.copied_files],
-                           'source_directory': result.source_path,
-                           'directory_preserved': result.preserve_source_directory,
+                           'source_directory': result.source_directory or result.source_path,
+                           'directory_preserved': result.source_directory is not None or result.preserve_source_directory,
                            'error': None}, source='SourceDirectoryCleanup')
                 for copy in result.copied_files:
                     CatalogueFiles().finish(copy['source'], copy['destination'], copy['stage_id'], preserve_source=True)
@@ -262,6 +265,7 @@ class BatchMatching:
                                'outcome': 'copied'}, source='CatalogueFiles')
             elif not result.duplicate:
                 CatalogueFiles().finish(result.source_path, result.catalogue_path, file_id)
+            self._cleanup_directory(result, log)
         except (OSError, ValueError) as error:
             result = replace(result, catalogue_error=str(error))
         else:
@@ -277,6 +281,7 @@ class BatchMatching:
             return
         try:
             CatalogueFiles().discard(result.discard_files, result.catalogue_path)
+            self._cleanup_directory(result, log)
         except (OSError, ValueError) as error:
             result = replace(result, file_moved=False, catalogue_error=str(error))
         event = log.prepare(Categories.File.DELETE, Names.FILE_DELETE,
@@ -288,6 +293,13 @@ class BatchMatching:
             self._workspace.save_match(batch_id, file_id, result, event)
         else:
             self._workspace.finish_duplicates(batch_id, file_id, result, event)
+
+    @staticmethod
+    def _cleanup_directory(result: TMDBMatch, log: EventWriter) -> None:
+        if result.source_directory is not None and DirectoryFiles().remove_without_media(result.source_directory):
+            log.write(Categories.File.DELETE, Names.FILE_DELETE,
+                      {'outcome': 'deleted', 'paths': [], 'source_directory': result.source_directory,
+                       'directory_preserved': False, 'error': None}, source='SourceDirectoryCleanup')
 
     def _catalogue_failure(self, batch_id: str, file_id: str, result: TMDBMatch,
                            error: Exception, log: EventWriter) -> None:
