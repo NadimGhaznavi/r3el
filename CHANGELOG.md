@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Show stacked movie and TV-series totals beneath the catalogue logo in its purple colour.
+
 ## [4.3.3] - 2026-09-26 @ 04:44
 
 ### Changed
