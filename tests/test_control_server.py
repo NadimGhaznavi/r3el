@@ -32,6 +32,22 @@ from r3el.server.ControlServer import make_server
 
 
 class ControlServerTests(unittest.TestCase):
+    @patch('r3el.server.ControlServer.EventLogDb.latest_for_processes')
+    def test_current_task_tracks_tv_episode_events(self, latest):
+        self.workspace.return_value = MediaFileBatch('batch',1,'/source',files=[
+            MediaFile('series','/source/Show',media_type='tv')])
+        for number in (1,2):
+            latest.return_value = dict(event_id=number,name='tmdb_details',source_name='TVImport',
+                content=json.dumps(dict(context=dict(filename='Show'),data=dict(
+                    kind='episode',series_id=42,season=1,episode=number,outcome='started',error=None))))
+            status, _, body = self.request('/')
+            self.assertEqual(status,200)
+            task = body.split('<p id="batch-processing"',1)[1].split('</p>',1)[0]
+            self.assertIn('Fetching TMDB TV episode details',task)
+            self.assertIn(f'Season 01, Episode {number:02}',task)
+            self.assertIn(f'href="/events/{number}"',task)
+            latest.assert_called_with(['batch','series'])
+
     @classmethod
     def setUpClass(cls):
         cls.server = make_server('127.0.0.1', 0)

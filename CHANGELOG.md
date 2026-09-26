@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Keep Current Task refreshing from the Event Log while a batch-table link or input has focus, including TV episode progress, without replacing the focused table.
+
 ## [4.2.2] - 2026-09-26 @ 03:39
 
 ### Tests
