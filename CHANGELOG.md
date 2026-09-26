@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Center the Search Index heading and contents.
+
+### Fixed
+- Keep Search Index spacing outside the links so only the letters are clickable.
+
 ## [5.2.0] - 2026-09-26 @ 08:09
 
 ### Changed
