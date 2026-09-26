@@ -1,0 +1,2 @@
+{% set data = message.payload.data %}
+<a href="/events/{{ event.event_id }}">{% if data.outcome == 'verifying' %}Verifying copied media: {{ data.verified_bytes }} / {{ data.total_bytes }} bytes{% elif data.outcome == 'verified' %}Copied media verified: {{ data.verified_bytes }} bytes{% else %}Media copy {{ data.outcome }}{% endif %}. Source: {{ data.source_path }}{% if data.destination_path is defined %}, Destination: {{ data.destination_path }}{% endif %}{% if data.error is defined and data.error %}, Error: {{ data.error }}{% endif %}.</a>
