@@ -72,10 +72,10 @@ class CatalogueDb:
             f"NULL AS season_number, NULL AS episode_number FROM ({self._titles()}) titles "
             "UNION ALL SELECT e.tmdb_id,e.title,YEAR(e.air_date),"
             "(SELECT a.path FROM tv_artwork a WHERE a.series_id=e.series_id "
-            "AND a.episode_id=e.tmdb_id AND a.kind='still' ORDER BY a.path LIMIT 1),"
+            "AND a.episode_id IS NULL AND a.season_number IS NULL AND a.kind='poster' ORDER BY a.path LIMIT 1),"
             "NULL,'episode',e.series_id,s.title,e.season_number,e.episode_number "
             "FROM tv_episodes e JOIN tv_series s ON s.tmdb_id=e.series_id) entries "
-            "ORDER BY RAND() LIMIT 6")
+            "ORDER BY RAND() LIMIT 4")
 
     def get(self, movie_id: int) -> dict | None:
         with self._db.transaction():

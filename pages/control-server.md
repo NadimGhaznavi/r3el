@@ -31,10 +31,10 @@ use the stored path with the leading `/exports/` replaced by `/imports/`, for
 example `file:///imports/disk1/Movie.mkv`. Other path prefixes stay unchanged.
 
 Title Search, Search Index, Category Search, and Random Search share a row.
-Random Search has a single Search button that replaces Recent additions with six
-random movies, TV shows, or episodes (or all entries when fewer than six exist).
+Random Search has a single Search button that replaces Recent additions with four
+random movies, TV shows, or episodes (or all entries when fewer than four exist).
 Each click draws a fresh selection without duplicates within that selection.
-Episode cards link to the episode in its show page. The index contains
+Episode cards use the show poster and link to the episode in its show page. The index contains
 Numbers and Symbols on its own line, with the alphabet wrapping into narrower rows below, matching the first character
 of movie or TV show titles (not episode titles). Leading spaces are ignored.
 Index results use the same poster/title/year cards and result count as the other

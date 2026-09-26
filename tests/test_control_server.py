@@ -144,19 +144,20 @@ class ControlServerTests(unittest.TestCase):
     @patch('r3el.server.ControlServer.CatalogueDb.random')
     def test_catalogue_random_search(self, random, recent, categories):
         random.return_value = [dict(tmdb_id=i, title=f'Movie {i}', release_year=2020,
-                                    poster_path=None, media_type='movie') for i in range(5)]
+                                    poster_path=None, media_type='movie') for i in range(3)]
         random.return_value.append(dict(tmdb_id=99, title='<Episode>', release_year=2021,
-            poster_path='/still.jpg', media_type='episode', series_id=42,
+            poster_path='/poster.jpg', media_type='episode', series_id=42,
             series_title='Show', season_number=2, episode_number=3))
         for _ in range(2):
             status, _, body = self.request('/catalogue?random=1')
             self.assertEqual(status, 200)
-            self.assertEqual(body.count('class="catalogue-card"'), 6)
+            self.assertEqual(body.count('class="catalogue-card"'), 4)
             self.assertIn('Random picks</h2>', body)
             self.assertNotIn('Recent additions</h2>', body)
             self.assertNotIn('aria-label="Older additions"', body)
             self.assertIn('href="/catalogue/tv/42#episode-99"', body)
-            self.assertIn('src="/catalogue/tv/42/episodes/99/still"', body)
+            self.assertIn('src="/catalogue/tv/42/poster"', body)
+            self.assertNotIn('/episodes/99/still', body)
             self.assertIn('Show · S02E03 — &lt;Episode&gt;', body)
             self.assertLess(body.index('>Category Search</h2>'), body.index('>Random Search</h2>'))
         self.assertEqual(random.call_count, 2)
