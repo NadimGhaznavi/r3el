@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- Add batch overview, directory-pattern and import/cleanup flowcharts. Link every documentation page from the top-level index and correct outdated workflow descriptions.
+
+### Changed
+- Rename the batch status prefix to Current Task:.
+- Rename the Event Log refresh button to Update.
+
 ## [1.9.0] - 2026-09-26 @ 00:43
 
 ### Changed

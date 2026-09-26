@@ -4,6 +4,8 @@ author_profile: true
 layout: single
 ---
 
+[Documentation index](../index.md)
+
 [Workflow](01-high-level-flow.md) · [Persistent workspace](file-states.md) · [Running identification](one-batch-identification.md)
 
 R3el should be easy to navigate, understand, and maintain. Each component

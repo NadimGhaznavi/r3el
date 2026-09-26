@@ -1,37 +1,37 @@
-# R3el workflow
+---
+title: Runtime behaviour
+author_profile: true
+layout: single
+---
 
-## Implemented
+[Documentation index](../index.md)
 
-1. Create a persistent workspace containing a `MediaFileBatch` and its selected
-   `MediaFile` records, or reload the existing batch.
-2. Identify the next group of up to 10 files with Qwen, saving each outcome and
-   its current issues.
-3. Continue automatically into TMDB matching for that group, without another
-   button press.
-4. Query Pending and Approve files with an identification by title/year, skipping
-   Ignore/Delete files. Resolve multiple candidates with the LLM and retry
-   zero-result identifications up to three times.
-5. Save each result, then repeat identification and matching for the next group
-   of up to 10 files. After the final group, finish with batch state `matching_completed`. Unexpected
-   matching errors stop the batch with `matching_failed`.
+# Runtime behaviour
 
-The human starts each batch with New Batch. Processing then continues independently
-of the browser. Process Batch remains available afterward for manual retries.
+Normal service startup resumes interrupted processing when configured with a
+model URL. An empty workspace, a completed batch, or an explicit stop request
+remains idle. Opening the Control page never starts a new batch.
 
-The server starts idle. Explicit diagnostic `--run-batch` resumes unfinished
-identification; completed files are skipped. No new batch starts automatically.
+**New Batch** selects ordinary files first and processes them in groups of up to
+10. After those groups, remaining batch capacity is filled by matching immediate
+child directories. Their contents are scanned recursively, but nested directories
+are not separate batch selections. Each directory item is identified, matched
+and imported before advancing.
 
-The Control server provides New Batch, saved action choices, Process Batch, and event reports.
+TMDB selection, catalogue saving, media/SRT moves, duplicate handling and source
+cleanup are implemented. The worker runs independently of browser refresh.
+Unresolved items remain available for review; unmatched directories are left
+unchanged. A completed batch remains visible until replaced or cleared.
 
-## Planned
+**Stop Batch** requests a cooperative stop after the current operation.
+**Clear Current Batch** waits for processing to stop and removes only workspace
+records. **TMDB ID** and **Replace Local Media** provide the supported manual
+corrections in the Action column; there is no action dropdown or Process Batch
+button.
 
-| Stage | Work |
-| --- | --- |
-| Review | Approve, reject, or modify proposed records. |
-| Execution | Apply approved filesystem operations and finalize media DB records. |
+The explicit `--run-batch` diagnostic mode runs identification without the normal
+automatic matching/import pipeline.
 
-After finalization, clear the temporary workspace and allow the next batch.
-Keep final media records; resolved issues do not require a separate history.
-Workspace cleanup and these later stages are not implemented yet.
-
-[Persistent workspace](file-states.md) · [Running identification](one-batch-identification.md) · [Event Log](control-server.md)
+See the [batch overview](01-high-level-flow.md),
+[directory patterns](directory-patterns.md), [import and cleanup](import-cleanup.md),
+and [persistent workspace](file-states.md).

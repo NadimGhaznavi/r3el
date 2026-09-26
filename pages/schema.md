@@ -4,6 +4,8 @@ author_profile: true
 layout: single
 ---
 
+[Documentation index](../index.md)
+
 The catalogue stores one movie per TMDB ID and keeps its local files separate
 from the temporary batch workspace. A single search result or a successful
 multiple-choice selection triggers a full TMDB details fetch and catalogue save.
@@ -11,7 +13,7 @@ Ambiguous, skipped, and failed matches do not create catalogue records.
 
 | Table | Contents |
 | --- | --- |
-| `movies` | TMDB ID (primary key), title, original title, release date, derived release year, overview, runtime in minutes, poster/backdrop paths, IMDb ID, rating, vote count, and UTC metadata fetch timestamp |
+| `movies` | TMDB ID (primary key), title, original title, release date, derived release year, overview, runtime in minutes, poster/backdrop paths, IMDb ID, rating, vote count, UTC metadata fetch timestamp, and first-added timestamp |
 | `people` | TMDB person ID (primary key) and name |
 | `credit_roles` | Actor, Director, Producer, Executive Producer, Co-Producer |
 | `movie_credits` | Movie, person, role, character name, and cast billing order |
@@ -23,6 +25,9 @@ Ambiguous, skipped, and failed matches do not create catalogue records.
 There is no catalogue language field. Missing optional metadata is SQL `NULL`.
 `release_year` is generated from `release_date`, so the two cannot disagree.
 Ratings and vote counts are TMDB values as of `fetched_at`.
+
+The added_at timestamp records first insertion and orders recent additions;
+metadata refreshes preserve it. Existing rows are initialized from fetched_at.
 
 People are shared across movies and roles. A person may be an actor, director,
 and producer on the same movie; several cast characters remain separate credits.

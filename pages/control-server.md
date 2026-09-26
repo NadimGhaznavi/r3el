@@ -1,6 +1,14 @@
+---
+title: Control, Catalogue, and Event Log
+author_profile: true
+layout: single
+---
+
+[Documentation index](../index.md)
+
 # R3el Control
 
-When processing stops with no matches or unresolved multiple matches, a **Manual match** column
+When processing stops with no matches or unresolved multiple matches, the **Action** column
 offers a text field and **TMDB ID** button on those rows. Enter a positive movie
 ID to fetch that exact TMDB record, including one outside the original results.
 The request runs in the background and uses the usual catalogue, artwork, move,
@@ -8,12 +16,12 @@ and format-preference workflow. Failed lookups show an error and preserve the
 original match results for correction. Active, resolved, Ignore, and Delete
 rows do not offer manual matching.
 
-The **Catalogue** navigation link opens `/catalogue`, an alphabetical list of
-saved movie titles and years. Each links to `/catalogue/<TMDB ID>`, showing saved
-metadata, genres, cast and crew, local posters/backdrops, and file paths.
-These pages read the durable catalogue independently of the batch workspace
-and do not query TMDB. An empty catalogue shows an empty-state message; missing
-entries return 404.
+The **Catalogue** navigation link shows four recent additions beside the logo.
+Arrow buttons browse older/newer groups of four. Title search matches part of a
+title and displays poster/title/year cards five across in a separate Search
+Results panel. Each card opens a movie page with a poster and summary, Director,
+Producers, Cast, and Files boxes. These pages read saved catalogue data and local
+artwork without querying TMDB.
 
 `r3el-control.service` is a standalone Jinja2 report server. It displays the
 MariaDB event log while the identification service is running or stopped and
@@ -46,14 +54,13 @@ or is stopped, editable controls return with the previous settings, including
 for empty batches. Automatic progress polling enables New Batch on completion.
 Replacement and fresh selection commit together; a failed selection or database
 transaction leaves the previous workspace intact.
-The file table ends with an Action dropdown: Pending / Approve / Ignore / Delete.
-These choices are saved in the workspace when changed. Identification initially
-selects Approve for confidence 10 and Pending otherwise. Rows still awaiting
-identification have disabled dropdowns. All action menus stay disabled while the
-automatic pipeline is running.
-Saving an action updates button readiness without reloading the page. A failed
-or uncertain save disables further edits until the user reloads to read the saved
-state; no save is retried automatically.
+The file table ends with an **Action** column containing **TMDB ID** or
+**Replace Local Media** when applicable. The Pending / Approve / Ignore / Delete
+dropdown is no longer displayed. **Clear Current Batch** is available when a
+workspace exists; it safely stops processing before clearing working records,
+preserving catalogue entries, imported media, and events.
+Beneath the controls, the bold yellow **Current Task:** line shows the current
+batch's latest Event Log message and links to its details.
 
 The server processes groups of up to 10 files within the selected batch. Each
 group completes identification, TMDB matching, LLM selection, and zero-result
@@ -155,8 +162,8 @@ is saved. Reads use the shared workspace interface without taking the processor'
 exclusive lock. A database failure shows Workspace unavailable with no button.
 
 New Batch replaces a finished workspace. Service startup resumes an interrupted
-retained batch. The output directory is stored with the batch for future stages;
-identification does not create that directory or move source files. Set the
+retained batch. The output directory is stored with the batch and used by the
+automatic import stage after matching. Set the
 identification server's `--llm-url` or `R3EL_LLM_URL` before requesting work.
 
 The command receives an immediate `accepted` reply; this means accepted for
