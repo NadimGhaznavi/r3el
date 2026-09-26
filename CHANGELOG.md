@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Add multi-category checkbox search to Catalogue, matching any selected genre and displaying the standard movie cards.
+
 ## [3.0.0] - 2026-09-26 @ 01:45
 
 ### Changed
