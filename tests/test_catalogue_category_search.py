@@ -30,9 +30,14 @@ class CategorySearchTests(unittest.TestCase):
         """)
         self.catalogue = CatalogueDb(self)
 
-    def query(self, sql, params):
+    def query(self, sql, params=()):
         # Only the DB driver's placeholder syntax differs for these portable queries.
         return [dict(row) for row in self.connection.execute(sql.replace('%s', '?'), params)]
+
+    def test_counts_separate_movies_and_series(self):
+        self.assertEqual(self.catalogue.counts(),dict(movies=4,tv_shows=0))
+        self.connection.execute("INSERT INTO tv_series VALUES (1,'Show','2020-01-01','2020-01-01')")
+        self.assertEqual(self.catalogue.counts(),dict(movies=4,tv_shows=1))
 
     def ids(self, categories):
         return {row['tmdb_id'] for row in self.catalogue.movies_in_categories(categories)}

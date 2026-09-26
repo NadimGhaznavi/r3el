@@ -15,6 +15,10 @@ class CatalogueDb:
         return self._db.query('SELECT genre_id, name FROM tmdb_movie_genres UNION '
                               'SELECT genre_id, name FROM tmdb_tv_genres ORDER BY name')
 
+    def counts(self) -> dict:
+        return self._db.query('SELECT (SELECT COUNT(*) FROM movies) AS movies, '
+                              '(SELECT COUNT(*) FROM tv_series) AS tv_shows')[0]
+
     @staticmethod
     def _titles() -> str:
         return ("SELECT tmdb_id,title,release_year,poster_path,added_at,'movie' AS media_type FROM movies "
