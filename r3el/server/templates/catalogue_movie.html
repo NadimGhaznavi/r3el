@@ -2,7 +2,7 @@
 {% block title %}{{ movie.title }}{% endblock %}
 {% macro file_link(path) -%}
   {% set local_path = '/imports/' ~ path[9:] if path.startswith('/exports/') else path %}
-  <a href="file://{{ local_path | urlencode }}">{{ local_path }}</a>
+  <a href="r3el-vlc://{{ local_path | urlencode }}" title="Play in VLC">{{ local_path }}</a>
 {%- endmacro %}
 {% block content %}
 <article class="movie-card catalogue-detail" aria-labelledby="movie-title">
