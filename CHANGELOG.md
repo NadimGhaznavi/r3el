@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-09-26 @ 01:17
+
 ### Documentation
 - Add batch overview, directory-pattern and import/cleanup flowcharts. Link every documentation page from the top-level index and correct outdated workflow descriptions.
 
