@@ -181,6 +181,24 @@ class EventDatabaseTests(unittest.TestCase):
         self.assertTrue(workspace.load().directories_scanned)
         self.assertEqual(workspace.load().files[1].attachments[0].part, 2)
 
+    def test_dated_movie_source_directory_and_attachments_round_trip(self):
+        from r3el.entity.MediaAttachment import MediaAttachment
+        workspace = WorkspaceDb(self.db)
+        batch = self.workspace_batch()
+        batch.started_event_id = workspace.create(batch, self.event(), self.event())
+        item = MediaFile(str(uuid4()), '/films/Alice/Alice-2010.avi', source_directory='/films/Alice',
+                         attachments=[MediaAttachment('/films/Alice/Alice-2010.avi')])
+        workspace.append_directories(batch, [item], self.event())
+        saved = workspace.load().files[-1]
+        self.assertEqual(saved.source_directory, '/films/Alice')
+        self.assertIsNone(saved.find_ls)
+        self.assertEqual(saved.attachments, item.attachments)
+        item.identification = Identification('Alice', 2010, 10)
+        item.state = MediaFileState.IDENTIFIED
+        workspace.save_file(batch.id, item, self.event())
+        WorkspaceSchema(self.db).apply()
+        self.assertEqual(workspace.load().files[-1].source_directory, '/films/Alice')
+
     def test_stop_request_is_durable_and_does_not_wait_for_processing_lock(self):
         workspace = WorkspaceDb(self.db)
         batch = self.workspace_batch()

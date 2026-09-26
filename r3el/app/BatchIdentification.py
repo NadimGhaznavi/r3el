@@ -43,7 +43,9 @@ class BatchIdentification:
                 self._set_state(batch, MediaFileBatchState.PROCESSING, Names.BATCH_RESUMED,
                                 {'pending': sum(item.state == MediaFileState.PENDING for item in batch.files)})
             try:
-                candidates = [item for item in batch.files if item.find_ls is None] if ordinary_only else batch.files
+                candidates = ([item for item in batch.files
+                               if item.find_ls is None and item.source_directory is None]
+                              if ordinary_only else batch.files)
                 files = candidates[offset:] if limit is None else candidates[offset:offset + limit]
                 for item in files:
                     self._workspace.check_stop(batch.id)

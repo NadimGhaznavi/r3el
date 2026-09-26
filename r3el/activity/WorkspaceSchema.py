@@ -50,6 +50,7 @@ class WorkspaceSchema:
         self._db.execute('ALTER TABLE media_file_batches ADD COLUMN IF NOT EXISTS '
                          'directories_scanned BOOLEAN NOT NULL DEFAULT FALSE')
         self._db.execute('ALTER TABLE media_files ADD COLUMN IF NOT EXISTS find_ls LONGTEXT NULL')
+        self._db.execute('ALTER TABLE media_files ADD COLUMN IF NOT EXISTS source_directory TEXT NULL')
         self._db.execute("""
             CREATE TABLE IF NOT EXISTS media_attachments (
                 file_id CHAR(36) NOT NULL,

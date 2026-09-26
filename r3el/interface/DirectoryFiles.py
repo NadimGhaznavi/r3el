@@ -4,6 +4,9 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import shutil
+
+from r3el.activity.MovieFormats import MovieFormats
 
 
 class DirectoryFiles:
@@ -25,3 +28,20 @@ class DirectoryFiles:
         files = [(os.fsdecode(fields[index + 2]), int(fields[index + 1]))
                  for index in range(0, len(fields), 3) if fields[index] == b'f']
         return result.stdout.decode('utf-8', errors='replace'), files
+
+    def remove_without_media(self, directory: str) -> bool:
+        root = Path(directory)
+        if root.is_symlink():
+            raise ValueError('The source directory must not be a symbolic link.')
+        if not root.exists():
+            return False
+        def failed(error):
+            raise error
+        for current, children, files in os.walk(root, followlinks=False, onerror=failed):
+            # Preserve unresolved subtitles and directories linked elsewhere.
+            if any(Path(current, child).is_symlink() for child in children):
+                return False
+            if any(Path(name).suffix.lower().lstrip('.') in (*MovieFormats.ORDER, 'srt') for name in files):
+                return False
+        shutil.rmtree(root)
+        return True

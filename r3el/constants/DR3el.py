@@ -5,7 +5,7 @@ class DR3el:
     RAW_LOGS_ENABLED: Final[bool] = False
     HTTP_TIMEOUT_SECONDS: Final[int] = 300
 
-    VERSION: Final[str] = "1.5.1"
+    VERSION: Final[str] = "1.6.0"
 
     BASE_DIR: Final[str] = "/opt/prod/r3el"
     FILM_DIR: Final[str] = "/exports/disk1/archive/film"
