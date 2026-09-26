@@ -1,4 +1,4 @@
-"""Movie search and external response validation for TMDB."""
+"""Movie and TV search and external response validation for TMDB."""
 
 import os
 import re
@@ -25,8 +25,17 @@ class TMDB:
             raise TMDBError('Configure TMDB_TOKEN with a TMDB API Read Access Token.')
         return cls(token)
 
-    def search(self, title: str, year: int) -> dict:
-        payload = self._get(self.URL, self.search_parameters(title, year))
+    def search(self, title: str, year: int | None = None) -> dict:
+        return self._search(self.URL, self.search_parameters(title, year))
+
+    def search_tv(self, title: str, year: int | None = None) -> dict:
+        parameters = {'query': title, 'page': 1}
+        if year is not None:
+            parameters['first_air_date_year'] = year
+        return self._search('https://api.themoviedb.org/3/search/tv', parameters)
+
+    def _search(self, url: str, parameters: dict) -> dict:
+        payload = self._get(url, parameters)
         if (not isinstance(payload, dict)
                 or type(payload.get('total_results')) is not int
                 or payload['total_results'] < 0
@@ -40,8 +49,11 @@ class TMDB:
         return payload
 
     @staticmethod
-    def search_parameters(title: str, year: int) -> dict:
-        return {'query': title, 'primary_release_year': year, 'page': 1}
+    def search_parameters(title: str, year: int | None = None) -> dict:
+        parameters = {'query': title, 'page': 1}
+        if year is not None:
+            parameters['primary_release_year'] = year
+        return parameters
 
     def details(self, movie_id: int) -> dict:
         """Return the full movie record and related descriptive data."""
@@ -51,6 +63,16 @@ class TMDB:
         if (not isinstance(payload, dict) or type(payload.get('id')) is not int
                 or payload['id'] != movie_id):
             raise TMDBError(f'TMDB returned invalid details for movie {movie_id}.')
+        return payload
+
+    def tv_details(self, series_id: int) -> dict:
+        """Return series details with related data, without crawling seasons."""
+        payload = self._get(f'https://api.themoviedb.org/3/tv/{series_id}', {
+            'append_to_response': 'alternative_titles,credits,external_ids,images,keywords,content_ratings,translations,videos',
+        })
+        if (not isinstance(payload, dict) or type(payload.get('id')) is not int
+                or payload['id'] != series_id):
+            raise TMDBError(f'TMDB returned invalid details for TV series {series_id}.')
         return payload
 
     def reference(self) -> TMDBReference:
