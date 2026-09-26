@@ -37,6 +37,7 @@ class DEventName:
     SUBMISSION_ACCEPTED = "submission_accepted"
     TMDB_SEARCH = "tmdb_search"
     TMDB_RESULT = "tmdb_result"
+    TMDB_DETAILS = "tmdb_details"
     FILE_MOVE = "file_move"
     FILE_DELETE = "file_delete"
     ARTIFACT_DOWNLOAD = "artifact_download"
@@ -55,6 +56,7 @@ class DEventName:
         Categories.Batch.BATCH_IDENTIFICATION: (ITEM_STARTED, ITEM_COMPLETED, IDENTIFICATION_GROUP_COMPLETED),
         Categories.TMDB.SEARCH: (TMDB_SEARCH,),
         Categories.TMDB.RESULT: (TMDB_RESULT,),
+        Categories.TMDB.DETAILS: (TMDB_DETAILS,),
         Categories.File.MOVE: (FILE_MOVE, FILE_COPY),
         Categories.File.DELETE: (FILE_DELETE,),
         Categories.Artifact.DOWNLOAD: (ARTIFACT_DOWNLOAD,),
