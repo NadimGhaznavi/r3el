@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.8.1] - 2026-09-26 @ 06:17
+
+### Fixed
+- Align the animated robot eyes with the measured eye centres in the original logo.
+
 ## [4.8.0] - 2026-09-26 @ 06:05
 
 ### Changed
