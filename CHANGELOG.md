@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.2] - 2026-09-26 @ 01:56
+
 ### Changed
 - Remove the instructional hint beneath catalogue Title Search.
 
