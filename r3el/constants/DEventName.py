@@ -12,6 +12,7 @@ class DEventName:
     BATCH_COMPLETED = "batch_completed"
     BATCH_FAILED = "batch_failed"
     BATCH_CANCELLED = "batch_cancelled"
+    BATCH_CLEARED = "batch_cleared"
     BATCH_STOP_REQUESTED = "batch_stop_requested"
     IDENTIFICATION_GROUP_COMPLETED = 'identification_group_completed'
     DIRECTORY_SCAN_STARTED = 'directory_scan_started'
@@ -43,7 +44,7 @@ class DEventName:
     # Every event bucket has exactly one category/subcategory parent.
     CHILDREN = {
         Categories.Server.LIFECYCLE: (SERVER_STARTED, SERVER_STOPPED),
-        Categories.Batch.LIFECYCLE: (BATCH_STARTED, BATCH_RESUMED, BATCH_COMPLETED, BATCH_FAILED, BATCH_CANCELLED, BATCH_STOP_REQUESTED),
+        Categories.Batch.LIFECYCLE: (BATCH_STARTED, BATCH_RESUMED, BATCH_COMPLETED, BATCH_FAILED, BATCH_CANCELLED, BATCH_STOP_REQUESTED, BATCH_CLEARED),
         Categories.Batch.DISCOVERY: (FILES_RETRIEVED, DIRECTORY_SCAN_STARTED, DIRECTORY_SCAN_COMPLETED,
                                      DIRECTORIES_SCANNED, TWO_PARTS_DETECTED, SUBTITLE_ASSOCIATION),
         Categories.Prompt.LLM_PROMPT: (PROMPT_SENT,),

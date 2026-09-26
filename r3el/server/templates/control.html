@@ -47,8 +47,10 @@
           {% endif %}
         </div>
         <button id="stop-batch" type="button"{% if not stop_ready %} disabled{% endif %}>Stop Batch</button>
+        <button id="clear-batch" type="button"{% if workspace is none %} disabled{% endif %}>Clear Current Batch</button>
       </div>
       <p role="status" id="stop-feedback"></p>
+      <p role="status" id="clear-feedback"></p>
     </div>
   </div>
   <div class="batch-panel">
@@ -82,6 +84,43 @@
   {% endif %}
 </div>
 <script>
+  let clearingWorkspace = false;
+  const clearBatch = document.getElementById('clear-batch');
+  {% if workspace is not none %}
+  clearBatch.addEventListener('click', async () => {
+    clearingWorkspace = true;
+    clearBatch.disabled = true;
+    document.getElementById('stop-batch').disabled = true;
+    document.querySelector('#new-batch-action button').disabled = true;
+    const feedback = document.getElementById('clear-feedback');
+    feedback.textContent = 'Clearing current batch...';
+    try {
+      const response = await fetch({{ settings.CLEAR_BATCH_URL | tojson }}, {
+        method: 'POST', body: new URLSearchParams({batch_id: {{ workspace.id | tojson }}})
+      });
+      if (!response.ok) throw new Error();
+      const result = await response.json();
+      if (!result.accepted) throw new Error();
+      async function pollClear() {
+        try {
+          const response = await fetch('/workspace/clear/status/' + encodeURIComponent(result.job_id), {cache: 'no-store'});
+          if (!response.ok) throw new Error();
+          const job = await response.json();
+          if (job.status === 'completed') { window.location.replace({{ control_url | tojson }}); return; }
+          if (job.status !== 'running') throw new Error();
+          window.setTimeout(pollClear, 1000);
+        } catch {
+          feedback.textContent = 'Could not clear the workspace. Refresh to check its status.';
+          clearBatch.disabled = false;
+        }
+      }
+      pollClear();
+    } catch {
+      feedback.textContent = 'Could not clear the workspace. Refresh to check its status.';
+      clearBatch.disabled = false;
+    }
+  });
+  {% endif %}
   const refreshForm = document.getElementById('control-refresh');
   let refreshSeconds = {{ refresh | tojson }};
   let refreshTimer;

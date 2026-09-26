@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-25 @ 22:07
+
+### Added
+
+- Add Clear Current Batch next to Stop Batch. Clear an idle workspace immediately, or stop active work before clearing its batch records; retain media, catalogue entries, and Event Log history.
+
 ## [1.4.4] - 2026-09-25 @ 21:56
 
 ### Changed
