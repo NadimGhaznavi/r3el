@@ -1,0 +1,1 @@
+<a href="/events/{{ event.event_id }}">Directory discovery complete. TV series: {{ message.payload.data.tv_series | default(0) }}, two-part movies: {{ message.payload.data.two_part_movies }}, separate-movie directories: {{ message.payload.data.dated_movie_directories | default(0) }}.</a>
