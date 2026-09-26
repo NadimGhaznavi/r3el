@@ -40,6 +40,16 @@ class SubmissionHandler:
         data = request.payload.get('submission')
         log.write(Categories.Prompt.SUBMISSION_HANDLER, Names.TOOL_RECEIVED, data, source='SubmissionHandler')
         try:
+            parts = None
+            if 'media_files' in log.context:
+                if not isinstance(data, dict) or set(data) != {'title', 'year', 'confidence', 'part_one', 'part_two'}:
+                    raise ValueError('Supply title, year, confidence, part_one, and part_two.')
+                one, two = data['part_one'], data['part_two']
+                if (not isinstance(one, str) or not isinstance(two, str) or one == two
+                        or set((one, two)) != set(log.context['media_files'])):
+                    raise ValueError('Assign each supplied media path exactly once to part_one and part_two.')
+                parts = {'part_one': one, 'part_two': two}
+                data = {key: data[key] for key in ('title', 'year', 'confidence')}
             identification = ValidateIdentification().run(data)
         except ValueError as error:
             prompt = InvalidIdentification(str(error))
@@ -49,6 +59,8 @@ class SubmissionHandler:
                       result, source='SubmissionHandler')
             return result
         result = {'status': 'ok', 'identification': asdict(identification)}
+        if parts is not None:
+            result['parts'] = parts
         log.write(Categories.Prompt.SUBMISSION_HANDLER, Names.SUBMISSION_ACCEPTED,
                   result, source='SubmissionHandler')
         return result

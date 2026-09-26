@@ -21,6 +21,7 @@ class TMDBMatch:
     duplicate: bool = False
     discard_files: list[dict] = field(default_factory=list)
     year_offset: int = 0
+    copied_files: list[dict] = field(default_factory=list)
 
     @property
     def needs_manual_match(self) -> bool:

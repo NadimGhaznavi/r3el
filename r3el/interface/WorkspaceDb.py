@@ -7,6 +7,7 @@ from hashlib import sha256
 import json
 
 from r3el.entity.Identification import Identification
+from r3el.entity.MediaAttachment import MediaAttachment
 from r3el.entity.LogEvent import LogEvent
 from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
 from r3el.entity.MediaFileBatch import MediaFileBatch, MediaFileBatchState
@@ -74,12 +75,21 @@ class WorkspaceDb:
         files = self._db.query(
             'SELECT * FROM media_files WHERE batch_id = %s ORDER BY position', (row['batch_id'],),
         )
+        items = [self._file(item) for item in files]
+        attachments = self._db.query(
+            'SELECT a.* FROM media_attachments a JOIN media_files f ON f.file_id = a.file_id '
+            'WHERE f.batch_id = %s ORDER BY a.position', (row['batch_id'],))
+        by_id = {item.id: item for item in items}
+        for attachment in attachments:
+            by_id[attachment['file_id']].attachments.append(MediaAttachment(
+                attachment['path'], attachment['kind'], attachment['part'], attachment['media_path']))
         return MediaFileBatch(
             id=row['batch_id'], requested_size=row['requested_size'],
             source_directory=row['source_directory'], state=MediaFileBatchState(row['state']),
             destination_directory=row['destination_directory'],
             stop_requested=bool(row['stop_requested']),
-            started_event_id=row['started_event_id'], files=[self._file(item) for item in files],
+            started_event_id=row['started_event_id'], files=items,
+            directories_scanned=bool(row['directories_scanned']),
         )
 
     @staticmethod
@@ -87,6 +97,7 @@ class WorkspaceDb:
         identification = json.loads(row['identification']) if row['identification'] is not None else None
         return MediaFile(
             id=row['file_id'], path=row['path'], state=MediaFileState(row['state']),
+            find_ls=row['find_ls'],
             identification=Identification(**identification) if identification is not None else None,
             issues=[MediaFileIssue(**issue) for issue in json.loads(row['issues'])],
             attempts=row['attempts'], action=MediaFileAction(row['action']),
@@ -124,6 +135,26 @@ class WorkspaceDb:
             self._events.record_in_transaction(replace(discovered, parent_event_id=event_id))
         return event_id
 
+    def append_directories(self, batch: MediaFileBatch, items: list[MediaFile], event: LogEvent) -> None:
+        with self._db.transaction():
+            for position, item in enumerate(items, len(batch.files)):
+                self._db.execute(
+                    'INSERT INTO media_files '
+                    '(file_id, batch_id, position, path, state, issues, attempts, action, find_ls, updated_at) '
+                    'VALUES (%s, %s, %s, %s, %s, %s, 0, %s, %s, UTC_TIMESTAMP(6))',
+                    (item.id, batch.id, position, item.path, item.state,
+                     json.dumps([asdict(issue) for issue in item.issues]), item.action, item.find_ls))
+                for index, attachment in enumerate(item.attachments):
+                    self._db.execute(
+                        'INSERT INTO media_attachments (file_id, position, path, kind, part, media_path) '
+                        'VALUES (%s, %s, %s, %s, %s, %s)',
+                        (item.id, index, attachment.path, attachment.kind, attachment.part, attachment.media_path))
+            self._db.execute('UPDATE media_file_batches SET directories_scanned = TRUE WHERE batch_id = %s',
+                             (batch.id,))
+            self._events.record_in_transaction(event)
+        batch.files.extend(items)
+        batch.directories_scanned = True
+
     def save_file(self, batch_id: str, item: MediaFile, event: LogEvent) -> None:
         with self._db.transaction():
             self._db.execute(
@@ -137,6 +168,9 @@ class WorkspaceDb:
                  json.dumps(asdict(item.tmdb_match), allow_nan=False) if item.tmdb_match is not None else None,
                  batch_id, item.id),
             )
+            for position, attachment in enumerate(item.attachments):
+                self._db.execute('UPDATE media_attachments SET part = %s WHERE file_id = %s AND position = %s',
+                                 (attachment.part, item.id, position))
             self._events.record_in_transaction(event)
 
     def save_action(self, batch_id: str, file_id: str, action: MediaFileAction) -> MediaFileBatch:
@@ -214,12 +248,13 @@ class WorkspaceDb:
                 raise WorkspaceActionConflict('The file is no longer in the workspace.')
             CatalogueDb(self._db).save_in_transaction(movie, files)
             self._db.execute('UPDATE media_files SET tmdb_match = %s, path = %s WHERE batch_id = %s AND file_id = %s',
-                             (json.dumps(asdict(result), allow_nan=False), files.video, batch_id, file_id))
+                             (json.dumps(asdict(result), allow_nan=False), rows[0]['path'] if files.associated else files.video, batch_id, file_id))
             self._events.record_in_transaction(event)
 
     def catalogue_paths(self, movie_id: int) -> list[str]:
         return [row['path'] for row in self._db.query(
-            'SELECT path FROM movie_files WHERE movie_id = %s ORDER BY path', (movie_id,))]
+            "SELECT path FROM movie_files WHERE movie_id = %s AND kind = 'video' AND part IS NULL ORDER BY path",
+            (movie_id,))]
 
     def finish_duplicates(self, batch_id: str, file_id: str, result: TMDBMatch, event: LogEvent) -> None:
         """Forget removed file links and checkpoint cleanup in one transaction."""

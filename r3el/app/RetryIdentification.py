@@ -42,7 +42,8 @@ class RetryIdentification:
         try:
             with ZMQServer('tcp://127.0.0.1:*', handler.handle) as listener:
                 result = asyncio.run(ToolConversation(self._llm or LLM.from_environment(),
-                    listener.endpoint, handler, log).run())
+                    listener.endpoint, handler, log,
+                    **({'directory': item.directory_context} if item.find_ls is not None else {})).run())
         except BaseException:
             item.tmdb_match = replace(item.tmdb_match, selection_pending=False)
             self._save(item, log, Names.ITEM_COMPLETED)
@@ -51,12 +52,15 @@ class RetryIdentification:
         item.state = MediaFileState(result['status'])
         if item.state == MediaFileState.IDENTIFIED:
             item.identification = Identification(**result['identification'])
-            item.issues = []
+            if item.find_ls is not None:
+                item.assign_parts(**result['parts'])
+            item.issues = [issue for issue in item.issues if issue.code == 'unresolved_srt']
             item.tmdb_match = None
             item.action = (MediaFileAction.APPROVE if item.identification.confidence == DR3el.AUTO_APPROVE_CONFIDENCE
                            else MediaFileAction.PENDING)
         else:
-            item.issues = [MediaFileIssue('unresolved_llm', result['reason'])]
+            item.issues = ([issue for issue in item.issues if issue.code == 'unresolved_srt']
+                               + [MediaFileIssue('unresolved_llm', result['reason'])])
             item.action = MediaFileAction.PENDING
             item.tmdb_match = replace(item.tmdb_match, selection_pending=False)
         self._save(item, log, Names.ITEM_COMPLETED)
@@ -64,8 +68,9 @@ class RetryIdentification:
     def exhausted(self, item: MediaFile, log: EventWriter) -> None:
         item.state = MediaFileState.UNRESOLVED_LLM
         item.action = MediaFileAction.PENDING
-        item.issues = [MediaFileIssue('unresolved_llm',
-            'No TMDB matches after three identification retries and adjacent-year searches.')]
+        item.issues = ([issue for issue in item.issues if issue.code == 'unresolved_srt']
+                       + [MediaFileIssue('unresolved_llm',
+                           'No TMDB matches after three identification retries and adjacent-year searches.')])
         item.tmdb_match = replace(item.tmdb_match, selection_pending=False)
         self._save(item, log, Names.ITEM_COMPLETED)
 

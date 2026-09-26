@@ -26,6 +26,7 @@ class MediaFileBatch:
     started_event_id: int | None = None
     destination_directory: str | None = None
     stop_requested: bool = False
+    directories_scanned: bool = False
 
     @property
     def in_progress(self) -> bool:

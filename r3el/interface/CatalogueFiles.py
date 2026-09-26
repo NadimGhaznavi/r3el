@@ -1,5 +1,7 @@
 """Prepare local media without overwriting files; remove sources only after commit."""
 
+import filecmp
+import shutil
 import os
 from pathlib import Path
 import re
@@ -44,7 +46,7 @@ class CatalogueFiles:
             self._sync_directory(target.parent)
 
     def prepare(self, movie: CatalogueMovie, source: str, destination: str | None,
-                file_id: str, log: EventWriter) -> MovieFiles:
+                file_id: str, log: EventWriter, *, part: int | None = None, copy: bool = False) -> MovieFiles:
         if not destination:
             raise ValueError('The batch needs an output directory before files can be catalogued.')
         if movie.release_date is None:
@@ -64,7 +66,7 @@ class CatalogueFiles:
         except FileExistsError:
             if marker.read_text() != str(movie.tmdb_id):
                 raise ValueError('The title directory already belongs to a different TMDB movie.')
-        target = folder / (stem + origin.suffix)
+        target = folder / (stem + (f' Part {part}' if part is not None else '') + origin.suffix)
         if origin.is_symlink() or not origin.is_file():
             raise ValueError('The source video must be a regular file.')
         stage = self._stage(target, file_id)
@@ -77,12 +79,24 @@ class CatalogueFiles:
         backdrop = self._image(movie.backdrop_path, folder, 'backdrop', log)
         if origin != target:
             if stage.exists():
-                if not origin.samefile(stage):
+                if not (filecmp.cmp(origin, stage, shallow=False) if copy else origin.samefile(stage)):
                     raise ValueError('The source video changed after its move was prepared.')
             else:
-                # Hard links reserve the destination without overwriting it or copying
-                # video bytes. The source name remains until the DB commit succeeds.
-                os.link(origin, stage)
+                # Publish a complete staged file without overwriting the destination.
+                # Ordinary moves use a hard link; directory items copy their bytes.
+                if copy:
+                    descriptor, temporary = tempfile.mkstemp(prefix='.r3el-copy-', dir=folder)
+                    try:
+                        with os.fdopen(descriptor, 'wb') as output, origin.open('rb') as source_stream:
+                            shutil.copyfileobj(source_stream, output)
+                            output.flush()
+                            os.fsync(output.fileno())
+                        os.chmod(temporary, 0o644)
+                        os.link(temporary, stage)
+                    finally:
+                        Path(temporary).unlink(missing_ok=True)
+                else:
+                    os.link(origin, stage)
             try:
                 os.link(stage, target)
             except FileExistsError:
@@ -91,12 +105,12 @@ class CatalogueFiles:
         self._sync_directory(folder)
         return MovieFiles(str(target), poster, backdrop)
 
-    def finish(self, source: str, destination: str, file_id: str) -> None:
+    def finish(self, source: str, destination: str, file_id: str, *, preserve_source: bool = False) -> None:
         """Complete a committed move; safe to retry after source removal."""
         origin, target = Path(source), Path(destination)
         if target.is_symlink() or not target.is_file():
             raise ValueError('The catalogued destination video is missing or is a symbolic link.')
-        if origin != target and (origin.exists() or origin.is_symlink()):
+        if not preserve_source and origin != target and (origin.exists() or origin.is_symlink()):
             if origin.is_symlink() or not origin.samefile(target):
                 raise ValueError('The source video changed; it has not been removed.')
             origin.unlink()
