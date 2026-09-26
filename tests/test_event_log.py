@@ -159,7 +159,9 @@ class EventDatabaseTests(unittest.TestCase):
         series = CatalogueSeries(**{field.name:getattr(self.catalogue_movie(),field.name)
                                     for field in __import__('dataclasses').fields(CatalogueSeries)})
         season = dict(id=100,season_number=2,name='Season 2',episodes=[{'episode_number':3}])
-        episode = dict(id=101,season_number=2,episode_number=3,name='Episode',credits={'cast':[],'crew':[]})
+        episode = dict(id=101,season_number=2,episode_number=3,name='Episode',overview='Episode summary',
+                       air_date='2020-01-08',runtime=48,credits={'cast':[
+                           dict(id=123,name='Episode Actor',character='Hero',order=0)],'crew':[]})
         checkpoint = dict(catalogue_saved=True,moved=False,files=[
             dict(source=item.attachments[0].path,destination='/media/tv/episode.mkv',
                  stage_id='stage',kind='video')])
@@ -169,9 +171,19 @@ class EventDatabaseTests(unittest.TestCase):
         self.assertEqual(self.db.query('SELECT * FROM tv_series'),[])
         self.assertIsNone(workspace.load().files[1].attachments[0].import_result)
         workspace.save_tv_episode(batch.id,item,0,checkpoint,self.event(),
-                                  series=series,season=season,episode=episode,artwork=[])
+                                  series=series,season=season,episode=episode,
+                                  artwork=[dict(path='/media/tv/still.jpg',kind='still',episode_id=101)])
         self.assertEqual(workspace.load().files[1].attachments[0].import_result,checkpoint)
-        self.assertEqual(TVCatalogueDb(self.db).get(42)['episodes'][0]['episode_number'],3)
+        catalogue = TVCatalogueDb(self.db)
+        saved_episode = catalogue.get(42)['episodes'][0]
+        self.assertEqual(saved_episode['episode_number'],3)
+        self.assertEqual(saved_episode['overview'],'Episode summary')
+        self.assertEqual(saved_episode['air_date'],date(2020,1,8))
+        self.assertEqual(saved_episode['runtime'],48)
+        self.assertTrue(saved_episode['has_still'])
+        self.assertEqual(saved_episode['credits'][0]['name'],'Episode Actor')
+        self.assertEqual(catalogue.episode_still_path(42,101),'/media/tv/still.jpg')
+        self.assertIsNone(catalogue.episode_still_path(43,101))
         titles = CatalogueDb(self.db).movies('Film')
         self.assertEqual([(row['tmdb_id'],row['media_type']) for row in titles],[(42,'tv')])
         self.assertEqual(CatalogueDb(self.db).movies_in_categories([99999])[0]['media_type'],'tv')
