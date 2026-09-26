@@ -77,7 +77,7 @@ class ControlServerTests(unittest.TestCase):
     @patch('r3el.server.ControlServer.CatalogueDb.recent')
     @patch('r3el.server.ControlServer.CatalogueDb.movies')
     @patch('r3el.server.ControlServer.CatalogueDb.categories',
-           return_value=[{'name': 'Action'}, {'name': 'Comedy'}])
+           return_value=[{'genre_id': 28, 'name': 'Action'}, {'genre_id': 35, 'name': 'Comedy'}])
     def test_catalogue_recent_and_title_search(self, categories, movies, recent):
         recent.return_value = [{'tmdb_id': 42, 'title': '<Movie>', 'release_year': 2020,
                                 'poster_path': '/poster.jpg'}]
@@ -91,7 +91,7 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('Recent additions', body)
         self.assertIn('>Title Search</h2>', body)
         self.assertIn('>Category Search</h2>', body)
-        self.assertIn('<p>Action, Comedy</p>', body)
+        self.assertIn('type="checkbox" name="category" value="28"', body)
         movies.assert_not_called()
         self.assertNotIn('<Movie>', body)
         status, _, body = self.request('/catalogue?title=Other')
@@ -132,6 +132,25 @@ class ControlServerTests(unittest.TestCase):
         self.assertNotIn('aria-label="Older additions"', body)
         for value in ('-1', 'abc', '1.5', '9999999999', ''):
             self.assertEqual(self.request('/catalogue?recent_page=' + value)[0], 400)
+
+    @patch('r3el.server.ControlServer.CatalogueDb.recent', return_value=[])
+    @patch('r3el.server.ControlServer.CatalogueDb.categories',
+           return_value=[{'genre_id': 28, 'name': 'Action'}, {'genre_id': 35, 'name': 'Comedy'}])
+    @patch('r3el.server.ControlServer.CatalogueDb.movies_in_categories')
+    def test_catalogue_category_search(self, movies, categories, recent):
+        movies.return_value = [dict(tmdb_id=42, title='Movie', release_year=2020, poster_path='/p.jpg')]
+        status, _, body = self.request('/catalogue?category=28&category=35')
+        self.assertEqual(status, 200)
+        movies.assert_called_once_with([28, 35])
+        self.assertIn('value="28" checked', body)
+        self.assertIn('value="35" checked', body)
+        self.assertIn('>Search Results</h2>', body)
+        self.assertIn('src="/catalogue/42/poster"', body)
+        movies.return_value = []
+        self.assertIn('No movies found in the selected categories',
+                      self.request('/catalogue?category=28')[2])
+        for value in ('-1', 'abc', '0', '4294967296'):
+            self.assertEqual(self.request('/catalogue?category=' + value)[0], 400)
 
     @patch('r3el.server.ControlServer.CatalogueDb.get')
     def test_catalogue_entry_renders_saved_metadata(self, get):
