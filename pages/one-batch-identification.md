@@ -15,7 +15,7 @@ completed or explicitly stopped batches remain idle.
 **New Batch** sends source, destination and batch size to the server. It runs
 identification, TMDB matching, candidate selection, catalogue saving and media
 moves automatically. Ordinary files are processed in groups of up to 10, followed
-by matched directory items. See the [batch overview](01-high-level-flow.md) and
+by matched directory items. See the [batch overview](flowchart.md) and
 [directory patterns](directory-patterns.md).
 
 The explicit --run-batch diagnostic workflow selects regular files directly

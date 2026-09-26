@@ -6,7 +6,7 @@ layout: single
 
 [Documentation index](../index.md)
 
-[Workflow](01-high-level-flow.md) · [Persistent workspace](file-states.md) · [Running identification](one-batch-identification.md)
+[Workflow](flowchart.md) · [Persistent workspace](file-states.md) · [Running identification](one-batch-identification.md)
 
 R3el should be easy to navigate, understand, and maintain. Each component
 should have a clear responsibility, an obvious home, and a defined interface.
