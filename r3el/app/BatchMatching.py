@@ -25,6 +25,7 @@ from r3el.entity.TMDBMatch import TMDBMatch
 from r3el.interface.TMDB import TMDB, TMDBError
 from r3el.interface.TMDBCatalogue import TMDBCatalogue
 from r3el.interface.CatalogueFiles import CatalogueFiles
+from r3el.interface.SourceDirectoryCleanup import SourceDirectoryCleanup
 from r3el.interface.LLM import LLM
 from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict
 
@@ -236,7 +237,8 @@ class BatchMatching:
             return
         result = replace(result, catalogue_saved=True, catalogue_error=None,
                          source_path=item.path, catalogue_path=files.video, discard_files=discard_files,
-                         copied_files=copied_files)
+                         copied_files=copied_files,
+                         preserve_source_directory=any(issue.code == 'unresolved_srt' for issue in item.issues))
         self._workspace.save_catalogue(batch.id, item.id, movie, result, log.prepare(
             Categories.DB.CREATE_RECORD, Names.DB_CREATE_RECORD,
             {'movie_id': movie.tmdb_id, 'title': movie.title, 'path': files.video,
@@ -246,6 +248,13 @@ class BatchMatching:
     def _finish_move(self, batch_id: str, file_id: str, result: TMDBMatch, log: EventWriter) -> None:
         try:
             if result.copied_files:
+                SourceDirectoryCleanup().finish(result.source_path, result.copied_files,
+                                                preserve_directory=result.preserve_source_directory)
+                log.write(Categories.File.DELETE, Names.FILE_DELETE,
+                          {'outcome': 'deleted', 'paths': [copy['source'] for copy in result.copied_files],
+                           'source_directory': result.source_path,
+                           'directory_preserved': result.preserve_source_directory,
+                           'error': None}, source='SourceDirectoryCleanup')
                 for copy in result.copied_files:
                     CatalogueFiles().finish(copy['source'], copy['destination'], copy['stage_id'], preserve_source=True)
                     log.write(Categories.File.MOVE, Names.FILE_COPY,

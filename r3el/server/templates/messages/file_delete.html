@@ -1,1 +1,5 @@
+{% if event.source_name == 'SourceDirectoryCleanup' %}
+<a href="/events/{{ event.event_id }}">Copied source files deleted. Directory: {{ message.payload.data.source_directory }}{% if message.payload.data.directory_preserved %} (preserved for unresolved subtitles){% else %} (deleted){% endif %}. Paths: {{ message.payload.data.paths | join(', ') }}.</a>
+{% else %}
 <a href="/events/{{ event.event_id }}">Duplicate files {% if message.payload.data.outcome == 'failed' %}deletion failed{% else %}deleted{% endif %}. Filename: {{ message.payload.context.filename }}, Paths: {{ message.payload.data.paths | join(', ') }}, Preferred file: {{ message.payload.data.preferred_path }}{% if message.payload.data.error %}, Error: {{ message.payload.data.error }}{% endif %}.</a>
+{% endif %}

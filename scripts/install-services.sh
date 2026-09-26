@@ -80,7 +80,7 @@ modules=(
     interface/BatchConfiguration.py interface/BatchControl.py entity/BatchRequest.py constants/DMessage.py
     app/BatchIdentification.py app/ToolConversation.py app/MovieSelection.py app/MultipleChoiceHandler.py app/MatchingJobs.py
     app/RetryIdentification.py
-    activity/DirectoryDiscovery.py activity/TwoPartCopy.py interface/DirectoryFiles.py
+    activity/DirectoryDiscovery.py activity/TwoPartCopy.py interface/DirectoryFiles.py interface/SourceDirectoryCleanup.py
     entity/MediaAttachment.py app/prompts/DirectoryContextTwoParts.py
     app/SubmissionHandler.py app/ValidateIdentification.py
     app/prompts/CurrentDate.py app/prompts/Focus.py app/prompts/FileContext.py app/prompts/SubmitIdentificationPrompt.py
