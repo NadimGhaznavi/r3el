@@ -126,9 +126,13 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     return
                 try:
                     query = parse_qs(url.query, keep_blank_values=True, max_num_fields=100)
-                    if set(query) - {'title', 'recent_page', 'category', 'type', 'index'} or any(
+                    if set(query) - {'title', 'recent_page', 'category', 'type', 'index', 'random'} or any(
                             len(v) != 1 for k, v in query.items() if k != 'category'):
                         raise ValueError('Supply title and recent_page once each.')
+                    random_search = query.get('random', ['0'])[0]
+                    if random_search not in ('0', '1'):
+                        raise ValueError('Random search must be 0 or 1.')
+                    random_search = random_search == '1'
                     title = query.get('title', [''])[0].strip()
                     search_index = query.get('index', [''])[0]
                     if search_index and search_index not in ('symbols', *'abcdefghijklmnopqrstuvwxyz'):
@@ -149,7 +153,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 except ValueError as error:
                     self.send_error(400, str(error))
                     return
-                self.respond_catalogue(movie_id, catalogue.group(2), title, int(recent_page), category_ids, 'tv' if url.path.startswith('/catalogue/tv/') else 'movie', search_type=search_type, search_index=search_index)
+                self.respond_catalogue(movie_id, catalogue.group(2), title, int(recent_page), category_ids, 'tv' if url.path.startswith('/catalogue/tv/') else 'movie', search_type=search_type, search_index=search_index, random_search=random_search)
                 return
             job_path = re.fullmatch(r'/workspace/(match|clear)/status/([A-Za-z0-9-]{1,36})', url.path)
             if job_path:
@@ -206,7 +210,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 return
             self.respond(200, body)
 
-        def respond_catalogue(self, movie_id: int | None, artwork: str | None, title: str, recent_page: int, category_ids: list[int], media_type: str, episode_id: int | None = None, *, search_type: str = 'both', search_index: str = ''):
+        def respond_catalogue(self, movie_id: int | None, artwork: str | None, title: str, recent_page: int, category_ids: list[int], media_type: str, episode_id: int | None = None, *, search_type: str = 'both', search_index: str = '', random_search: bool = False):
             try:
                 db = DbMgr()
                 try:
@@ -220,7 +224,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     elif movie_id is not None:
                         value = catalogue.get(movie_id)
                     else:
-                        recent = catalogue.recent(offset=recent_page * 4, limit=5)
+                        recent = catalogue.random() if random_search else catalogue.recent(offset=recent_page * 4, limit=5)
                         categories = catalogue.categories()
                         counts = catalogue.counts()
                         available_initials = catalogue.available_initials()
@@ -250,8 +254,9 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             elif movie_id is not None:
                 self.respond(200, pages.render('catalogue_movie.html', movie=value, media_type=media_type, refresh=0))
             else:
-                self.respond(200, pages.render('catalogue.html', movies=value, recent=recent[:4],
-                                               recent_page=recent_page, has_older=len(recent) > 4,
+                self.respond(200, pages.render('catalogue.html', movies=value, recent=recent if random_search else recent[:4],
+                                               random_search=random_search,
+                                               recent_page=recent_page, has_older=not random_search and len(recent) > 4,
                                                search_title=title, search_type=search_type, search_index=search_index, catalogue_categories=categories,
                                                selected_categories=category_ids, catalogue_counts=counts,
                                                available_initials=available_initials, refresh=0))

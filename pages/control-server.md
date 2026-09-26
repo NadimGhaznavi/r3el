@@ -26,13 +26,17 @@ Results panel. Each card opens a movie page with a poster and summary, Director,
 Producers, Cast, and Files boxes. These pages read saved catalogue data and local
 artwork without querying TMDB.
 
-Title Search, Search Index, and Category Search share a row. The index contains
+Title Search, Search Index, Category Search, and Random Search share a row.
+Random Search has a single Search button that replaces Recent additions with six
+random movies, TV shows, or episodes (or all entries when fewer than six exist).
+Each click draws a fresh selection without duplicates within that selection.
+Episode cards link to the episode in its show page. The index contains
 Numbers and Symbols on its own line, with the alphabet wrapping into narrower rows below, matching the first character
 of movie or TV show titles (not episode titles). Leading spaces are ignored.
 Index results use the same poster/title/year cards and result count as the other
 searches. Letters without matching titles are omitted; each letter has two extra
 spaces on either side. Title Search places Type on a separate line. The middle box
-fits its contents, Category Search takes the remaining width, and the boxes stack
+fits its contents, Category Search takes the remaining width before Random Search, and the boxes stack
 on narrow screens.
 
 `r3el-control.service` is a standalone Jinja2 report server. It displays the

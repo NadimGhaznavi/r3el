@@ -81,4 +81,19 @@
   <h2 id="files-heading">Files</h2>
   <ul>{% for file in movie.files %}<li>{{ file.path }}</li>{% else %}<li>No catalogued files.</li>{% endfor %}</ul>
 </section>
+{% if media_type == 'tv' %}
+<script>
+  function revealEpisode() {
+    const episode = document.getElementById(window.location.hash.slice(1));
+    if (!episode) return;
+    const season = episode.closest('details.catalogue-season');
+    if (season) {
+      season.open = true;
+      episode.scrollIntoView();
+    }
+  }
+  window.addEventListener('hashchange', revealEpisode);
+  revealEpisode();
+</script>
+{% endif %}
 {% endblock %}

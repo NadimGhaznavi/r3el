@@ -66,6 +66,17 @@ class CatalogueDb:
             f"SELECT * FROM ({self._titles()}) titles "
             "ORDER BY added_at DESC,media_type,tmdb_id DESC LIMIT %s OFFSET %s", (limit, offset))
 
+    def random(self) -> list[dict]:
+        return self._db.query(
+            f"SELECT * FROM (SELECT titles.*, NULL AS series_id, NULL AS series_title, "
+            f"NULL AS season_number, NULL AS episode_number FROM ({self._titles()}) titles "
+            "UNION ALL SELECT e.tmdb_id,e.title,YEAR(e.air_date),"
+            "(SELECT a.path FROM tv_artwork a WHERE a.series_id=e.series_id "
+            "AND a.episode_id=e.tmdb_id AND a.kind='still' ORDER BY a.path LIMIT 1),"
+            "NULL,'episode',e.series_id,s.title,e.season_number,e.episode_number "
+            "FROM tv_episodes e JOIN tv_series s ON s.tmdb_id=e.series_id) entries "
+            "ORDER BY RAND() LIMIT 6")
+
     def get(self, movie_id: int) -> dict | None:
         with self._db.transaction():
             rows = self._db.query('SELECT * FROM movies WHERE tmdb_id = %s', (movie_id,))
