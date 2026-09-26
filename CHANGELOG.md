@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Highlight “Processing batch...” in bold yellow.
+- Remove the Approve/Pending/Ignore/Delete dropdown and its save feedback from the batch table. Keep TMDB ID and Replace Local Media controls in the Action column.
+
 ## [1.4.3] - 2026-09-25 @ 21:39
 
 ### Fixed
