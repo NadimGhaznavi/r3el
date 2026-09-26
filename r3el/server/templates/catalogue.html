@@ -32,6 +32,7 @@
         {% if not selected_categories %}<input type="hidden" name="type" value="{{ search_type }}">{% endif %}
         {% for category_id in selected_categories %}<input type="hidden" name="category" value="{{ category_id }}">{% endfor %}
         {% if search_title %}<input type="hidden" name="title" value="{{ search_title }}">{% endif %}
+        {% if search_index %}<input type="hidden" name="index" value="{{ search_index }}">{% endif %}
         {% if recent_page > 0 %}
         <button type="submit" name="recent_page" value="{{ recent_page - 1 }}" aria-label="Newer additions" title="Newer additions">←</button>
         {% endif %}
@@ -63,6 +64,17 @@
     <button type="submit">Search</button>
   </form>
 </section>
+<section class="batch-panel catalogue-index" aria-labelledby="index-search-heading">
+  <h2 id="index-search-heading">Search Index</h2>
+  <nav aria-label="Search by title initial">
+    {% for letters in ['abcdefg', 'hijklmnopq', 'rstuvwxyz'] %}
+    <div class="catalogue-index-row">
+      {% if loop.first %}<a href="/catalogue?index=symbols"{% if search_index == 'symbols' %} aria-current="true"{% endif %}>Numbers and Symbols</a> <span aria-hidden="true">|</span> {% endif %}
+      {% for letter in letters %}<a href="/catalogue?index={{ letter }}"{% if search_index == letter %} aria-current="true"{% endif %}>{{ letter }}</a>{% if not loop.last %} <span aria-hidden="true">|</span> {% endif %}{% endfor %}
+    </div>
+    {% endfor %}
+  </nav>
+</section>
 <section class="batch-panel catalogue-categories" aria-labelledby="category-search-heading">
   <h2 id="category-search-heading">Category Search</h2>
   <form method="get" action="/catalogue" class="category-search" aria-label="Category search">
@@ -76,11 +88,11 @@
   </form>
 </section>
 </div>
-{% if search_title or selected_categories %}
+{% if search_title or selected_categories or search_index %}
 <section class="batch-panel catalogue-results" aria-labelledby="search-results-heading">
   <h2 id="search-results-heading">Search Results ({{ movies | length }})</h2>
   {% if movies %}{{ cards(movies) }}
-  {% else %}<p role="status">{% if selected_categories %}No movies or TV shows found in the selected categories.{% else %}No titles found for “{{ search_title }}”.{% endif %}</p>{% endif %}
+  {% else %}<p role="status">{% if search_index %}No titles found in this index group.{% elif selected_categories %}No movies or TV shows found in the selected categories.{% else %}No titles found for “{{ search_title }}”.{% endif %}</p>{% endif %}
 </section>
 {% endif %}
 {% endblock %}

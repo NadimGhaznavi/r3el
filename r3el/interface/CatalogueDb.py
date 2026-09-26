@@ -36,6 +36,13 @@ class CatalogueDb:
             + type_filter + "ORDER BY title,release_year,media_type,tmdb_id",
             (title,) if media_type == 'both' else (title,media_type))
 
+    def titles_by_initial(self, initial: str) -> list[dict]:
+        first = 'LOWER(SUBSTR(LTRIM(title),1,1))'
+        condition = f"{first} NOT BETWEEN 'a' AND 'z'" if initial == 'symbols' else f'{first}=%s'
+        return self._db.query(f'SELECT * FROM ({self._titles()}) titles WHERE {condition} '
+                              'ORDER BY title,release_year,media_type,tmdb_id',
+                              () if initial == 'symbols' else (initial,))
+
     def movies_in_categories(self, genre_ids: list[int]) -> list[dict]:
         placeholders = ', '.join(['%s'] * len(genre_ids))
         return self._db.query(

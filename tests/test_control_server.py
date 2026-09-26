@@ -32,6 +32,26 @@ from r3el.server.ControlServer import make_server
 
 
 class ControlServerTests(unittest.TestCase):
+    @patch('r3el.server.ControlServer.CatalogueDb.recent', return_value=[])
+    @patch('r3el.server.ControlServer.CatalogueDb.categories', return_value=[])
+    @patch('r3el.server.ControlServer.CatalogueDb.titles_by_initial', return_value=[])
+    def test_catalogue_landing_and_index_search(self, initial, categories, recent):
+        status, headers, _ = self.request('/')
+        self.assertEqual(status, 303)
+        self.assertEqual(headers['Location'], '/catalogue')
+        for value in ('a', 'z', 'symbols'):
+            status, _, body = self.request('/catalogue?index=' + value + '&recent_page=1')
+            self.assertEqual(status, 200)
+            initial.assert_called_with(value)
+            self.assertIn('Search Results (0)', body)
+            self.assertIn(f'name="index" value="{value}"', body)
+            self.assertEqual(body.count('class="catalogue-index-row"'), 3)
+            nav = body.split('<nav aria-label="Main navigation">')[1].split('</nav>')[0]
+            self.assertLess(nav.index('Catalogue'), nav.index('Control'))
+            self.assertLess(nav.index('Control'), nav.index('Event log'))
+        for query in ('index=aa', 'index=a&index=b', 'index=a&title=Show', 'index=a&category=28'):
+            self.assertEqual(self.request('/catalogue?' + query)[0], 400)
+
     @patch('r3el.server.ControlServer.CatalogueDb.recent',return_value=[])
     @patch('r3el.server.ControlServer.CatalogueDb.categories',return_value=[])
     @patch('r3el.server.ControlServer.CatalogueDb.movies',return_value=[])
@@ -58,7 +78,7 @@ class ControlServerTests(unittest.TestCase):
             latest.return_value = dict(event_id=number,name='tmdb_details',source_name='TVImport',
                 content=json.dumps(dict(context=dict(filename='Show'),data=dict(
                     kind='episode',series_id=42,season=1,episode=number,outcome='started',error=None))))
-            status, _, body = self.request('/')
+            status, _, body = self.request('/control')
             self.assertEqual(status,200)
             task = body.split('<p id="batch-processing"',1)[1].split('</p>',1)[0]
             self.assertIn('Fetching TMDB TV episode details',task)
@@ -281,7 +301,7 @@ class ControlServerTests(unittest.TestCase):
         self.db.close.assert_called_once()
 
     def test_empty_workspace_shows_batch_controls(self):
-        status, _, body = self.request('/')
+        status, _, body = self.request('/control')
         self.assertEqual(status, 200)
         self.assertIn('Source', body)
         self.assertIn('value="/exports/disk1/archive/film"', body)
@@ -301,7 +321,7 @@ class ControlServerTests(unittest.TestCase):
         batch = MediaFileBatch('batch-1', 5, '/tmp/input')
         for workspace in (None, batch):
             self.workspace.return_value = workspace
-            for path in ('/', '/', '/?result=accepted', '/?result=accepted'):
+            for path in ('/control', '/control', '/control?result=accepted', '/control?result=accepted'):
                 with self.subTest(workspace=workspace, path=path):
                     status, _, body = self.request(path)
                     self.assertEqual(status, 200)
@@ -321,7 +341,7 @@ class ControlServerTests(unittest.TestCase):
         for state in MediaFileBatchState:
             with self.subTest(state=state):
                 self.workspace.return_value.state = state
-                status, _, body = self.request('/')
+                status, _, body = self.request('/control')
                 self.assertEqual(status, 200)
                 self.assertIn('Current batch files', body)
                 self.assertIn('z&lt;&amp;&gt;.mkv', body)
@@ -354,7 +374,7 @@ class ControlServerTests(unittest.TestCase):
         for state in MediaFileBatchState:
             with self.subTest(state=state):
                 self.workspace.return_value.state = state
-                body = self.request('/')[2]
+                body = self.request('/control')[2]
                 panel = body.split('<div class="batch-panel">')[0]
                 self.assertIn('>New Batch</button>', panel)
                 self.assertIn('>Stop Batch</button>', panel)
@@ -369,7 +389,7 @@ class ControlServerTests(unittest.TestCase):
             files=[MediaFile('file', '/tmp/a.mkv', MediaFileState.IDENTIFIED)])
         for state in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING):
             self.workspace.return_value.state = state
-            body = self.request('/')[2]
+            body = self.request('/control')[2]
             self.assertNotIn('class="file-action"', body)
             self.assertIn('data-automatic-processing="true"', body)
             self.assertIn('window.setTimeout(pollAutomaticBatch, 2000);', body)
@@ -398,7 +418,7 @@ class ControlServerTests(unittest.TestCase):
 
         run.side_effect = execute
         self.workspace.return_value = MediaFileBatch('batch-1', 5, '/tmp')
-        self.request('/')
+        self.request('/control')
         run.assert_not_called()
         try:
             status, _, body = self.request('/workspace/match', 'POST', 'batch_id=batch-1',
@@ -413,7 +433,7 @@ class ControlServerTests(unittest.TestCase):
             self.assertEqual(json.loads(duplicate[2])['job_id'], job_id)
             self.assertEqual(self.request('/workspace/match', 'POST', 'batch_id=other',
                 {'Content-Type': 'application/x-www-form-urlencoded'})[0], 409)
-            self.assertIn('pollMatching("' + job_id + '")', self.request('/')[2])
+            self.assertIn('pollMatching("' + job_id + '")', self.request('/control')[2])
             self.assertEqual(self.request('/health')[0], 200)
             run.assert_called_once_with('batch-1')
         finally:
@@ -423,7 +443,7 @@ class ControlServerTests(unittest.TestCase):
             self.assertLess(time.monotonic(), deadline)
             time.sleep(0.01)
         self.assertEqual(json.loads(self.request(status_url)[2])['status'], 'completed')
-        self.assertNotIn('pollMatching("' + job_id + '")', self.request('/')[2])
+        self.assertNotIn('pollMatching("' + job_id + '")', self.request('/control')[2])
         self.assertEqual(self.request('/workspace/match/status/unknown')[0], 404)
 
     def test_manual_id_controls_only_show_for_finished_unresolved_matches(self):
@@ -432,24 +452,24 @@ class ControlServerTests(unittest.TestCase):
                                  selected_number=0))
         batch = MediaFileBatch('batch-1', 1, '/tmp', files=[item], state=MediaFileBatchState.MATCHING_COMPLETED)
         self.workspace.return_value = batch
-        body = self.request('/')[2]
+        body = self.request('/control')[2]
         self.assertIn('<th scope="col">Action</th>', body)
         self.assertIn('aria-label="TMDB ID for movie.mkv"', body)
         self.assertIn('>TMDB ID</button>', body)
         item.tmdb_match = TMDBMatch('Movie', 2020, response={'total_results': 0, 'results': []})
-        body = self.request('/')[2]
+        body = self.request('/control')[2]
         self.assertIn('>No matches</a>', body)
         self.assertIn('aria-label="TMDB ID for movie.mkv"', body)
         self.assertIn('>TMDB ID</button>', body)
         for action in (MediaFileAction.IGNORE, MediaFileAction.DELETE):
             item.action = action
-            self.assertNotIn('class="manual-match"', self.request('/')[2])
+            self.assertNotIn('class="manual-match"', self.request('/control')[2])
         item.action = MediaFileAction.PENDING
         batch.state = MediaFileBatchState.MATCHING
-        self.assertNotIn('class="manual-match"', self.request('/')[2])
+        self.assertNotIn('class="manual-match"', self.request('/control')[2])
         batch.state = MediaFileBatchState.MATCHING_COMPLETED
         item.tmdb_match = TMDBMatch('Movie', 2020, response={'total_results': 1, 'results': [{'id': 1}]})
-        self.assertNotIn('class="manual-match"', self.request('/')[2])
+        self.assertNotIn('class="manual-match"', self.request('/control')[2])
 
     @patch('r3el.server.ControlServer.BatchMatching.replace_media')
     def test_entry_exists_action_and_validated_replacement_endpoint(self, replace_media):
@@ -458,12 +478,12 @@ class ControlServerTests(unittest.TestCase):
                                 catalogue_error='The destination video already exists: /out/movie.mkv'))
         batch = MediaFileBatch('batch-1', 1, '/tmp', files=[item], state=MediaFileBatchState.MATCHING_COMPLETED)
         self.workspace.return_value = batch
-        body = self.request('/')[2]
+        body = self.request('/control')[2]
         self.assertEqual(body.count('<th scope="col">Action</th>'), 1)
         self.assertIn('>Entry exists</a>', body)
         self.assertIn('>Replace Local Media</button>', body)
         batch.state = MediaFileBatchState.MATCHING
-        self.assertNotIn('class="replace-media"', self.request('/')[2])
+        self.assertNotIn('class="replace-media"', self.request('/control')[2])
         batch.state = MediaFileBatchState.MATCHING_COMPLETED
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         for payload in ('batch_id=batch-1', 'batch_id=batch-1&file_id=../x',
@@ -485,12 +505,12 @@ class ControlServerTests(unittest.TestCase):
     @patch('r3el.server.ControlServer.ClearWorkspace.run')
     def test_clear_button_and_endpoint(self, clear):
         self.workspace.return_value = None
-        body = self.request('/')[2]
+        body = self.request('/control')[2]
         self.assertIn('id="clear-batch" type="button" disabled>Clear Current Batch', body)
         self.workspace.return_value = MediaFileBatch('batch-1', 1, '/tmp')
         for state in (MediaFileBatchState.PROCESSING, MediaFileBatchState.MATCHING_COMPLETED):
             self.workspace.return_value.state = state
-            body = self.request('/')[2]
+            body = self.request('/control')[2]
             self.assertIn('id="clear-batch" type="button">Clear Current Batch', body)
             self.assertLess(body.index('>Stop Batch</button>'), body.index('>Clear Current Batch</button>'))
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -542,7 +562,7 @@ class ControlServerTests(unittest.TestCase):
         item = MediaFile('file-1', '/tmp/a.mkv', tmdb_match=TMDBMatch('<script>', 2020,
             response={'total_results': 1, 'results': [{'id': 42, 'title': '<script>alert(1)</script>'}]}))
         self.workspace.return_value = MediaFileBatch('batch-1', 5, '/tmp', files=[item])
-        body = self.request('/')[2]
+        body = self.request('/control')[2]
         self.assertIn('Match Results', body)
         self.assertIn('href="/matches/batch-1/file-1">1 match</a>', body)
         for _ in range(2):
@@ -554,7 +574,7 @@ class ControlServerTests(unittest.TestCase):
         self.assertEqual(self.request('/matches/old-batch/file-1')[0], 404)
         self.assertEqual(self.request('/matches/batch-1/missing')[0], 404)
         item.tmdb_match = TMDBMatch(None, None, skipped=True)
-        self.assertNotIn('href="/matches/', self.request('/')[2])
+        self.assertNotIn('href="/matches/', self.request('/control')[2])
         self.assertEqual(self.request('/matches/batch-1/file-1')[0], 404)
         get.assert_not_called()
 
@@ -575,7 +595,7 @@ class ControlServerTests(unittest.TestCase):
 
     def test_retained_batch_with_no_files_still_disables_new_batch(self):
         self.workspace.return_value = MediaFileBatch('batch-1', 5, '/tmp/input')
-        status, _, body = self.request('/')
+        status, _, body = self.request('/control')
         self.assertEqual(status, 200)
         self.assertIn('No files in this batch.', body)
         self.assertIn('type="button" disabled', body)
@@ -588,7 +608,7 @@ class ControlServerTests(unittest.TestCase):
                 self.workspace.return_value = MediaFileBatch('batch-1', 137, '/tmp/input',
                     state=state, destination_directory='/tmp/output',
                     stop_requested=state == MediaFileBatchState.CANCELLED)
-                status, _, body = self.request('/')
+                status, _, body = self.request('/control')
                 self.assertEqual(status, 200)
                 self.assertIn('type="submit">New Batch', body)
                 self.assertIn('value="/tmp/input"', body)
@@ -598,7 +618,7 @@ class ControlServerTests(unittest.TestCase):
     def test_workspace_failure_does_not_offer_new_batch_or_expose_details(self):
         self.workspace.side_effect = pymysql.OperationalError('private database details')
         with self.assertLogs(level='ERROR'):
-            status, _, body = self.request('/')
+            status, _, body = self.request('/control')
         self.assertEqual(status, 503)
         self.assertIn('Workspace unavailable', body)
         self.assertNotIn('<button', body)
@@ -608,7 +628,7 @@ class ControlServerTests(unittest.TestCase):
     def test_workspace_connection_failure_returns_503(self):
         self.factory.side_effect = pymysql.OperationalError('private database details')
         with self.assertLogs(level='ERROR'):
-            status, _, body = self.request('/')
+            status, _, body = self.request('/control')
         self.assertEqual(status, 503)
         self.assertNotIn('<button', body)
         self.workspace.assert_not_called()
@@ -625,23 +645,23 @@ class ControlServerTests(unittest.TestCase):
 
     def test_control_refresh_options_and_invalid_values(self):
         for seconds in (0, 5, 30, 60):
-            status, _, body = self.request(f'/?refresh={seconds}')
+            status, _, body = self.request(f'/control?refresh={seconds}')
             self.assertEqual(status, 200)
             self.assertIn(f'<option value="{seconds}" selected>', body)
             self.assertNotIn('http-equiv="refresh"', body)
             self.assertIn(f'let refreshSeconds = {seconds};', body)
             self.assertIn('window.history.replaceState', body)
         for query in ('refresh=2', 'refresh=-1', 'refresh=5&refresh=30', 'other=value'):
-            self.assertEqual(self.request('/?' + query)[0], 400)
+            self.assertEqual(self.request('/control?' + query)[0], 400)
 
     @patch('r3el.server.ControlServer.BatchControl.new_batch')
     def test_new_batch_retains_refresh_in_redirect_and_one_time_reload(self, new_batch):
         new_batch.return_value = {'status': DMessage.ACCEPTED}
         status, headers, _ = self.post_batch(refresh='30')
         self.assertEqual(status, 303)
-        self.assertEqual(headers['Location'], '/?result=accepted&refresh=30')
+        self.assertEqual(headers['Location'], '/control?result=accepted&refresh=30')
         body = self.request(headers['Location'])[2]
-        self.assertIn('window.location.replace("/?refresh=30"), 2000', body)
+        self.assertIn('window.location.replace("/control?refresh=30"), 2000', body)
         self.assertNotIn('http-equiv="refresh"', body)
         self.assertIn('let refreshSeconds = 30;', body)
         new_batch.assert_called_once_with(BatchRequest('/tmp/input', '/tmp/output', 5))
@@ -655,14 +675,14 @@ class ControlServerTests(unittest.TestCase):
     @patch('r3el.server.ControlServer.BatchControl.new_batch')
     def test_free_form_size_and_numbered_updated_columns(self, new_batch):
         new_batch.return_value = {'status': DMessage.ACCEPTED}
-        body = self.request('/')[2]
+        body = self.request('/control')[2]
         self.assertIn('id="batch-size" name="batch_size" type="number"', body)
         self.assertEqual(self.post_batch(batch_size='137')[0], 303)
         self.assertEqual(new_batch.call_args.args[0].batch_size, 137)
         self.workspace.return_value = MediaFileBatch('batch-1', 137, '/tmp', files=[
             MediaFile('one', '/tmp/a.mkv', updated_at=datetime(2026, 9, 24, 13, 7)),
             MediaFile('two', '/tmp/b.mkv')])
-        body = self.request('/')[2]
+        body = self.request('/control')[2]
         self.assertRegex(body, r'<th scope="col">#</th><th[^>]+>Updated</th><th scope="col">Filename / Directory</th>')
         self.assertIn('<td>1</td>', body)
         self.assertIn('<td>2</td>', body)
@@ -686,13 +706,13 @@ class ControlServerTests(unittest.TestCase):
     def test_stop_button_tracks_running_and_requested_state(self):
         batch = MediaFileBatch('batch-1', 1, '/tmp', files=[MediaFile('one', '/tmp/one.mkv')])
         self.workspace.return_value = batch
-        self.assertIn('id="stop-batch" type="button">Stop Batch', self.request('/')[2])
+        self.assertIn('id="stop-batch" type="button">Stop Batch', self.request('/control')[2])
         batch.stop_requested = True
-        body = self.request('/')[2]
+        body = self.request('/control')[2]
         self.assertIn('id="stop-batch" type="button" disabled', body)
         self.assertIn('Stopping after the current operation', body)
         batch.state = MediaFileBatchState.CANCELLED
-        self.assertIn('Batch stopped. Completed work has been preserved.', self.request('/')[2])
+        self.assertIn('Batch stopped. Completed work has been preserved.', self.request('/control')[2])
 
     @patch('r3el.server.ControlServer.BatchControl.new_batch')
     def test_new_batch_forwards_parameters_and_redirects(self, new_batch):
@@ -700,14 +720,14 @@ class ControlServerTests(unittest.TestCase):
         status, headers, _ = self.post_batch()
         self.assertEqual(status, 303)
         new_batch.assert_called_once_with(BatchRequest('/tmp/input', '/tmp/output', 5))
-        self.assertEqual(headers['Location'], '/?result=accepted')
+        self.assertEqual(headers['Location'], '/control?result=accepted')
         body = self.request(headers['Location'])[2]
         self.assertIn('Batch accepted.', body)
-        self.assertIn('window.setTimeout(() => window.location.replace("/"), 2000);', body)
+        self.assertIn('window.setTimeout(() => window.location.replace("/control"), 2000);', body)
         new_batch.assert_called_once()
         self.workspace.assert_called_once()
         self.db.close.assert_called_once()
-        self.assertNotIn('window.setTimeout(() => window.location.replace', self.request('/')[2])
+        self.assertNotIn('window.setTimeout(() => window.location.replace', self.request('/control')[2])
 
     @patch('r3el.server.ControlServer.BatchControl.new_batch')
     def test_invalid_form_is_not_forwarded(self, new_batch):

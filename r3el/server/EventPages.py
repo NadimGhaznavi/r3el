@@ -78,7 +78,7 @@ class EventPages:
             values['result'] = MatchResults(values['reference']).prepare(values['match'])
             values['response_json'] = json.dumps(values['match'].resolved_response, ensure_ascii=False, indent=2)
         if template == 'control.html':
-            values['control_url'] = '/?refresh=' + str(values['refresh']) if values['refresh'] else '/'
+            values['control_url'] = '/control?refresh=' + str(values['refresh']) if values['refresh'] else '/control'
             values.setdefault('matching_job', None)
             event = values.setdefault('latest_event', None)
             values['latest_event_message'] = (

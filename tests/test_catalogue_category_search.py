@@ -51,6 +51,21 @@ class CategorySearchTests(unittest.TestCase):
     def ids(self, categories):
         return {row['tmdb_id'] for row in self.catalogue.movies_in_categories(categories)}
 
+    def test_initial_search_includes_movie_and_show_titles(self):
+        self.connection.executescript("""
+            INSERT INTO tv_series VALUES (10,'action show','2020-01-01','2020-01-01');
+            INSERT INTO tv_series VALUES (11,'11.22.63','2020-01-01','2020-01-01');
+            INSERT INTO movies VALUES (12,'#Title',2020,NULL,'2020-01-01');
+            INSERT INTO movies VALUES (13,'  Zebra',2020,NULL,'2020-01-01');
+            INSERT INTO tv_episodes VALUES (100,10,1),(101,10,1);
+        """)
+        found = self.catalogue.titles_by_initial('a')
+        self.assertEqual(len(found), 4)
+        self.assertEqual({r['media_type'] for r in found}, {'tv', 'movie'})
+        self.assertEqual({r['title'] for r in self.catalogue.titles_by_initial('symbols')}, {'11.22.63', '#Title'})
+        self.assertEqual([r['title'] for r in self.catalogue.titles_by_initial('z')], ['  Zebra'])
+        self.assertEqual(self.catalogue.titles_by_initial('x'), [])
+
     def test_title_type_filters_and_categories_include_both(self):
         self.connection.executescript("""
             INSERT INTO tv_series VALUES (1,'Action show','2020-01-01','2020-01-01');
