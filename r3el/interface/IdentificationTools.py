@@ -4,5 +4,5 @@ from r3el.interface.MCPTools import MCPTools
 
 
 class IdentificationTools(MCPTools):
-    def __init__(self, endpoint: str, attempt_id: str, *, two_parts: bool = False, tv: bool = False) -> None:
-        super().__init__(endpoint, attempt_id, 'submit_tv' if tv else 'submit_two_parts' if two_parts else 'submit_identification')
+    def __init__(self, endpoint: str, attempt_id: str, *, two_parts: bool = False, tv: bool = False, series: bool = False) -> None:
+        super().__init__(endpoint, attempt_id, 'submit_tv' if tv else 'submit_tv_series' if series else 'submit_two_parts' if two_parts else 'submit_identification')

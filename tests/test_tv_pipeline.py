@@ -230,7 +230,7 @@ class TVConversationTests(unittest.IsolatedAsyncioTestCase):
         handler = SubmissionHandler(Mock(return_value=1))
         log = EventWriter(Mock(return_value=1),dict(batch_id='batch',item_id='item',filename='11.22.63'))
         submission = (dict(episodes=[dict(path='/11.22.63-01.mkv',season_number=1,episode_number=1)])
-                      if mapping else dict(title='11.22.63',year=2016,confidence=10))
+                      if mapping else dict(title='11.22.63',confidence=10))
         directory = {'find-ls':'listing','episodes':{'/11.22.63-01.mkv':{
                     'season_number':None,'episode_number':1}}}
         if mapping:
@@ -238,7 +238,7 @@ class TVConversationTests(unittest.IsolatedAsyncioTestCase):
         llm = Mock()
         llm.complete = AsyncMock(return_value=json.dumps({'choices':[{'message':{
             'role':'assistant','tool_calls':[{'id':'call','type':'function','function':{
-                'name':'submit_tv' if mapping else 'submit_identification','arguments':json.dumps(submission)}}]}}]}))
+                'name':'submit_tv' if mapping else 'submit_tv_series','arguments':json.dumps(submission)}}]}}]}))
         with ZMQServer('tcp://127.0.0.1:*',handler.handle) as listener:
             result = await ToolConversation(llm,listener.endpoint,handler,log,directory=directory).run()
         self.assertEqual(result['status'],'identified')
@@ -246,16 +246,30 @@ class TVConversationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result['episodes'],submission['episodes'])
             self.assertIsNone(result['identification'])
         else:
-            self.assertEqual(result['identification'],submission)
+            self.assertEqual(result['identification'],dict(submission,year=None))
             self.assertIsNone(result['episodes'])
         messages = llm.complete.call_args.args[0]['messages']
-        self.assertIn('confirmed_series' if mapping else 'first-air year',messages[1]['content'])
+        self.assertIn('confirmed_series' if mapping else 'submit_tv_series',messages[1]['content'])
         if not mapping:
             self.assertNotIn('"episodes"',messages[1]['content'])
+            definition = llm.complete.call_args.args[0]['tools'][0]['function']
+            self.assertEqual(definition['name'],'submit_tv_series')
+            self.assertEqual(set(definition['parameters']['properties']),{'title','confidence'})
+            self.assertEqual(set(definition['parameters']['required']),{'title','confidence'})
         render_events([call.args[0] for call in log.record.call_args_list]
                       + [call.args[0] for call in handler._record.call_args_list])
 
 class TVSearchTests(unittest.TestCase):
+    def test_series_identification_rejects_guessed_year_and_keeps_movie_year_required(self):
+        from r3el.app.ValidateIdentification import ValidateIdentification
+        validator = ValidateIdentification()
+        supplied = dict(title='Alcatraz',confidence=9)
+        self.assertIsNone(validator.run(supplied,series=True).year)
+        with self.assertRaises(ValueError):
+            validator.run(dict(supplied,year=2015),series=True)
+        with self.assertRaises(ValueError):
+            validator.run(supplied)
+
     @patch('r3el.app.BatchMatching.TMDB.from_environment')
     def test_search_uses_tv_endpoint_and_persists_type(self, factory):
         from r3el.app.BatchMatching import BatchMatching
@@ -263,7 +277,10 @@ class TVSearchTests(unittest.TestCase):
         factory.return_value.search_tv.return_value = {'total_results':1,'results':[{'id':42,'name':'Show'}]}
         result = BatchMatching._search('Show',2020,log,media_type='tv')
         self.assertEqual(result.media_type,'tv')
-        factory.return_value.search_tv.assert_called_once_with('Show',2020)
+        factory.return_value.search_tv.assert_called_once_with('Show')
+        self.assertIsNone(result.year)
+        data = json.loads(log.record.call_args.args[0].message)['data']
+        self.assertEqual(data['parameters'],{'query':'Show','page':1})
         factory.return_value.search.assert_not_called()
         render_events([call.args[0] for call in log.record.call_args_list])
 

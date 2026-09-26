@@ -14,7 +14,7 @@
         <td class="file-updated">{% if file.updated_at %}<time datetime="{{ file.updated_at | utc_iso }}" data-local-time="compact">—</time>{% else %}—{% endif %}</td>
         <td>{{ file.filename }}</td>
         <td>{{ file.identification.title if file.identification is not none else '—' }}</td>
-        <td>{{ file.identification.year if file.identification is not none else '—' }}</td>
+        <td>{{ file.display_year or '—' }}</td>
         <td>{{ file.identification.confidence if file.identification is not none else '—' }}</td>
         <td>{{ file.retries }}</td>
         <td>{% if file.pending %}Pending{% elif file.media_type == 'tv' and file.state == file_states.IDENTIFIED %}{% if file.tmdb_match and file.tmdb_match.file_moved %}Imported{% elif file.tmdb_match and file.tmdb_match.episodes_mapped %}Episodes mapped{% else %}Series identified{% endif %}{% else %}{{ status_labels[file.state] if file.state else 'Not available' }}{% endif %}</td>

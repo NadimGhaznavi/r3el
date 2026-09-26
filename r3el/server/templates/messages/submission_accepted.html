@@ -2,5 +2,5 @@
 {% include 'messages/multiple_choice.html' %}
 {% elif message.payload.context.phase | default('') == 'tv_episodes' %}<a href="/events/{{ event.event_id }}">Episode mappings accepted. Series: {{ message.payload.context.confirmed_series.name }}. Directory: {{ message.payload.context.filename }}. Attempt {{ message.payload.context.attempt }}.</a>
 {% else %}
-<a href="/events/{{ event.event_id }}">Submission accepted. Attempts: {{ message.payload.context.attempt }}, Filename: {{ message.payload.context.filename }}, Title: {{ message.payload.data.identification.title }}, Year: {{ message.payload.data.identification.year }}, Confidence: {{ message.payload.data.identification.confidence }}.</a>
+<a href="/events/{{ event.event_id }}">Submission accepted. Attempts: {{ message.payload.context.attempt }}, Filename: {{ message.payload.context.filename }}, Title: {{ message.payload.data.identification.title }}{% if message.payload.context.phase | default('') != 'tv_series' %}, Year: {{ message.payload.data.identification.year }}{% endif %}, Confidence: {{ message.payload.data.identification.confidence }}.</a>
 {% endif %}

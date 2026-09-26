@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Add the dedicated `submit_tv_series(title, confidence)` tool and search TV series by name only, using the existing LLM selection dialogue for multiple matches.
+- Remove guessed years and adjacent-year retries from TV identification; display the selected TMDB record's year as metadata and update event and match reporting accordingly.
+
 ## [4.3.0] - 2026-09-26 @ 04:20
 
 ### Changed

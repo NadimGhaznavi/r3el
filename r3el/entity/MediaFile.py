@@ -1,7 +1,7 @@
 """Current working data for one file in a batch."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from pathlib import Path
 
@@ -68,6 +68,22 @@ class MediaFile:
     @property
     def filename(self) -> str:
         return Path(self.path).name
+
+    @property
+    def display_year(self) -> int | None:
+        if self.media_type != 'tv':
+            return self.identification.year if self.identification else None
+        match = self.tmdb_match
+        if match is None or match.selection_pending or match.selection_error or match.error:
+            return None
+        response = match.resolved_response
+        if response is None or response['total_results'] != 1:
+            return None
+        value = response['results'][0].get('first_air_date')
+        try:
+            return date.fromisoformat(value).year if value else None
+        except (ValueError, TypeError):
+            return None
 
     @property
     def pending(self) -> bool:

@@ -128,6 +128,19 @@ class EventPagesTests(unittest.TestCase):
             self.assertIn('Title: &lt;Series&gt;',body)
             self.assertNotIn('Primary release year',body)
 
+    def test_tv_name_only_search_and_series_submission_render_without_year(self):
+        cases = [
+            ('tmdb_search',dict(parameters=dict(query='Alcatraz',page=1)),'Name-only search'),
+            ('tool_started',dict(function=dict(arguments=json.dumps(dict(title='Alcatraz',confidence=9)))),'Alcatraz'),
+            ('submission_accepted',dict(identification=dict(title='Alcatraz',year=None,confidence=9)),'Alcatraz'),
+        ]
+        for name,data,expected in cases:
+            self.event.update(name=name,source_name='ToolConversation',content=json.dumps(dict(
+                context=dict(filename='Alcatraz',attempt=1,phase='tv_series'),data=data)))
+            body = self.render()
+            self.assertIn(expected,body)
+            self.assertNotIn('Year: None',body)
+
     def test_catalogue_event_templates_link_to_escaped_details(self):
         cases = [
             ('file_delete', {'outcome': 'deleted', 'paths': ['/in/<movie>.mpg'],
