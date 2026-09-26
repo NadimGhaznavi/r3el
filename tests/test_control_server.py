@@ -144,7 +144,7 @@ class ControlServerTests(unittest.TestCase):
         movies.assert_called_once_with([28, 35])
         self.assertIn('value="28" checked', body)
         self.assertIn('value="35" checked', body)
-        self.assertIn('>Search Results</h2>', body)
+        self.assertIn('>Search Results (1)</h2>', body)
         self.assertIn('src="/catalogue/42/poster"', body)
         movies.return_value = []
         self.assertIn('No movies found in the selected categories',
