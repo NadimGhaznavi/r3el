@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-25 @ 21:04
+
 ### Added
 
 - After ordinary files, scan source subdirectories on the server for exactly two supported videos larger than 100 MiB. Process each matching directory as one movie and leave unmatched directories untouched.
