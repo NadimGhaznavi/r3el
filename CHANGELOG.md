@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Default new movie batches to /exports/disk1/archive/media/movies.
+- Add scripts/relocate-imported-movies.py for a one-time preview/apply repair of movie directories imported directly into media, including catalogue file and artwork paths.
+
 ## [1.7.1] - 2026-09-25 @ 22:55
 
 ### Changed
