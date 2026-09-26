@@ -11,7 +11,7 @@ from r3el.interface.CatalogueFiles import CatalogueFiles
 
 class TwoPartCopy:
     def prepare(self, movie: CatalogueMovie, item: MediaFile, destination: str | None,
-                log: EventWriter) -> tuple[MovieFiles, list[dict]]:
+                log: EventWriter, *, replace_existing: bool = False) -> tuple[MovieFiles, list[dict]]:
         associated, copies = [], []
         poster = backdrop = video = None
         for position, attachment in enumerate(item.attachments):
@@ -22,7 +22,7 @@ class TwoPartCopy:
             log.write(Categories.File.MOVE, Names.FILE_COPY, {**data, 'outcome': 'started'}, source='TwoPartCopy')
             try:
                 prepared = CatalogueFiles().prepare(movie, attachment.path, destination, stage_id, log,
-                                                    part=attachment.part, copy=True)
+                                                    part=attachment.part, copy=True, replace_existing=replace_existing)
             except (OSError, ValueError) as error:
                 log.write(Categories.File.MOVE, Names.FILE_COPY,
                           {**data, 'outcome': 'failed', 'error': str(error)}, source='TwoPartCopy', level='ERROR')

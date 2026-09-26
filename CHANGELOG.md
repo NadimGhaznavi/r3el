@@ -9,7 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Label existing destination-media conflicts as Entry exists and offer Replace Local Media in the shared Action column alongside TMDB ID matching. Replacement applies only to the selected item’s destination media and associated subtitles, with durable retry permission and Event Log records.
+
+### Changed
+
+- Rename the current batch column from Filename to Filename / Directory.
+
 ## [1.4.0] - 2026-09-25 @ 21:04
+
+### Summary
+
+- Support directories that contain 2 supported media files i.e. 2 files that are larger than 100 Mb. This will be deemed to be a two part movie. The LLM is tasked with identifying the title, year, part one, and part two from the output of a `find -ls <dir>` command, along with a `file_a: <file-a>, file_b: <file-b>` payload.
 
 ### Added
 
@@ -19,8 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Copy both parts and associated SRT subtitles using `Title (Year) Part N.ext`, preserve their sources, and catalogue all associated paths and part numbers.
 - Leave ambiguous subtitles untouched with a persisted `unresolved_srt` issue and an Event Log entry.
 - Log directory scans, pattern detections, subtitle associations, conversations, and copy checkpoints in the Event Log.
-
-## [1.3.2] - 2026-09-25 @ 19:06
 
 ## [1.3.1] - 2026-09-25 @ 19:02
 

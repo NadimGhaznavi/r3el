@@ -282,7 +282,7 @@ class ControlServerTests(unittest.TestCase):
         batch = MediaFileBatch('batch-1', 1, '/tmp', files=[item], state=MediaFileBatchState.MATCHING_COMPLETED)
         self.workspace.return_value = batch
         body = self.request('/')[2]
-        self.assertIn('<th scope="col">Manual match</th>', body)
+        self.assertIn('<th scope="col">Action</th>', body)
         self.assertIn('aria-label="TMDB ID for movie.mkv"', body)
         self.assertIn('>TMDB ID</button>', body)
         item.tmdb_match = TMDBMatch('Movie', 2020, response={'total_results': 0, 'results': []})
@@ -299,6 +299,37 @@ class ControlServerTests(unittest.TestCase):
         batch.state = MediaFileBatchState.MATCHING_COMPLETED
         item.tmdb_match = TMDBMatch('Movie', 2020, response={'total_results': 1, 'results': [{'id': 1}]})
         self.assertNotIn('class="manual-match"', self.request('/')[2])
+
+    @patch('r3el.server.ControlServer.BatchMatching.replace_media')
+    def test_entry_exists_action_and_validated_replacement_endpoint(self, replace_media):
+        item = MediaFile('file-1', '/tmp/movie.mkv', state=MediaFileState.IDENTIFIED,
+            tmdb_match=TMDBMatch('Movie', 2020, response={'total_results': 1, 'results': [{'id': 42}]},
+                                catalogue_error='The destination video already exists: /out/movie.mkv'))
+        batch = MediaFileBatch('batch-1', 1, '/tmp', files=[item], state=MediaFileBatchState.MATCHING_COMPLETED)
+        self.workspace.return_value = batch
+        body = self.request('/')[2]
+        self.assertEqual(body.count('<th scope="col">Action</th>'), 1)
+        self.assertIn('>Entry exists</a>', body)
+        self.assertIn('>Replace Local Media</button>', body)
+        batch.state = MediaFileBatchState.MATCHING
+        self.assertNotIn('class="replace-media"', self.request('/')[2])
+        batch.state = MediaFileBatchState.MATCHING_COMPLETED
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        for payload in ('batch_id=batch-1', 'batch_id=batch-1&file_id=../x',
+                        'batch_id=batch-1&file_id=file-1&movie_id=42'):
+            self.assertEqual(self.request('/workspace/replace-media', 'POST', payload, headers)[0], 400)
+        payload = 'batch_id=batch-1&file_id=file-1'
+        self.assertEqual(self.request('/workspace/replace-media', 'POST', payload,
+            dict(headers, Origin='http://elsewhere.invalid'))[0], 403)
+        replace_media.assert_not_called()
+        status, _, body = self.request('/workspace/replace-media', 'POST', payload, headers)
+        self.assertEqual(status, 202)
+        job_id = json.loads(body)['job_id']
+        deadline = time.monotonic() + 2
+        while json.loads(self.request('/workspace/match/status/' + job_id)[2])['status'] == 'running':
+            self.assertLess(time.monotonic(), deadline)
+            time.sleep(0.01)
+        replace_media.assert_called_once_with('batch-1', 'file-1')
 
     @patch('r3el.server.ControlServer.BatchMatching.match_id')
     def test_manual_id_request_validates_and_runs_in_background(self, match_id):
@@ -454,7 +485,7 @@ class ControlServerTests(unittest.TestCase):
             MediaFile('one', '/tmp/a.mkv', updated_at=datetime(2026, 9, 24, 13, 7)),
             MediaFile('two', '/tmp/b.mkv')])
         body = self.request('/')[2]
-        self.assertRegex(body, r'<th scope="col">#</th><th[^>]+>Updated</th><th scope="col">Filename</th>')
+        self.assertRegex(body, r'<th scope="col">#</th><th[^>]+>Updated</th><th scope="col">Filename / Directory</th>')
         self.assertIn('<td>1</td>', body)
         self.assertIn('<td>2</td>', body)
         self.assertIn('datetime="2026-09-24T13:07:00.000+00:00" data-local-time="compact"', body)
