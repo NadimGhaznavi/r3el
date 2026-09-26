@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.1] - 2026-09-26 @ 10:17
+
 ### Changed
 - Show four picks in Random Search instead of six, using the show poster for episode picks.
 
