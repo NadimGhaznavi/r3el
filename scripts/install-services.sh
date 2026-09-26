@@ -76,6 +76,9 @@ modules=(
     server/templates/messages/file_copy.html server/templates/messages/file_delete.html server/templates/messages/file_move.html server/templates/messages/artifact_download.html
     server/templates/messages/db_create_record.html
     server/templates/messages/tmdb_details.html
+    server/templates/messages/directory_scan_started.html server/templates/messages/directory_scan_completed.html
+    server/templates/messages/directories_scanned.html server/templates/messages/batch_resumed.html
+    server/templates/messages/identification_group_completed.html
     app/Prompt.py
     app/BatchControlHandler.py app/BatchProcessor.py app/BatchRunner.py app/MessageHandler.py
     interface/BatchConfiguration.py interface/BatchControl.py entity/BatchRequest.py constants/DMessage.py
