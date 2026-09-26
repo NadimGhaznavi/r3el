@@ -43,7 +43,7 @@ class MovieSelectionTests(unittest.TestCase):
 
         self.tools.submit = AsyncMock(side_effect=submit)
         self.match = TMDBMatch('Movie', 2020, response={'total_results': 2, 'results': [
-            {'id': 71, 'title': 'Movie Extra', 'overview': 'A traveler returns home.', 'release_date': '2020-02-03'},
+            {'id': 71, 'title': 'Movie Extra', 'overview': 'A traveler returns home.', 'release_date': '2020-02-03', 'vote_count': 1234},
             {'id': 99, 'title': 'Movie'}]})
         self.llm = Mock()
         self.llm.complete = AsyncMock()
@@ -53,7 +53,7 @@ class MovieSelectionTests(unittest.TestCase):
     def reply(self, content):
         self.llm.complete.return_value = json.dumps({'choices': [{'message': {'tool_calls': [{'id': 'choice-1', 'type': 'function', 'function': {'name': 'submit_multiple_choice', 'arguments': json.dumps({'number': content})}}]}}]})
 
-    def test_candidate_payload_contains_titles_and_overview_excerpts_and_logs_prompt(self):
+    def test_candidate_payload_contains_titles_overviews_and_votes_and_logs_prompt(self):
         self.reply(2)
         result = MovieSelection(self.llm).run(self.match, self.log)
         self.assertEqual(result.selected_number, 2)
@@ -74,8 +74,8 @@ class MovieSelectionTests(unittest.TestCase):
         data = json.loads(prompt)['data']
         self.assertEqual(data['query'], {'title': 'Movie', 'year': 2020})
         self.assertEqual(data['candidates'], [
-            {'number': 1, 'title': 'Movie Extra', 'overview': 'A traveler returns home.'},
-            {'number': 2, 'title': 'Movie', 'overview': ''}])
+            {'number': 1, 'title': 'Movie Extra', 'overview': 'A traveler returns home.', 'vote_count': 1234},
+            {'number': 2, 'title': 'Movie', 'overview': '', 'vote_count': None}])
         self.assertIn('A traveler returns home.', prompt)
         self.assertNotIn('2020-02-03', prompt)
         events = [call.args[0] for call in self.record.call_args_list]
