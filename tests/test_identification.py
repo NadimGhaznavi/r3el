@@ -37,9 +37,9 @@ class IdentificationTests(unittest.TestCase):
             (FileContext(filename), {'filename': filename}),
             (CurrentDate(), {'current_date': date.today().isoformat()}),
             (InvalidIdentification(reason), {'reason': reason}),
-            (MultipleChoice('Movie', 2026, [(filename, 'A "quoted" story.')]),
+            (MultipleChoice('Movie', 2026, [(filename, 'A "quoted" story.', 0)]),
              {'query': {'title': 'Movie', 'year': 2026}, 'candidates': [
-                 {'number': 1, 'title': filename, 'overview': 'A "quoted" story.'}]}),
+                 {'number': 1, 'title': filename, 'overview': 'A "quoted" story.', 'vote_count': 0}]}),
         ):
             with self.subTest(prompt=prompt.source_name):
                 message = json.loads(prompt.to_json())
