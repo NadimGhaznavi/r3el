@@ -11,9 +11,15 @@ class CatalogueDb:
     def __init__(self, db: DbMgr) -> None:
         self._db = db
 
-    def movies(self) -> list[dict]:
-        return self._db.query('SELECT tmdb_id, title, release_year FROM movies '
-                              'ORDER BY title, release_year, tmdb_id')
+    def movies(self, title: str = '') -> list[dict]:
+        return self._db.query(
+            "SELECT tmdb_id, title, release_year, poster_path FROM movies "
+            "WHERE LOCATE(%s, title) > 0 ORDER BY title, release_year, tmdb_id", (title,))
+
+    def recent(self, *, offset: int = 0, limit: int = 4) -> list[dict]:
+        return self._db.query(
+            "SELECT tmdb_id, title, release_year, poster_path FROM movies "
+            "ORDER BY added_at DESC, tmdb_id DESC LIMIT %s OFFSET %s", (limit, offset))
 
     def get(self, movie_id: int) -> dict | None:
         with self._db.transaction():
@@ -43,8 +49,8 @@ class CatalogueDb:
         """Caller owns the transaction, including any workspace checkpoint."""
         self._db.execute('''
             INSERT INTO movies (tmdb_id, title, original_title, release_date, overview, runtime,
-                                poster_path, backdrop_path, imdb_id, rating, vote_count, fetched_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, UTC_TIMESTAMP(6))
+                                poster_path, backdrop_path, imdb_id, rating, vote_count, fetched_at, added_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6))
             ON DUPLICATE KEY UPDATE title = VALUES(title), original_title = VALUES(original_title),
                 release_date = VALUES(release_date), overview = VALUES(overview), runtime = VALUES(runtime),
                 poster_path = VALUES(poster_path), backdrop_path = VALUES(backdrop_path),
