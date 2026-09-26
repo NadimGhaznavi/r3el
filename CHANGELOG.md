@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.5.3] - 2026-09-26 @ 05:29
+
+### Changed
+- Constrain the episode tool's file IDs to the labels in the current prompt and require the matching number of mappings; retain backend validation for duplicates and episode numbers.
+
+### Changed
+- Present simplified TV episode-mapping data as JSON, retaining sorted numeric file IDs and server-side path resolution. Document JSON task data as a development guideline.
+
+### Changed
+- Simplify the episode-mapping prompt to the confirmed show and sorted relative filenames numbered 1., 2., and so on; keep full paths and the mapping on the server.
+
 ## [4.5.2] - 2026-09-26 @ 05:19
 
 ### Fixed

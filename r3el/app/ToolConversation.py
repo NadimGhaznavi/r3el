@@ -106,6 +106,8 @@ class ToolConversation:
             try:
                 async with IdentificationTools(self._endpoint, context['attempt_id'],
                                                two_parts=self._directory is not None and not self._series, tv=self._tv, series=self._series and not self._tv) as tools:
+                    if self._tv:
+                        tools.restrict_episode_files([row['file_id'] for row in context['tv_episodes']])
                     body = await self._llm.complete({
                         'messages': messages, 'tools': [tools.definition],
                         'tool_choice': 'required', 'parallel_tool_calls': False, 'stream': False,

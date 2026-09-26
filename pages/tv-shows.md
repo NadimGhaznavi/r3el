@@ -29,8 +29,9 @@ LLM selection dialogue; zero matches retry series identification without adjacen
 searches. Manual TMDB ID correction also resolves the identity before episode mapping
 can start. The displayed year comes from the selected TMDB record, never an LLM guess.
 
-Second, a fresh dialogue receives the confirmed TMDB series name, ID, first-air
-date and overview, together with the listing and detected episode files. It supplies
+Second, a fresh dialogue receives the confirmed series name and year, folder context,
+and sorted relative filenames keyed by `1`, `2`, and so on in JSON. Full server paths and
+the raw `find -ls` output are omitted from this phase's prompt. It supplies
 only numeric file-ID/season/episode mappings; it cannot change the series identity.
 The backend assigns the IDs and resolves them back to the exact original paths,
 so the LLM never needs to reproduce filenames. Every ID must appear exactly once.
