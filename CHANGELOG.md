@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix Event Log and Current Task rendering of TV source-directory cleanup events, which incorrectly required a duplicate file's preferred path.
+
 ## [4.2.0] - 2026-09-26 @ 03:27
 
 ### Added
