@@ -25,6 +25,35 @@ from r3el.interface.WorkspaceDb import WorkspaceActionConflict
 
 class TMDBTests(unittest.TestCase):
     @patch('r3el.interface.TMDB.httpx.get')
+    def test_tv_endpoints_and_first_air_year(self, get):
+        client = TMDB('secret')
+        get.return_value = httpx.Response(200, json={'total_results': 0, 'results': []},
+                                         request=httpx.Request('GET', TMDB.URL))
+        for year in (None, 2008):
+            client.search_tv('Breaking Bad', year)
+            self.assertEqual(get.call_args.args[0], 'https://api.themoviedb.org/3/search/tv')
+            expected = {'query': 'Breaking Bad', 'page': 1}
+            if year:
+                expected['first_air_date_year'] = year
+            self.assertEqual(get.call_args.kwargs['params'], expected)
+        get.return_value = httpx.Response(200, json={'id': 1396},
+                                         request=httpx.Request('GET', TMDB.URL))
+        self.assertEqual(client.tv_details(1396), {'id': 1396})
+        self.assertEqual(get.call_args.args[0], 'https://api.themoviedb.org/3/tv/1396')
+        appended = get.call_args.kwargs['params']['append_to_response']
+        self.assertIn('content_ratings', appended)
+        self.assertNotIn('release_dates', appended)
+        with self.assertRaises(TMDBError):
+            client.tv_details(999)
+
+    @patch('r3el.interface.TMDB.httpx.get')
+    def test_title_only_query_omits_release_year(self, get):
+        payload = {'total_results': 0, 'results': []}
+        get.return_value = httpx.Response(200, json=payload, request=httpx.Request('GET', TMDB.URL))
+        self.assertEqual(TMDB('secret').search('Movie'), payload)
+        self.assertEqual(get.call_args.kwargs['params'], {'query': 'Movie', 'page': 1})
+
+    @patch('r3el.interface.TMDB.httpx.get')
     def test_movie_query_uses_title_year_and_bearer_token(self, get):
         payload = {'total_results': 1, 'results': [{'id': 42, 'title': 'A Movie'}]}
         get.return_value = httpx.Response(200, json=payload, request=httpx.Request('GET', TMDB.URL))

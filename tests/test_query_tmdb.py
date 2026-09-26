@@ -18,6 +18,44 @@ spec.loader.exec_module(query)
 class QueryTMDBTests(unittest.TestCase):
     @patch.object(query.TMDBCredentials, 'token', return_value='test-token')
     @patch.object(query, 'TMDB')
+    def test_tv_search_format_and_raw_details(self, factory, token):
+        client = factory.return_value
+        client.search_tv.return_value = {'total_results': 1, 'results': [
+            {'id': 1396, 'name': 'Breaking Bad', 'original_name': 'Original',
+             'first_air_date': '2008-01-20'}]}
+        client.tv_details.return_value = {'id': 1396, 'number_of_seasons': 5}
+        with redirect_stdout(StringIO()) as output:
+            self.assertEqual(query.main(['--type', 'tv', 'Breaking Bad']), 0)
+        client.search_tv.assert_called_with('Breaking Bad', None)
+        for text in ('TMDB TV search: Breaking Bad', '1. Breaking Bad',
+                     'First air date: 2008-01-20', 'Original title: Original',
+                     'https://www.themoviedb.org/tv/1396'):
+            self.assertIn(text, output.getvalue())
+        with redirect_stdout(StringIO()) as output:
+            self.assertEqual(query.main(['--type', 'tv', 'Breaking Bad', '2008', '--raw']), 0)
+        client.search_tv.assert_called_with('Breaking Bad', 2008)
+        client.tv_details.assert_called_once_with(1396)
+        self.assertEqual(json.loads(output.getvalue())['results'][0]['number_of_seasons'], 5)
+        client.search.assert_not_called()
+        client.details.assert_not_called()
+
+    @patch.object(query.TMDBCredentials, 'token', return_value='test-token')
+    @patch.object(query, 'TMDB')
+    def test_year_is_optional_for_readable_and_raw_output(self, factory, token):
+        factory.return_value.search.return_value = {
+            'total_results': 1, 'results': [{'id': 42, 'title': 'Movie'}]}
+        factory.return_value.details.return_value = {'id': 42, 'title': 'Movie'}
+        for args in (['Movie'], ['--raw', 'Movie']):
+            with self.subTest(args=args), redirect_stdout(StringIO()) as output:
+                self.assertEqual(query.main(args), 0)
+            factory.return_value.search.assert_called_with('Movie', None)
+            if '--raw' in args:
+                self.assertEqual(json.loads(output.getvalue())['results'][0]['id'], 42)
+            else:
+                self.assertEqual(output.getvalue().splitlines()[0], 'TMDB movie search: Movie')
+
+    @patch.object(query.TMDBCredentials, 'token', return_value='test-token')
+    @patch.object(query, 'TMDB')
     def test_raw_response_preserves_all_fields(self, factory, token):
         response = {'page': 1, 'total_pages': 1, 'total_results': 1, 'results': [
             {'id': 42, 'title': 'Amélie', 'genre_ids': [35, 10749],
@@ -77,7 +115,7 @@ class QueryTMDBTests(unittest.TestCase):
     @patch.object(query.TMDBCredentials, 'token', return_value='test-token')
     @patch.object(query, 'TMDB')
     def test_invalid_arguments_never_query(self, factory, token):
-        for args in (['Movie'], ['Movie', '25'], ['Movie', '20250'], ['Movie', '0000'], [' ', '2025']):
+        for args in (['--type', 'invalid', 'Movie'], [], ['Movie', '25'], ['Movie', '20250'], ['Movie', '0000'], [' ', '2025']):
             with self.subTest(args=args), redirect_stderr(StringIO()), self.assertRaises(SystemExit) as error:
                 query.main(args)
             self.assertEqual(error.exception.code, 2)
