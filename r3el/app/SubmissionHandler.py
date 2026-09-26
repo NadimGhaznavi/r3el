@@ -6,6 +6,7 @@ from threading import Lock
 
 from r3el.constants.DMessage import DMessage
 from r3el.activity.EventWriter import EventWriter
+from r3el.activity.TVPattern import TVPattern
 from r3el.app.ValidateIdentification import ValidateIdentification
 from r3el.app.prompts.InvalidIdentification import InvalidIdentification
 from r3el.constants.DEventCategory import DEventCategory as Categories
@@ -40,8 +41,13 @@ class SubmissionHandler:
         data = request.payload.get('submission')
         log.write(Categories.Prompt.SUBMISSION_HANDLER, Names.TOOL_RECEIVED, data, source='SubmissionHandler')
         try:
-            parts = None
-            if 'media_files' in log.context:
+            parts = episodes = None
+            if 'tv_episodes' in log.context:
+                if not isinstance(data, dict) or set(data) != {'title', 'year', 'confidence', 'episodes'}:
+                    raise ValueError('Supply title, year, confidence and episodes.')
+                episodes = TVPattern.validate(data['episodes'], log.context['tv_episodes'])
+                data = {key: data[key] for key in ('title', 'year', 'confidence')}
+            elif 'media_files' in log.context:
                 if not isinstance(data, dict) or set(data) != {'title', 'year', 'confidence', 'part_one', 'part_two'}:
                     raise ValueError('Supply title, year, confidence, part_one, and part_two.')
                 one, two = data['part_one'], data['part_two']
@@ -59,6 +65,8 @@ class SubmissionHandler:
                       result, source='SubmissionHandler')
             return result
         result = {'status': 'ok', 'identification': asdict(identification)}
+        if episodes is not None:
+            result['episodes'] = episodes
         if parts is not None:
             result['parts'] = parts
         log.write(Categories.Prompt.SUBMISSION_HANDLER, Names.SUBMISSION_ACCEPTED,

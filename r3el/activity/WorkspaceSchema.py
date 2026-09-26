@@ -63,6 +63,12 @@ class WorkspaceSchema:
                 FOREIGN KEY (file_id) REFERENCES media_files(file_id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """)
+        self._db.execute("ALTER TABLE media_files ADD COLUMN IF NOT EXISTS media_type "
+                         "ENUM('movie','tv') NOT NULL DEFAULT 'movie'")
+        self._db.execute('ALTER TABLE media_file_batches ADD COLUMN IF NOT EXISTS tv_destination_directory TEXT NULL')
+        self._db.execute('ALTER TABLE media_attachments ADD COLUMN IF NOT EXISTS season_number SMALLINT UNSIGNED NULL')
+        self._db.execute('ALTER TABLE media_attachments ADD COLUMN IF NOT EXISTS episode_number SMALLINT UNSIGNED NULL')
+        self._db.execute('ALTER TABLE media_attachments ADD COLUMN IF NOT EXISTS import_result JSON NULL')
         # NULL marks only unmigrated rows. Reapplying the upgrade preserves user choices.
         self._db.execute('ALTER TABLE media_files ADD COLUMN IF NOT EXISTS tmdb_match JSON NULL')
         self._db.execute('ALTER TABLE media_files ADD COLUMN IF NOT EXISTS '

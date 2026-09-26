@@ -6,7 +6,7 @@ import unicodedata
 
 class MovieNaming:
     @staticmethod
-    def stem(title: str, year: int) -> str:
+    def title(title: str) -> str:
         title = unicodedata.normalize('NFKC', title)
         for old, new in {':': ' - ', '/': ' - ', '\\': ' - ', '#': '', '%': ' percent ',
                          '"': '', '*': '', '?': '', '<': '', '>': '', '|': '',
@@ -16,4 +16,8 @@ class MovieNaming:
         title = re.sub(r'\s*-\s*', ' - ', title).strip(' .-')
         if not title or any(ord(character) < 32 for character in title):
             raise ValueError('The movie title cannot form a valid filename.')
-        return f'{title} ({year})'
+        return title
+
+    @staticmethod
+    def stem(title: str, year: int) -> str:
+        return f'{MovieNaming.title(title)} ({year})'

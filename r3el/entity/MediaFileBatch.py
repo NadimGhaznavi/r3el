@@ -25,6 +25,7 @@ class MediaFileBatch:
     state: MediaFileBatchState = MediaFileBatchState.PROCESSING
     started_event_id: int | None = None
     destination_directory: str | None = None
+    tv_destination_directory: str | None = None
     stop_requested: bool = False
     directories_scanned: bool = False
 

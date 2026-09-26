@@ -12,26 +12,37 @@ class CatalogueDb:
         self._db = db
 
     def categories(self) -> list[dict]:
-        return self._db.query('SELECT genre_id, name FROM tmdb_movie_genres ORDER BY name')
+        return self._db.query('SELECT genre_id, name FROM tmdb_movie_genres UNION '
+                              'SELECT genre_id, name FROM tmdb_tv_genres ORDER BY name')
+
+    @staticmethod
+    def _titles() -> str:
+        return ("SELECT tmdb_id,title,release_year,poster_path,added_at,'movie' AS media_type FROM movies "
+                "UNION ALL SELECT s.tmdb_id,s.title,YEAR(s.first_air_date),"
+                "(SELECT a.path FROM tv_artwork a WHERE a.series_id=s.tmdb_id AND a.kind='poster' "
+                "AND a.season_number IS NULL AND a.episode_id IS NULL ORDER BY a.path LIMIT 1),"
+                "s.added_at,'tv' FROM tv_series s")
 
     def movies(self, title: str = '') -> list[dict]:
         return self._db.query(
-            "SELECT tmdb_id, title, release_year, poster_path FROM movies "
-            "WHERE LOCATE(%s, title) > 0 ORDER BY title, release_year, tmdb_id", (title,))
+            f"SELECT * FROM ({self._titles()}) titles WHERE LOCATE(%s,title)>0 "
+            "ORDER BY title,release_year,media_type,tmdb_id", (title,))
 
     def movies_in_categories(self, genre_ids: list[int]) -> list[dict]:
         placeholders = ', '.join(['%s'] * len(genre_ids))
         return self._db.query(
-            "SELECT tmdb_id, title, release_year, poster_path FROM movies m "
-            "WHERE (SELECT COUNT(DISTINCT mg.genre_id) FROM movie_genres mg "
-            "WHERE mg.movie_id = m.tmdb_id "
-            f"AND mg.genre_id IN ({placeholders})) = %s ORDER BY title, release_year, tmdb_id",
+            f"SELECT * FROM ({self._titles()}) titles WHERE "
+            "(SELECT COUNT(DISTINCT g.genre_id) FROM ("
+            "SELECT movie_id AS title_id,genre_id,'movie' AS media_type FROM movie_genres UNION ALL "
+            "SELECT series_id,genre_id,'tv' FROM tv_series_genres) g "
+            "WHERE g.title_id=titles.tmdb_id AND g.media_type=titles.media_type "
+            f"AND g.genre_id IN ({placeholders}))=%s ORDER BY title,release_year,media_type,tmdb_id",
             tuple(genre_ids) + (len(set(genre_ids)),))
 
     def recent(self, *, offset: int = 0, limit: int = 4) -> list[dict]:
         return self._db.query(
-            "SELECT tmdb_id, title, release_year, poster_path FROM movies "
-            "ORDER BY added_at DESC, tmdb_id DESC LIMIT %s OFFSET %s", (limit, offset))
+            f"SELECT * FROM ({self._titles()}) titles "
+            "ORDER BY added_at DESC,media_type,tmdb_id DESC LIMIT %s OFFSET %s", (limit, offset))
 
     def get(self, movie_id: int) -> dict | None:
         with self._db.transaction():

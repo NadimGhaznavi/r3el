@@ -25,6 +25,7 @@ class TMDBMatch:
     replace_local_media: bool = False
     preserve_source_directory: bool = False
     source_directory: str | None = None
+    media_type: str = 'movie'
 
     @property
     def entry_exists(self) -> bool:

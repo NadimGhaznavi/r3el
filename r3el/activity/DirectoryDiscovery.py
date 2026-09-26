@@ -1,10 +1,11 @@
-"""Recognize two-part and dated-movie directories without retaining unmatched items."""
+"""Recognize TV, two-part and dated-movie directories without retaining unmatched items."""
 
 from collections import Counter
 from pathlib import Path
 import re
 from uuid import uuid4
 
+from r3el.activity.TVPattern import TVPattern
 from r3el.activity.EventWriter import EventWriter
 from r3el.activity.MovieFormats import MovieFormats
 from r3el.constants.DEventCategory import DEventCategory as Categories
@@ -28,6 +29,7 @@ class DirectoryDiscovery:
         matched_directories = 0
         two_part_count = 0
         dated_count = 0
+        tv_count = 0
         directories = (filesystem.directories(batch.source_directory, batch.destination_directory)
                        if remaining else [])
         for directory in directories:
@@ -46,10 +48,12 @@ class DirectoryDiscovery:
                            key=lambda path: (MovieFormats.rank(path), path))
             years = [self.filename_year(path) for path in media]
             different_years = len(media) == 2 and None not in years and years[0] != years[1]
-            two_parts = len(media) == 2 and not different_years
-            dated_movies = not two_parts and len(media) >= 2 and None not in years
-            matched = two_parts or dated_movies
-            pattern = 'two_parts' if two_parts else 'dated_movies' if dated_movies else None
+            tv = TVPattern.match(media)
+            tv_candidate = tv is not None or any(re.search(r'(?i)S[0-9]+E[0-9]+', Path(path).stem) for path in media)
+            two_parts = not tv_candidate and len(media) == 2 and not different_years
+            dated_movies = not tv_candidate and not two_parts and len(media) >= 2 and None not in years
+            matched = tv is not None or two_parts or dated_movies
+            pattern = 'tv' if tv is not None else 'two_parts' if two_parts else 'dated_movies' if dated_movies else None
             item_log.write(Categories.Batch.DISCOVERY, Names.DIRECTORY_SCAN_COMPLETED,
                            {'directory': str(directory), 'find-ls': listing, 'media_files': media,
                             'matched': matched, 'pattern': pattern, 'media_years': years,
@@ -71,7 +75,17 @@ class DirectoryDiscovery:
                                {'path': path, 'media_path': candidates[0] if len(candidates) == 1 else None,
                                 'outcome': 'associated' if len(candidates) == 1 else 'unresolved_srt'},
                                source='DirectoryDiscovery')
-            if dated_movies:
+            if tv is not None:
+                tv_count += 1
+                for attachment in attachments:
+                    numbers = tv.get(attachment.path if attachment.kind == 'video' else attachment.media_path)
+                    if numbers:
+                        attachment.season_number = numbers['season_number']
+                        attachment.episode_number = numbers['episode_number']
+                items.append(MediaFile(item_id, str(directory), media_type='tv',
+                                       source_directory=str(directory), find_ls=listing,
+                                       attachments=attachments, issues=issues))
+            elif dated_movies:
                 dated_count += 1
                 for video in media:
                     associated = [attachment for attachment in attachments
@@ -88,7 +102,7 @@ class DirectoryDiscovery:
         workspace.check_stop(batch.id)
         workspace.append_directories(batch, items, log.prepare(
             Categories.Batch.DISCOVERY, Names.DIRECTORIES_SCANNED,
-            {'two_part_movies': two_part_count, 'dated_movie_directories': dated_count}, source='DirectoryDiscovery'))
+            {'two_part_movies': two_part_count, 'dated_movie_directories': dated_count, 'tv_series': tv_count}, source='DirectoryDiscovery'))
 
     @staticmethod
     def filename_year(path: str) -> int | None:
