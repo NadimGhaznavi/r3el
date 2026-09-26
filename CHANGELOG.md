@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-25 @ 23:57
+
 ### Added
 - Show catalogue search results in a separate panel below the Search form.
 - Browse catalogue additions four at a time with older/newer arrow buttons while preserving the title search.
