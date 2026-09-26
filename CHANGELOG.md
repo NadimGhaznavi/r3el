@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.7.0] - 2026-09-26 @ 05:58
+
+### Added
+- Slowly fade the robot's eyes through purple, teal and gold on the Control and Catalogue pages, respecting reduced-motion preferences.
+
 ## [4.6.1] - 2026-09-26 @ 05:52
 
 ### Fixed
