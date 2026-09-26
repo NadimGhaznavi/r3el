@@ -1,26 +1,51 @@
 {% extends 'base.html' %}
 {% block title %}{{ movie.title }}{% endblock %}
 {% block content %}
-<p><a href="/catalogue">Back to catalogue</a></p>
-<h1>{{ movie.title }}{% if movie.release_year %} ({{ movie.release_year }}){% endif %}</h1>
-{% for artwork in movie.artwork %}
-<img src="/catalogue/{{ movie.tmdb_id }}/{{ artwork.kind }}" alt="{{ movie.title }} {{ artwork.kind }}" loading="lazy" style="max-width: 100%; max-height: 360px; height: auto;">
-{% endfor %}
-{% if movie.overview %}<p>{{ movie.overview }}</p>{% endif %}
-<dl class="movie-facts">
-  <dt>Original title</dt><dd>{{ movie.original_title or '—' }}</dd>
-  <dt>Release date</dt><dd>{{ movie.release_date or '—' }}</dd>
-  <dt>Runtime</dt><dd>{% if movie.runtime is not none %}{{ movie.runtime }} minutes{% else %}—{% endif %}</dd>
-  <dt>Genres</dt><dd>{{ movie.genres | map(attribute='name') | join(', ') or '—' }}</dd>
-  <dt>Rating</dt><dd>{% if movie.rating is not none %}{{ '%.1f' | format(movie.rating) }} / 10{% else %}—{% endif %}</dd>
-  <dt>Votes</dt><dd>{{ movie.vote_count if movie.vote_count is not none else '—' }}</dd>
-  <dt>TMDB ID</dt><dd>{{ movie.tmdb_id }}</dd>
-  <dt>IMDb ID</dt><dd>{{ movie.imdb_id or '—' }}</dd>
-</dl>
-{% if movie.credits %}
-<h2>Cast and crew</h2>
-<ul>{% for credit in movie.credits %}<li>{{ credit.name }} — {{ credit.role }}{% if credit.character_name %} ({{ credit.character_name }}){% endif %}</li>{% endfor %}</ul>
-{% endif %}
-<h2>Files</h2>
-<ul>{% for file in movie.files %}<li>{{ file.path }}</li>{% else %}<li>No catalogued files.</li>{% endfor %}</ul>
+<article class="movie-card catalogue-detail" aria-labelledby="movie-title">
+  <div class="movie-poster">
+    {% if movie.artwork | selectattr('kind', 'equalto', 'poster') | list %}
+    <img src="/catalogue/{{ movie.tmdb_id }}/poster" alt="Poster for {{ movie.title }}" width="500" height="750">
+    {% else %}<span>No poster available</span>{% endif %}
+  </div>
+  <div class="movie-info">
+    <h1 id="movie-title">{{ movie.title }}</h1>
+    <p class="movie-subtitle">{{ movie.release_year or 'Year unknown' }} · Movie{% if movie.runtime is not none %} · {{ movie.runtime }} minutes{% endif %}</p>
+    <div class="movie-rating-row">
+      {% if movie.rating is not none %}<span class="movie-rating"><span aria-hidden="true">★</span> {{ '%.2f' | format(movie.rating) }}<span class="sr-only"> out of 10</span></span>{% endif %}
+      {% if movie.vote_count is not none %}<span class="note">{{ '{:,}'.format(movie.vote_count) }} votes</span>{% endif %}
+      <a class="movie-id" href="https://www.themoviedb.org/movie/{{ movie.tmdb_id }}">TMDB #{{ movie.tmdb_id }}</a>
+    </div>
+    <p class="movie-genres">{{ movie.genres | map(attribute='name') | join(' · ') or 'Genres not available' }}</p>
+    {% if movie.overview %}<p class="movie-overview">{{ movie.overview }}</p>{% endif %}
+    <dl class="movie-facts">
+      <dt>Original title</dt><dd>{{ movie.original_title or '—' }}</dd>
+      <dt>Release date</dt><dd>{{ movie.release_date or '—' }}</dd>
+      <dt>IMDb ID</dt><dd>{{ movie.imdb_id or '—' }}</dd>
+    </dl>
+  </div>
+</article>
+<div class="catalogue-credits">
+  <section class="batch-panel" aria-labelledby="director-heading">
+    <h2 id="director-heading">Director</h2>
+    <ul>{% for credit in movie.credits if credit.role == 'Director' %}
+      <li>{{ credit.name }}</li>
+    {% else %}<li>No director information available.</li>{% endfor %}</ul>
+  </section>
+  <section class="batch-panel" aria-labelledby="producers-heading">
+    <h2 id="producers-heading">Producers</h2>
+    <ul>{% for credit in movie.credits if credit.role in ('Producer', 'Executive Producer', 'Co-Producer') %}
+      <li>{{ credit.name }} — {{ credit.role }}</li>
+    {% else %}<li>No producer information available.</li>{% endfor %}</ul>
+  </section>
+  <section class="batch-panel" aria-labelledby="cast-heading">
+    <h2 id="cast-heading">Cast</h2>
+    <ul>{% for credit in movie.credits if credit.role == 'Actor' %}
+      <li>{{ credit.name }}{% if credit.character_name %} — {{ credit.character_name }}{% endif %}</li>
+    {% else %}<li>No cast information available.</li>{% endfor %}</ul>
+  </section>
+</div>
+<section class="batch-panel" aria-labelledby="files-heading">
+  <h2 id="files-heading">Files</h2>
+  <ul>{% for file in movie.files %}<li>{{ file.path }}</li>{% else %}<li>No catalogued files.</li>{% endfor %}</ul>
+</section>
 {% endblock %}
