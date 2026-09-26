@@ -23,9 +23,10 @@ class CatalogueDb:
         placeholders = ', '.join(['%s'] * len(genre_ids))
         return self._db.query(
             "SELECT tmdb_id, title, release_year, poster_path FROM movies m "
-            "WHERE EXISTS (SELECT 1 FROM movie_genres mg WHERE mg.movie_id = m.tmdb_id "
-            f"AND mg.genre_id IN ({placeholders})) ORDER BY title, release_year, tmdb_id",
-            tuple(genre_ids))
+            "WHERE (SELECT COUNT(DISTINCT mg.genre_id) FROM movie_genres mg "
+            "WHERE mg.movie_id = m.tmdb_id "
+            f"AND mg.genre_id IN ({placeholders})) = %s ORDER BY title, release_year, tmdb_id",
+            tuple(genre_ids) + (len(set(genre_ids)),))
 
     def recent(self, *, offset: int = 0, limit: int = 4) -> list[dict]:
         return self._db.query(
