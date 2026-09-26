@@ -16,7 +16,7 @@ Sender names identify message roles; they are not authentication credentials.
   "method": "new_batch",
   "payload": {
     "input_directory": "/exports/disk1/archive/film",
-    "output_directory": "/exports/disk1/archive/media",
+    "output_directory": "/exports/disk1/archive/media/movies",
     "batch_size": 5
   }
 }

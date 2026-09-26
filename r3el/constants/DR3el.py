@@ -9,7 +9,7 @@ class DR3el:
 
     BASE_DIR: Final[str] = "/opt/prod/r3el"
     FILM_DIR: Final[str] = "/exports/disk1/archive/film"
-    MEDIA_DIR: Final[str] = "/exports/disk1/archive/media"
+    MEDIA_DIR: Final[str] = "/exports/disk1/archive/media/movies"
     PROCESSING_GROUP_SIZE: Final[int] = 10
     BATCH_SIZE: Final[int] = 10
     MAX_BATCH_SIZE: Final[int] = 4294967295
