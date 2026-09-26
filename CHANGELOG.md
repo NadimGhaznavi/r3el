@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Make the catalogue totals slightly larger and italic.
+
+### Added
+- Add total catalogued seasons (TV Series) and TV Episodes beneath the catalogue logo, with thousands separators.
+
 ## [4.4.0] - 2026-09-26 @ 04:51
 
 ### Added
