@@ -45,11 +45,8 @@ async def submit_two_parts(
     ).submit(title, year, confidence, part_one=part_one, part_two=part_two)
 
 
-@mcp.tool(description='Identify a TV series and map each supplied video to a season and episode.')
+@mcp.tool(description='Map each supplied video to a season and episode of the confirmed TV series.')
 async def submit_tv(
-    title: Annotated[Any, Field(json_schema_extra={'type': 'string'})],
-    year: Annotated[Any, Field(json_schema_extra={'type': 'integer'})],
-    confidence: Annotated[Any, Field(json_schema_extra={'type': 'integer', 'minimum': 0, 'maximum': 10})],
     episodes: Annotated[Any, Field(json_schema_extra={'type': 'array', 'items': {
         'type': 'object', 'properties': {
             'path': {'type': 'string'}, 'season_number': {'type': 'integer', 'minimum': 0},
@@ -58,4 +55,4 @@ async def submit_tv(
 ) -> str:
     return await SubmitIdentification(
         os.environ['R3EL_ZMQ_ENDPOINT'], os.environ['R3EL_ATTEMPT_ID'],
-    ).submit(title, year, confidence, episodes=episodes)
+    ).submit_payload({'episodes': episodes})

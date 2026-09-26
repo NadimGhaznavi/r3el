@@ -8,6 +8,7 @@ import httpx
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.activity.MovieFormats import MovieFormats
 from r3el.app.TVImport import TVImport
+from r3el.app.TVEpisodeMapping import TVEpisodeMapping
 from r3el.activity.DirectoryMediaMove import DirectoryMediaMove
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.MovieSelection import MovieSelection
@@ -48,8 +49,7 @@ class BatchMatching:
             if (item is None or item.tmdb_match is None or not item.tmdb_match.entry_exists
                     or item.action in (MediaFileAction.IGNORE, MediaFileAction.DELETE)):
                 raise WorkspaceActionConflict('The item no longer has a destination conflict.')
-            log = EventWriter(self._record, {'batch_id': batch_id, 'item_id': file_id,
-                                            'filename': item.filename}, batch.started_event_id)
+            log = EventWriter.for_item(self._record, batch, item)
             result = replace(item.tmdb_match, replace_local_media=True)
             self._workspace.save_match(batch_id, file_id, result, log.prepare(
                 Categories.File.MOVE, Names.FILE_MOVE, {'outcome': 'replacement_requested',
@@ -65,8 +65,7 @@ class BatchMatching:
             if (item is None or item.tmdb_match is None or not item.tmdb_match.needs_manual_match
                     or item.action in (MediaFileAction.IGNORE, MediaFileAction.DELETE)):
                 raise WorkspaceActionConflict('The file no longer needs a manual match.')
-            log = EventWriter(self._record, {'batch_id': batch_id, 'item_id': file_id,
-                                            'filename': item.filename}, batch.started_event_id)
+            log = EventWriter.for_item(self._record, batch, item)
             try:
                 if item.media_type == 'tv':
                     data = TMDB.from_environment().tv_details(movie_id)
@@ -111,9 +110,7 @@ class BatchMatching:
                 raise WorkspaceActionConflict('Processing requires a nonempty batch with identification finished.')
             for item in batch.files:
                 self._workspace.check_stop(batch_id)
-                log = EventWriter(self._record,
-                                  {'batch_id': batch.id, 'item_id': item.id, 'filename': item.filename},
-                                  batch.started_event_id)
+                log = EventWriter.for_item(self._record, batch, item)
                 if (item.retries > 0 and item.state == MediaFileState.UNRESOLVED_LLM
                         and item.action not in (MediaFileAction.IGNORE, MediaFileAction.DELETE)):
                     continue
@@ -214,7 +211,9 @@ class BatchMatching:
             response = result.resolved_response
             if (not result.skipped and not result.error and not result.selection_pending
                     and not result.selection_error and response is not None and response['total_results'] == 1):
-                TVImport(self._workspace).run(batch, item, result, log)
+                result = TVEpisodeMapping(self._workspace, self._llm).run(batch, item, result, log)
+                if result.episodes_mapped or result.file_moved:
+                    TVImport(self._workspace).run(batch, item, result, log)
             return
         if result.catalogue_saved:
             if not result.file_moved or result.discard_files:

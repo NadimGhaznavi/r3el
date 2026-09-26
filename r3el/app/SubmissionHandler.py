@@ -41,12 +41,15 @@ class SubmissionHandler:
         data = request.payload.get('submission')
         log.write(Categories.Prompt.SUBMISSION_HANDLER, Names.TOOL_RECEIVED, data, source='SubmissionHandler')
         try:
-            parts = episodes = None
+            parts = None
             if 'tv_episodes' in log.context:
-                if not isinstance(data, dict) or set(data) != {'title', 'year', 'confidence', 'episodes'}:
-                    raise ValueError('Supply title, year, confidence and episodes.')
+                if not isinstance(data, dict) or set(data) != {'episodes'}:
+                    raise ValueError('Supply only episodes for the confirmed TV series.')
                 episodes = TVPattern.validate(data['episodes'], log.context['tv_episodes'])
-                data = {key: data[key] for key in ('title', 'year', 'confidence')}
+                result = {'status': 'ok', 'episodes': episodes}
+                log.write(Categories.Prompt.SUBMISSION_HANDLER, Names.SUBMISSION_ACCEPTED,
+                          result, source='SubmissionHandler')
+                return result
             elif 'media_files' in log.context:
                 if not isinstance(data, dict) or set(data) != {'title', 'year', 'confidence', 'part_one', 'part_two'}:
                     raise ValueError('Supply title, year, confidence, part_one, and part_two.')
@@ -58,15 +61,15 @@ class SubmissionHandler:
                 data = {key: data[key] for key in ('title', 'year', 'confidence')}
             identification = ValidateIdentification().run(data)
         except ValueError as error:
-            prompt = InvalidIdentification(str(error))
+            prompt = InvalidIdentification(str(error), tool_name=(
+                'submit_tv' if 'tv_episodes' in log.context else
+                'submit_two_parts' if 'media_files' in log.context else 'submit_identification'))
             result = {'status': 'rejected', 'reason': str(error),
                       'prompt': json.loads(prompt.to_json()), 'source_name': prompt.source_name}
             log.write(Categories.Prompt.SUBMISSION_HANDLER, Names.SUBMISSION_REJECTED,
                       result, source='SubmissionHandler')
             return result
         result = {'status': 'ok', 'identification': asdict(identification)}
-        if episodes is not None:
-            result['episodes'] = episodes
         if parts is not None:
             result['parts'] = parts
         log.write(Categories.Prompt.SUBMISSION_HANDLER, Names.SUBMISSION_ACCEPTED,

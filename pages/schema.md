@@ -91,4 +91,6 @@ one transaction before source names are removed. See [TV show imports](tv-shows.
 
 Workspace items carry media_type; attachments carry season_number,
 episode_number and import_result. Batches persist tv_destination_directory,
-derived as the tv sibling of the movie destination.
+derived as the tv sibling of the movie destination. The saved TV match includes an
+`episodes_mapped` marker, committed with the episode assignments after the separate
+mapping dialogue. Series identification alone does not set this marker.

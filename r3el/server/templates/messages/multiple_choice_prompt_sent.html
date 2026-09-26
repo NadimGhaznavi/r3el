@@ -1,6 +1,6 @@
 {% if message.payload.data.content.startswith('{') %}
 {% set prompt = message.payload.data.content | from_json %}
-<a href="/events/{{ event.event_id }}">Multiple choice prompt. Filename: {{ message.payload.context.filename }}, Title: {{ prompt.data.query.title }}, Year: {{ prompt.data.query.year }}, Candidates: {{ prompt.data.candidates | length }}.</a>
+<a href="/events/{{ event.event_id }}">{% if message.payload.context.media_type | default('movie') == 'tv' %}TV series selection prompt.{% else %}Multiple choice prompt.{% endif %} Filename: {{ message.payload.context.filename }}, Title: {{ prompt.data.query.title }}, Year: {{ prompt.data.query.year }}, Candidates: {{ prompt.data.candidates | length }}.</a>
 {% else %}
-<a href="/events/{{ event.event_id }}">Multiple choice prompt. Filename: {{ message.payload.context.filename }}, Prompt: {{ message.payload.data.content | prompt_preview }}</a>
+<a href="/events/{{ event.event_id }}">{% if message.payload.context.media_type | default('movie') == 'tv' %}TV series selection prompt.{% else %}Multiple choice prompt.{% endif %} Filename: {{ message.payload.context.filename }}, Prompt: {{ message.payload.data.content | prompt_preview }}</a>
 {% endif %}

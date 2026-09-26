@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Split TV processing into series identification and TMDB confirmation, followed by a separate episode-mapping dialogue using the confirmed series identity.
+- Keep movie and TV event context consistent and distinguish TV series identification, episode mapping and import in logs and batch reporting.
+- Save episode mappings and their completion marker atomically; unresolved series or mapping cannot start imports.
+- Use the active dialogue's tool name in correction prompts for movies, two-part movies and TV episodes.
+
 ## [4.2.5] - 2026-09-26 @ 04:00
 
 ### Fixed
