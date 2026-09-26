@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-09-26 @ 02:22
+
 ### Summary
 
 - Added TV support to the TMDB query tool. Scoping out TV support...
