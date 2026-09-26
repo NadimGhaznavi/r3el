@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-09-26 @ 03:10
+
 ### Added
 - Import TV series from numbered episodes, explicit SxxExx filenames and nested season directories, with TV patterns taking priority over movie patterns.
 - Identify series and episode mappings through the existing LLM/MCP workflow; use TMDB TV search, selection and metadata validation.
