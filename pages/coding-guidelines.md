@@ -84,6 +84,11 @@ to make that relationship explicit.
 
 ## Trust internal contracts
 
+Supply task data to LLMs as JSON, separate from the prompt instructions. Simplify
+the data before presenting it: sort file lists and assign sequential numeric IDs,
+keeping exact paths and ID mappings on the server. Use deterministic code for
+bookkeeping and reserve the LLM for interpretation.
+
 R3el's internal modules are developed and maintained together. Use clear
 interfaces, type annotations, and tests to establish their contracts. Do not
 add runtime type checks, attribute-existence checks, repeated validation, or

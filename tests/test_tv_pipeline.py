@@ -38,6 +38,23 @@ def render_events(events):
 
 
 class TVPatternTests(unittest.TestCase):
+    def test_episode_prompt_is_a_sorted_numbered_list_without_server_paths(self):
+        from r3el.app.prompts.DirectoryEpisodesTV import DirectoryEpisodesTV
+        expected = {'/exports/film/Show/season-2/Show-02.mkv':dict(season_number=2,episode_number=2),
+                    '/exports/film/Show/season-1/Show-01.mkv':dict(season_number=1,episode_number=1)}
+        content = json.loads(DirectoryEpisodesTV(dict(episodes=expected,
+            confirmed_series=dict(name='Show',tmdb_id=42,first_air_date='2020-01-01'),
+            **{'find-ls':'NOISY RAW LISTING'})).to_json())['content']
+        payload = json.loads(content)
+        self.assertEqual(payload['data'],dict(show='Show',year='2020',folder='Show',
+            files={'1':'season-1/Show-01.mkv','2':'season-2/Show-02.mkv'}))
+        self.assertEqual(list(payload['data']['files']),['1','2'])
+        self.assertNotIn('/exports',content)
+        self.assertNotIn('NOISY RAW LISTING',content)
+        self.assertNotIn('tmdb_id',content)
+        self.assertEqual(TVPattern.numbered_files(expected)[0]['path'],
+                         '/exports/film/Show/season-1/Show-01.mkv')
+
     def test_numeric_ids_preserve_original_apostrophes_and_ignore_reply_order(self):
         paths = ["/Bad-Monkey/Bad.Monkey.S01E02.You.Won’t.mkv",
                  "/Bad-Monkey/Bad.Monkey.S01E04.Nothing’s.Wrong.Don’t.mkv",
@@ -265,15 +282,18 @@ class TVConversationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result['identification'],dict(submission,year=None))
             self.assertIsNone(result['episodes'])
         messages = llm.complete.call_args.args[0]['messages']
-        self.assertIn('confirmed_series' if mapping else 'submit_tv_series',messages[1]['content'])
+        self.assertIn('confirmed TV show' if mapping else 'submit_tv_series',messages[1]['content'])
         if mapping:
-            files = json.loads(messages[1]['content'])['data']['episodes']
-            self.assertEqual(files[0]['file_id'],1)
-            self.assertEqual(files[0]['path'],'/11.22.63-01.mkv')
+            self.assertEqual(json.loads(messages[1]['content'])['data']['files'],{'1':'11.22.63-01.mkv'})
+            self.assertNotIn('find-ls',messages[1]['content'])
             definition = llm.complete.call_args.args[0]['tools'][0]['function']
             fields = definition['parameters']['properties']['episodes']['items']
             self.assertEqual(set(fields['required']),{'file_id','season_number','episode_number'})
             self.assertNotIn('path',fields['properties'])
+            self.assertEqual(fields['properties']['file_id']['enum'],[1])
+            episodes_schema = definition['parameters']['properties']['episodes']
+            self.assertEqual(episodes_schema['minItems'],1)
+            self.assertEqual(episodes_schema['maxItems'],1)
         if not mapping:
             self.assertNotIn('"episodes"',messages[1]['content'])
             definition = llm.complete.call_args.args[0]['tools'][0]['function']
