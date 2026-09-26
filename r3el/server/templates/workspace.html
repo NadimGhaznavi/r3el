@@ -60,7 +60,7 @@
     if (clearingWorkspace || (matchingInProgress && !duringMatching)) return;
     const requestedRevision = revision;
     const requestNumber = ++refreshSequence;
-    const response = await fetch('/', {cache: 'no-store'});
+    const response = await fetch('/control', {cache: 'no-store'});
     if (!response.ok) throw new Error();
     const page = new DOMParser().parseFromString(await response.text(), 'text/html');
     const updated = page.querySelector('.workspace-files');

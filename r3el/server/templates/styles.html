@@ -21,7 +21,13 @@
   .catalogue-recent-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
   .catalogue-pagination { margin: 0; flex-wrap: nowrap; gap: .5rem; }
   .catalogue-results { margin-top: 1.5rem; }
-  .catalogue-search-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+  .catalogue-search-panels { display: grid; grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr); gap: 1.5rem; }
+  .catalogue-index-row { white-space: nowrap; line-height: 2; }
+  .catalogue-index a[aria-current] { color: #ffd166; font-weight: 700; }
+  @media (max-width: 1100px) {
+    .catalogue-search-panels { grid-template-columns: 1fr; }
+    .catalogue-index { overflow-x: auto; }
+  }
   .catalogue-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1.5rem; }
   .catalogue-recent { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .catalogue-card { display: flex; flex-direction: column; min-width: 0; text-decoration: none; gap: .5rem; }
