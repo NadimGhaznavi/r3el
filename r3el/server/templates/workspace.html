@@ -57,7 +57,7 @@
   let stopRequested = {{ workspace.stop_requested | tojson }};
   async function refreshWorkspace(duringMatching = false) {
     const table = document.querySelector('.workspace-files');
-    if ((matchingInProgress && !duringMatching)
+    if (clearingWorkspace || (matchingInProgress && !duringMatching)
         || table.contains(document.activeElement)) return;
     const requestedRevision = revision;
     const requestNumber = ++refreshSequence;
@@ -65,7 +65,8 @@
     if (!response.ok) throw new Error();
     const page = new DOMParser().parseFromString(await response.text(), 'text/html');
     const updated = page.querySelector('.workspace-files');
-    if (!updated || updated.dataset.batchId !== table.dataset.batchId) throw new Error();
+    if (!updated) { window.location.replace({{ control_url | tojson }}); return; }
+    if (updated.dataset.batchId !== table.dataset.batchId) throw new Error();
     if (revision !== requestedRevision || requestNumber !== refreshSequence
         || table.contains(document.activeElement)) return;
     if (matchingInProgress) updated.querySelectorAll('input, button').forEach(control => { control.disabled = true; });
@@ -144,7 +145,7 @@
     const form = event.target.closest('.manual-match');
     if (!form) return;
     event.preventDefault();
-    if (matchingInProgress) return;
+    if (clearingWorkspace || matchingInProgress) return;
     const movieId = form.elements.movie_id.value.trim();
     if (!/^[0-9]{1,10}$/.test(movieId) || Number(movieId) < 1 || Number(movieId) > 4294967295) {
       form.elements.movie_id.setCustomValidity('Enter a positive TMDB movie ID.');
@@ -168,7 +169,7 @@
     const form = event.target.closest('.replace-media');
     if (!form) return;
     event.preventDefault();
-    if (matchingInProgress) return;
+    if (clearingWorkspace || matchingInProgress) return;
     showMatching();
     try {
       const response = await fetch({{ settings.REPLACE_MEDIA_URL | tojson }}, {

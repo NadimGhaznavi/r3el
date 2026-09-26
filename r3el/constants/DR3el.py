@@ -13,6 +13,7 @@ class DR3el:
     PROCESSING_GROUP_SIZE: Final[int] = 10
     BATCH_SIZE: Final[int] = 10
     MAX_BATCH_SIZE: Final[int] = 4294967295
+    CLEAR_BATCH_URL: Final[str] = "/workspace/clear"
     STOP_BATCH_URL: Final[str] = '/workspace/stop'
     NEW_BATCH_URL: Final[str] = "/batches"
     FILE_ACTION_URL: Final[str] = "/workspace/actions"

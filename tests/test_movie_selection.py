@@ -166,8 +166,7 @@ class OverviewExcerptTests(unittest.TestCase):
 
 
 class PendingSelectionTests(unittest.TestCase):
-    def test_pending_selection_disables_menu_and_preserves_matches_link(self):
-        import re
+    def test_pending_selection_status_and_matches_link(self):
         from dataclasses import replace
         from r3el.server.EventPages import EventPages
 
@@ -181,8 +180,7 @@ class PendingSelectionTests(unittest.TestCase):
                                        (False, 0, '11 matches')):
             item.tmdb_match = replace(match, selection_pending=pending, selected_number=number)
             body = EventPages().render('control.html', workspace=batch, refresh=0).decode()
-            menu = re.search(r'<select class="file-action".*?>', body, re.S).group(0)
-            self.assertEqual('disabled' in menu, pending)
+            self.assertNotIn('class="file-action"', body)
             self.assertIn('<td>Pending</td>' if pending else '<td>Identified</td>', body)
             self.assertIn(f'href="/matches/batch/file">{label}</a>', body)
 

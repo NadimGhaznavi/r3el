@@ -17,6 +17,7 @@ from r3el.activity.EventReport import EventReport
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.app.BatchMatching import BatchMatching
 from r3el.app.MatchingJobs import MatchingJobs
+from r3el.app.ClearWorkspace import ClearWorkspace
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.constants.DMessage import DMessage
 from r3el.constants.DR3el import DR3el
@@ -58,12 +59,21 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
         finally:
             db.close()
 
+    def execute_clear(batch_id: str) -> None:
+        db = DbMgr()
+        try:
+            ClearWorkspace(WorkspaceDb(db)).run(batch_id)
+        finally:
+            db.close()
+
     matching = MatchingJobs(execute_match)
+    clearing = MatchingJobs(execute_clear)
 
     class ControlHTTPServer(ThreadingHTTPServer):
         def server_close(self):
             super().server_close()
             matching.close()
+            clearing.close()
 
     class Handler(BaseHTTPRequestHandler):
         def setup(self):
@@ -100,10 +110,10 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     return
                 self.respond_catalogue(movie_id, catalogue.group(2))
                 return
-            job_path = re.fullmatch(r'/workspace/match/status/([A-Za-z0-9-]{1,36})', url.path)
+            job_path = re.fullmatch(r'/workspace/(match|clear)/status/([A-Za-z0-9-]{1,36})', url.path)
             if job_path:
-                job = matching.current()
-                if job is None or job['id'] != job_path.group(1):
+                job = (clearing if job_path.group(1) == 'clear' else matching).current()
+                if job is None or job['id'] != job_path.group(2):
                     self.respond(404, b'{"status":"unknown"}', 'application/json')
                 else:
                     self.respond(200, json.dumps(job).encode(), 'application/json')
@@ -209,7 +219,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                                              matching_job=active_job, **values))
 
         def do_POST(self):
-            if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL):
+            if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
                 self.send_error(404)
                 return
             # Browser form submissions must originate from this control server.
@@ -238,7 +248,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     if (set(payload) != {'batch_id', 'file_id'}
                             or any(not re.fullmatch(r'[A-Za-z0-9-]{1,36}', value) for value in payload.values())):
                         raise ValueError('Supply a valid batch and file ID.')
-                elif self.path in (DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL):
+                elif self.path in (DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.CLEAR_BATCH_URL):
                     if set(payload) != {'batch_id'} or not re.fullmatch(r'[A-Za-z0-9-]{1,36}', payload['batch_id']):
                         raise ValueError('Supply a valid batch_id.')
                 elif self.path == DR3el.FILE_ACTION_URL:
@@ -251,7 +261,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     payload['batch_size'] = int(payload['batch_size'])
                     parameters = BatchConfiguration.resolve(payload)
             except (KeyError, ValueError):
-                if self.path in (DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL):
+                if self.path in (DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
                     self.respond(400, b'{"saved":false}', 'application/json')
                     return
                 self.respond_control(400, result=DMessage.INVALID_PARAMETERS)
@@ -261,6 +271,12 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 return
             if self.path == DR3el.REPLACE_MEDIA_URL:
                 self.match_batch(payload['batch_id'], file_id=payload['file_id'], replace_media=True)
+                return
+            if self.path == DR3el.CLEAR_BATCH_URL:
+                job = clearing.submit(payload['batch_id'])
+                self.respond(202 if job else 409,
+                             json.dumps({'accepted': job is not None, 'job_id': job['id'] if job else None}).encode(),
+                             'application/json')
                 return
             if self.path == DR3el.STOP_BATCH_URL:
                 self.stop_batch(payload['batch_id'])
