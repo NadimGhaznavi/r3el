@@ -23,10 +23,10 @@ class TMDBMatch:
     year_offset: int = 0
     copied_files: list[dict] = field(default_factory=list)
     replace_local_media: bool = False
+    preserve_source_directory: bool = False
 
     @property
     def entry_exists(self) -> bool:
-        # Recognize already-persisted conflicts from the original copy implementation.
         return bool(self.catalogue_error and self.catalogue_error.startswith(
             'The destination video already exists: '))
 

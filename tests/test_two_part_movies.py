@@ -74,6 +74,38 @@ class DirectoryTests(unittest.TestCase):
         DirectoryDiscovery().run(self.batch, self.workspace, self.log)
         self.workspace.append_directories.assert_not_called()
 
+    def test_cd_folders_pair_different_basenames_and_copy_srt_with_assigned_part(self):
+        a = self.file('Under.Capricorn/CD1/nogrp-uc-cd1.avi')
+        b = self.file('Under.Capricorn/CD2/nogrp-uc-cd2.avi')
+        first = self.file('Under.Capricorn/CD1/Under Capricorn (1949) CD1.srt', 10)
+        second = self.file('Under.Capricorn/CD2/Under Capricorn (1949) CD2.srt', 10)
+        DirectoryDiscovery().run(self.batch, self.workspace, self.log)
+        self.assertEqual(len(self.batch.files), 1)
+        item = self.batch.files[0]
+        self.assertEqual(item.issues, [])
+        subtitles = [file for file in item.attachments if file.kind == 'subtitle']
+        self.assertEqual([(file.path, file.media_path) for file in subtitles], [(first, a), (second, b)])
+        item.assign_parts(b, a)
+        # Use small fixtures for the copy itself; discovery already verified the size threshold.
+        Path(a).write_bytes(b'video a')
+        Path(b).write_bytes(b'video b')
+        movie = replace(TMDBCatalogue.from_details(movie_payload(), 42), poster_path=None, backdrop_path=None)
+        files, _ = TwoPartCopy().prepare(movie, item, str(self.root / 'output'), self.log)
+        copied = [file for file in files.associated if file['kind'] == 'subtitle']
+        self.assertEqual([Path(file['path']).name for file in copied],
+                         ['Movie (2020) Part 2.srt', 'Movie (2020) Part 1.srt'])
+        self.assertEqual([Path(file['path']).read_bytes() for file in copied],
+                         [Path(first).read_bytes(), Path(second).read_bytes()])
+
+    def test_different_subtitle_name_with_two_sibling_videos_remains_unresolved(self):
+        self.file('movie/a.avi')
+        self.file('movie/b.avi')
+        self.file('movie/subtitle.srt', 10)
+        DirectoryDiscovery().run(self.batch, self.workspace, self.log)
+        item = self.batch.files[0]
+        self.assertEqual([issue.code for issue in item.issues], ['unresolved_srt'])
+        self.assertIsNone(item.attachments[-1].media_path)
+
     def test_find_handles_spaces_newlines_and_symlinks_without_following(self):
         name = 'movie/a weird\nname.avi'
         path = self.file(name)
