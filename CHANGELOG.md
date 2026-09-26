@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-25 @ 22:31
+
 ### Added
 
 - Recognize directories with multiple year-bearing media filenames as separate movies when the two-part pattern does not apply. Run the single-file dialogue for each movie, move associated subtitles, and remove the source directory only when no supported media or unresolved SRTs remain. A selected directory counts as one batch selection.
