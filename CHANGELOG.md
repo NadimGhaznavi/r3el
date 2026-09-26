@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-25 @ 22:43
+
 ### Changed
 - Show the current batch’s latest Event Log message beneath the batch controls, with a link to its details and automatic progress refresh.
 
