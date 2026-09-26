@@ -25,6 +25,16 @@ from r3el.interface.WorkspaceDb import WorkspaceActionConflict
 
 class TMDBTests(unittest.TestCase):
     @patch('r3el.interface.TMDB.httpx.get')
+    def test_only_404_is_classified_as_missing_metadata(self, get):
+        from r3el.interface.TMDB import TMDBNotFound
+        for status in (404, 401, 429, 500):
+            get.return_value = httpx.Response(status, request=httpx.Request('GET', TMDB.URL))
+            with self.assertRaises(TMDBError) as raised:
+                TMDB('secret').tv_episode(42, 1, 1)
+            self.assertEqual(isinstance(raised.exception, TMDBNotFound), status == 404)
+            self.assertIsInstance(raised.exception.__cause__, httpx.HTTPStatusError)
+
+    @patch('r3el.interface.TMDB.httpx.get')
     def test_tv_endpoints_and_first_air_year(self, get):
         client = TMDB('secret')
         get.return_value = httpx.Response(200, json={'total_results': 0, 'results': []},

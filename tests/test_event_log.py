@@ -199,6 +199,40 @@ class EventDatabaseTests(unittest.TestCase):
         self.db.execute('DELETE FROM media_file_batches')
         self.assertEqual(len(self.db.query('SELECT * FROM tv_episode_files')),1)
 
+    def test_tv_placeholder_records_keep_unique_ids_and_file_integrity(self):
+        from dataclasses import fields
+        from r3el.entity.CatalogueSeries import CatalogueSeries
+        from r3el.interface.TVCatalogue import TVCatalogue
+        from r3el.interface.TVCatalogueDb import TVCatalogueDb
+        catalogue = TVCatalogueDb(self.db)
+        series = CatalogueSeries(**{field.name: getattr(self.catalogue_movie(), field.name)
+                                    for field in fields(CatalogueSeries)})
+        season = TVCatalogue.missing_season(1)
+        ids = []
+        for number in (1, 2):
+            episode = TVCatalogue.missing_episode(1, number)
+            files = [dict(destination=f'/media/tv/episode-{number}.mkv', kind='video')]
+            with self.db.transaction():
+                catalogue.save_in_transaction(series, season, episode, files, [])
+            saved = catalogue.get(series.tmdb_id)['episodes'][number - 1]
+            self.assertEqual(saved['overview'], TVCatalogue.MISSING_DESCRIPTION)
+            self.assertEqual(saved['credits'], [])
+            self.assertGreater(saved['tmdb_id'], 4000000000)
+            ids.append(saved['tmdb_id'])
+            with self.db.transaction():
+                catalogue.save_in_transaction(series, season, episode, files, [])
+            self.assertEqual(catalogue.get(series.tmdb_id)['episodes'][number - 1]['tmdb_id'], ids[-1])
+        self.assertEqual(len(set(ids)), 2)
+        self.assertEqual(len(catalogue.get(series.tmdb_id)['files']), 2)
+        # Later valid metadata must retain the existing episode/file relationship.
+        real = dict(id=101, season_number=1, episode_number=1, name='Real title',
+                    credits={'cast': [], 'crew': []})
+        with self.db.transaction():
+            catalogue.save_in_transaction(series, season, real,
+                [dict(destination='/media/tv/episode-1.mkv', kind='video')], [])
+        self.assertEqual(catalogue.get(series.tmdb_id)['episodes'][0]['title'], 'Real title')
+        self.assertEqual(len(catalogue.get(series.tmdb_id)['files']), 2)
+
     def test_two_part_workspace_and_catalogue_round_trip(self):
         from r3el.entity.MediaAttachment import MediaAttachment
         workspace = WorkspaceDb(self.db)

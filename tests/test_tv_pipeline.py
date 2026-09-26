@@ -213,12 +213,38 @@ class TVImportTests(unittest.TestCase):
             ('episode','started',1),('episode','received',1),
             ('episode','started',2),('episode','received',2)])
 
-    def test_missing_episode_retains_source_and_successful_episode_imports(self):
+    def test_incomplete_season_listing_does_not_block_episode_import(self):
         self.client.tv_season.return_value['episodes'] = [{'episode_number':1}]
         self.run_import()
         self.assertFalse(Path(self.attachments[0].path).exists())
-        self.assertTrue(Path(self.attachments[1].path).exists())
+        self.assertFalse(Path(self.attachments[1].path).exists())
+        self.assertTrue(self.workspace.save_match.call_args.args[2].file_moved)
+
+    def test_missing_tmdb_season_and_episodes_import_with_placeholders(self):
+        from r3el.interface.TMDB import TMDBNotFound
+        from r3el.interface.TVCatalogue import TVCatalogue
+        self.client.tv_season.side_effect = TMDBNotFound('TMDB returned HTTP 404.')
+        self.client.tv_episode.side_effect = TMDBNotFound('TMDB returned HTTP 404.')
+        self.run_import()
+        self.assertTrue(self.workspace.save_match.call_args.args[2].file_moved)
+        self.assertFalse(self.source.exists())
+        saves = [c.kwargs for c in self.workspace.save_tv_episode.call_args_list if c.kwargs]
+        self.assertEqual(len(saves), 2)
+        self.assertEqual(saves[0]['episode']['overview'], TVCatalogue.MISSING_DESCRIPTION)
+        self.assertEqual(saves[0]['episode']['credits'], {'cast': [], 'crew': []})
+        self.assertEqual(saves[0]['episode']['id'], 0)
+        self.assertEqual(saves[0]['season']['id'], 0)
+        folder = self.root/'media/tv/Show (2020)/Season 01'
+        self.assertTrue((folder/'Show (2020) S01E01 - Episode 1.srt').exists())
+        warnings = [c.args[0] for c in self.log.record.call_args_list if c.args[0].level == 'WARNING']
+        self.assertEqual(len(warnings), 3)
+
+    def test_other_tmdb_failures_still_preserve_source(self):
+        from r3el.interface.TMDB import TMDBError
+        self.client.tv_episode.side_effect = TMDBError('TMDB returned HTTP 500.')
+        self.run_import()
         self.assertFalse(self.workspace.save_match.call_args.args[2].file_moved)
+        self.assertTrue(all(Path(a.path).exists() for a in self.attachments))
 
     def test_failed_commit_preserves_source(self):
         self.workspace.save_tv_episode.side_effect = RuntimeError('database failure')

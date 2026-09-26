@@ -12,6 +12,10 @@ class TMDBError(RuntimeError):
     """A movie search could not produce a valid response."""
 
 
+class TMDBNotFound(TMDBError):
+    """TMDB has no record for the requested resource."""
+
+
 class TMDB:
     URL = 'https://api.themoviedb.org/3/search/movie'
 
@@ -113,6 +117,8 @@ class TMDB:
             )
             response.raise_for_status()
         except httpx.HTTPStatusError as error:
+            if error.response.status_code == 404:
+                raise TMDBNotFound('TMDB returned HTTP 404.') from error
             raise TMDBError(f'TMDB returned HTTP {error.response.status_code}.') from error
         except httpx.RequestError as error:
             raise TMDBError('Unable to reach TMDB. Try matching again.') from error
