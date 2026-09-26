@@ -137,10 +137,13 @@ class ControlServerTests(unittest.TestCase):
         status, _, body = self.request('/catalogue/42')
         self.assertEqual(status, 200)
         get.assert_called_once_with(42)
-        for text in ('&lt;Movie&gt; (2020)', 'A saved overview.', '120 minutes', 'Drama',
-                     '&lt;Actor&gt; — Actor (Hero)', '/movies/Movie.mkv', '/catalogue/42/poster', 'tt123'):
+        for text in ('&lt;Movie&gt;</h1>', '2020 · Movie', 'A saved overview.', '120 minutes', 'Drama',
+                     '&lt;Actor&gt; — Hero', '/movies/Movie.mkv', '/catalogue/42/poster', 'tt123'):
             self.assertIn(text, body)
         self.assertNotIn('image.tmdb.org', body)
+        self.assertNotIn('Back to catalogue', body)
+        for heading in ('Director', 'Producers', 'Cast'):
+            self.assertIn('>' + heading + '</h2>', body)
         get.return_value = None
         self.assertEqual(self.request('/catalogue/42')[0], 404)
         for path in ('/catalogue/0', '/catalogue/4294967296', '/catalogue/abc'):
