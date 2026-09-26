@@ -124,6 +124,24 @@ class EventPagesTests(unittest.TestCase):
                 if name == 'db_create_record':
                     self.assertIn('Title: &lt;Movie&gt;, TMDB ID: 123', body)
 
+    def test_source_cleanup_events_render_for_movie_and_tv_imports(self):
+        for source in ('TVImport', 'SourceDirectoryCleanup'):
+            for paths, preserved in (([], False), (['/in/<Show>/episode.mkv'], True)):
+                with self.subTest(source=source, paths=paths):
+                    self.event.update(name='file_delete', source_name=source,
+                        content=json.dumps(dict(context=dict(filename='<Show>'), data=dict(
+                            outcome='deleted',paths=paths,source_directory='/in/<Show>',
+                            directory_preserved=preserved,error=None))))
+                    body = self.render()
+                    expected = 'Moved source files removed.' if paths else 'Source directory deleted.'
+                    self.assertIn(expected,body)
+                    self.assertIn('/in/&lt;Show&gt;',body)
+                    self.assertNotIn('Duplicate files',body)
+                    # Current Task renders this same message template directly.
+                    status = self.pages.message_template('file_delete').render(
+                        event=self.event,message=self.pages.message(self.event['content']))
+                    self.assertIn(expected,status)
+
     def test_multiple_choice_events_render_without_identification_fields(self):
         cases = (
             ('submission_accepted', 'MultipleChoiceHandler', {'status': 'ok', 'selected_number': 2}, 'Selected number: 2'),
