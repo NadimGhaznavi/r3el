@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Group Director, Producers and Cast inside a People box, collapsed by default, and rename Imported episodes to Episodes on catalogue pages.
+
 ## [4.3.2] - 2026-09-26 @ 04:32
 
 ### Changed
