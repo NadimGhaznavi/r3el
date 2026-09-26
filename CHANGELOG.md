@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Remove the instructional hint beneath catalogue Title Search.
+
+### Changed
+- Show the number of matching movies in the catalogue Search Results heading.
+
 ## [3.0.1] - 2026-09-26 @ 01:51
 
 ### Changed
