@@ -20,8 +20,13 @@ class DirectoryDiscovery:
         if batch.directories_scanned:
             return
         filesystem = DirectoryFiles()
-        items, claimed = [], set()
-        for directory in filesystem.directories(batch.source_directory, batch.destination_directory):
+        remaining = max(0, batch.requested_size - len(batch.files))
+        items = []
+        directories = (filesystem.directories(batch.source_directory, batch.destination_directory)
+                       if remaining else [])
+        for directory in directories:
+            if len(items) >= remaining:
+                break
             workspace.check_stop(batch.id)
             item_id = str(uuid4())
             item_log = EventWriter(log.record, {**log.context, 'item_id': item_id,
@@ -33,13 +38,12 @@ class DirectoryDiscovery:
                             if size > 100 * 1024 * 1024
                             and Path(path).suffix.lower().lstrip('.') in MovieFormats.ORDER),
                            key=lambda path: (MovieFormats.rank(path), path))
-            matched = len(media) == 2 and not claimed.intersection(media)
+            matched = len(media) == 2
             item_log.write(Categories.Batch.DISCOVERY, Names.DIRECTORY_SCAN_COMPLETED,
                            {'directory': str(directory), 'find-ls': listing, 'media_files': media,
                             'matched': matched}, source='DirectoryDiscovery')
             if not matched:
                 continue
-            claimed.update(media)
             attachments = [MediaAttachment(path) for path in media]
             issues = []
             subtitles = sorted(path for path, _ in files if Path(path).suffix.lower() == '.srt')

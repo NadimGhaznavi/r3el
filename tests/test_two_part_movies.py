@@ -47,7 +47,7 @@ class DirectoryTests(unittest.TestCase):
             stream.truncate(size)
         return str(path)
 
-    def test_recursive_detection_threshold_supported_formats_and_no_duplicate_parent(self):
+    def test_top_level_selection_with_recursive_contents_and_media_threshold(self):
         a = self.file('parent/movie/a.AVI')
         b = self.file('parent/movie/b.mkv')
         self.file('parent/movie/sample.mp4', 100 * 1024 * 1024)
@@ -60,7 +60,7 @@ class DirectoryTests(unittest.TestCase):
         DirectoryDiscovery().run(self.batch, self.workspace, self.log)
         self.assertEqual(len(self.batch.files), 1)
         item = self.batch.files[0]
-        self.assertEqual(item.path, str(self.root / 'parent/movie'))
+        self.assertEqual(item.path, str(self.root / 'parent'))
         self.assertEqual([a.path for a in item.attachments if a.kind == 'video'], [b, a])
         self.assertIn('a.AVI', item.find_ls)
         self.assertEqual([issue.code for issue in item.issues], ['unresolved_srt'])
@@ -73,6 +73,51 @@ class DirectoryTests(unittest.TestCase):
         self.workspace.append_directories.reset_mock()
         DirectoryDiscovery().run(self.batch, self.workspace, self.log)
         self.workspace.append_directories.assert_not_called()
+
+    def test_batch_size_one_queues_one_top_level_directory(self):
+        self.batch.requested_size = 1
+        for name in ('a', 'b', 'c'):
+            self.file(f'{name}/CD1/part1.avi')
+            self.file(f'{name}/CD2/part2.avi')
+        DirectoryDiscovery().run(self.batch, self.workspace, self.log)
+        self.assertEqual([item.path for item in self.batch.files], [str(self.root / 'a')])
+        scans = [event for event in self.events if event.name == 'directory_scan_started']
+        self.assertEqual(len(scans), 1)
+
+    def test_ordinary_files_count_toward_directory_allowance(self):
+        self.batch.requested_size = 2
+        self.batch.files = [MediaFile('ordinary', '/ordinary.avi')]
+        for name in ('a', 'b'):
+            self.file(f'{name}/part1.avi')
+            self.file(f'{name}/part2.avi')
+        DirectoryDiscovery().run(self.batch, self.workspace, self.log)
+        self.assertEqual(len(self.batch.files), 2)
+        self.assertEqual(self.batch.files[-1].path, str(self.root / 'a'))
+
+    def test_full_batch_does_not_enumerate_or_scan_directories(self):
+        self.batch.requested_size = 1
+        self.batch.files = [MediaFile('ordinary', '/ordinary.avi')]
+        with patch('r3el.activity.DirectoryDiscovery.DirectoryFiles') as filesystem:
+            DirectoryDiscovery().run(self.batch, self.workspace, self.log)
+        filesystem.return_value.directories.assert_not_called()
+        filesystem.return_value.scan.assert_not_called()
+        self.assertEqual(len(self.batch.files), 1)
+
+    def test_nested_movies_are_not_individual_candidates_when_parent_does_not_match(self):
+        for movie in ('one', 'two'):
+            self.file(f'collection/{movie}/part1.avi')
+            self.file(f'collection/{movie}/part2.avi')
+        DirectoryDiscovery().run(self.batch, self.workspace, self.log)
+        self.assertEqual(self.batch.files, [])
+        self.assertEqual(DirectoryFiles().directories(str(self.root), None), [self.root / 'collection'])
+
+    def test_unmatched_directory_does_not_consume_a_batch_slot(self):
+        self.batch.requested_size = 1
+        self.file('a-unmatched/only.avi')
+        self.file('b-movie/part1.avi')
+        self.file('b-movie/part2.avi')
+        DirectoryDiscovery().run(self.batch, self.workspace, self.log)
+        self.assertEqual([item.path for item in self.batch.files], [str(self.root / 'b-movie')])
 
     def test_cd_folders_pair_different_basenames_and_copy_srt_with_assigned_part(self):
         a = self.file('Under.Capricorn/CD1/nogrp-uc-cd1.avi')

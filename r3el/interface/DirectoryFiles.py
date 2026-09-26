@@ -9,16 +9,10 @@ import tempfile
 class DirectoryFiles:
     def directories(self, root: str, destination: str | None) -> list[Path]:
         excluded = Path(destination).resolve() if destination else None
-        result = []
-        def failed(error):
-            raise error
-        for current, children, _ in os.walk(root, followlinks=False, onerror=failed):
-            children[:] = sorted(name for name in children
-                                 if not Path(current, name).is_symlink()
-                                 and Path(current, name).resolve() != excluded)
-            result.extend(Path(current, name) for name in children)
-        # Claim the deepest matching directory first so parent listings cannot duplicate it.
-        return sorted(result, key=lambda path: (-len(path.parts), str(path)))
+        with os.scandir(root) as entries:
+            return sorted((Path(entry.path) for entry in entries
+                           if entry.is_dir(follow_symlinks=False) and Path(entry.path).resolve() != excluded),
+                          key=lambda path: path.name)
 
     def scan(self, directory: Path, destination: str | None = None) -> tuple[str, list[tuple[str, int]]]:
         prune = ['-path', str(Path(destination).resolve()), '-prune', '-o'] if destination else []
