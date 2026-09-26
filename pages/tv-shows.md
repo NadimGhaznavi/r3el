@@ -62,7 +62,8 @@ episodes. Source cleanup remains recursive: any supported media or SRT at any
 depth, or a linked subdirectory, preserves the source tree.
 
 Catalogue searches and recent additions include TV series. Series pages show
-imported episodes and local files. The batch Match Results page shows each video's
+imported episodes with saved summaries, air dates, runtimes, still images and
+expandable episode credits, plus local files. The batch Match Results page shows each video's
 episode mapping and import outcome.
 
 Install/upgrade applies the TV schema and deploys the new prompt and modules.

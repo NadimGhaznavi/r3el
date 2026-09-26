@@ -103,6 +103,14 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             if url.path == '/health':
                 self.respond(200, b'{"status":"ok","service":"r3el-control"}', 'application/json')
                 return
+            episode_still = re.fullmatch(r'/catalogue/tv/([0-9]{1,10})/episodes/([0-9]{1,10})/still', url.path)
+            if episode_still:
+                series_id, episode_id = map(int, episode_still.groups())
+                if not all(1 <= value <= 4294967295 for value in (series_id, episode_id)):
+                    self.send_error(404, 'Episode not found')
+                    return
+                self.respond_catalogue(series_id, 'still', '', 0, [], 'tv', episode_id)
+                return
             catalogue_path = url.path.replace('/catalogue/tv/', '/catalogue/', 1)
             catalogue = re.fullmatch(r'/catalogue(?:/([0-9]{1,10})(?:/(poster|backdrop))?)?', catalogue_path)
             if catalogue:
@@ -184,14 +192,16 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 return
             self.respond(200, body)
 
-        def respond_catalogue(self, movie_id: int | None, artwork: str | None, title: str, recent_page: int, category_ids: list[int], media_type: str):
+        def respond_catalogue(self, movie_id: int | None, artwork: str | None, title: str, recent_page: int, category_ids: list[int], media_type: str, episode_id: int | None = None):
             try:
                 db = DbMgr()
                 try:
                     catalogue = CatalogueDb(db)
                     if media_type == 'tv':
                         catalogue = TVCatalogueDb(db)
-                    if artwork:
+                    if episode_id is not None:
+                        value = catalogue.episode_still_path(movie_id, episode_id)
+                    elif artwork:
                         value = catalogue.artwork_path(movie_id, artwork)
                     elif movie_id is not None:
                         value = catalogue.get(movie_id)
