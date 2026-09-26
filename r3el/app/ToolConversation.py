@@ -20,6 +20,7 @@ from r3el.constants.DEventCategory import DEventCategory as Categories
 from r3el.constants.DEventName import DEventName as Names
 from r3el.constants.DR3el import DR3el
 from r3el.interface.IdentificationTools import IdentificationTools
+from r3el.interface.LLM import LLMRequestRejected
 
 
 def finite_number(value: str) -> float:
@@ -78,7 +79,7 @@ class ToolConversation:
             context_prompt = DirectoryEpisodesTV(self._directory)
             submit_prompt = Prompt('Return the submit_tv tool call with episode mappings only.')
         elif self._series:
-            context_prompt = DirectoryContextTV(self._directory)
+            context_prompt = DirectoryContextTV({**self._directory, 'folder': self._log.context['filename']})
             submit_prompt = Prompt('Call submit_tv_series exactly once with title and confidence only. Do not supply a year.')
         elif self._directory is not None:
             context_prompt = DirectoryContextTwoParts(self._directory)
@@ -108,10 +109,17 @@ class ToolConversation:
                                                two_parts=self._directory is not None and not self._series, tv=self._tv, series=self._series and not self._tv) as tools:
                     if self._tv:
                         tools.restrict_episode_files([row['file_id'] for row in context['tv_episodes']])
-                    body = await self._llm.complete({
-                        'messages': messages, 'tools': [tools.definition],
-                        'tool_choice': 'required', 'parallel_tool_calls': False, 'stream': False,
-                    })
+                    try:
+                        body = await self._llm.complete({
+                            'messages': messages, 'tools': [tools.definition],
+                            'tool_choice': 'required', 'parallel_tool_calls': False, 'stream': False,
+                        })
+                    except LLMRequestRejected as error:
+                        # Exit MCP normally; do not wrap a rejected request in its task group.
+                        reason = str(error)
+                        attempt_log.write(Categories.Prompt.TOOL_CONVERSATION, Names.ATTEMPT_FAILED,
+                                          {'error': reason}, source='ToolConversation', level='ERROR')
+                        return {'status': 'unresolved_llm', 'attempts': attempt, 'reason': reason}
                     attempt_log.write(Categories.Prompt.TOOL_CONVERSATION, Names.REPLY_RECEIVED,
                                       body, source='LLM')
                     try:

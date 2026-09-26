@@ -38,6 +38,24 @@ def render_events(events):
 
 
 class TVPatternTests(unittest.TestCase):
+    def test_series_prompt_samples_large_listing_without_losing_backend_paths(self):
+        from r3el.app.prompts.DirectoryContextTV import DirectoryContextTV
+        paths = {f'/exports/Show/season-{s:02}/Show-S{s:02}E{e:02}.mkv':
+                 dict(season_number=s, episode_number=e)
+                 for s in range(1, 31) for e in range(1, 25)}
+        content = json.loads(DirectoryContextTV({'folder': 'Show', 'episodes': paths,
+            'find-ls': 'NOISY RAW LISTING' * 10000}).to_json())['content']
+        data = json.loads(content)['data']
+        self.assertEqual(data['folder'], 'Show')
+        self.assertEqual(data['video_count'], 720)
+        self.assertEqual(list(data['sample_files']), [str(n) for n in range(1, 13)])
+        self.assertEqual(data['sample_files']['1'], 'season-01/Show-S01E01.mkv')
+        self.assertEqual(data['sample_files']['12'], 'season-30/Show-S30E24.mkv')
+        self.assertNotIn('NOISY', content)
+        self.assertNotIn('/exports', content)
+        self.assertLess(len(content.encode('utf-8')), 7000)
+        self.assertEqual(len(paths), 720)
+
     def test_episode_prompt_is_a_sorted_numbered_list_without_server_paths(self):
         from r3el.app.prompts.DirectoryEpisodesTV import DirectoryEpisodesTV
         expected = {'/exports/film/Show/season-2/Show-02.mkv':dict(season_number=2,episode_number=2),
@@ -251,6 +269,28 @@ class TVImportTests(unittest.TestCase):
 
 
 class TVConversationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_rejected_request_leaves_unresolved_and_mcp_closes_cleanly(self):
+        from fake_llm import FakeLLM
+        from r3el.interface.LLM import LLM
+        from r3el.zmq.ZMQServer import ZMQServer
+        handler = SubmissionHandler(Mock(return_value=1))
+        log = EventWriter(Mock(return_value=1), dict(batch_id='batch', item_id='item', filename='Show'))
+        directory = {'find-ls': 'listing', 'episodes': {'/Show/Show-S01E01.mkv':
+                     dict(season_number=1, episode_number=1)}}
+        error = json.dumps({'error': {'message': 'request (37751 tokens) exceeds the available context size (12288 tokens)'}})
+        with FakeLLM([error], status=400) as llm, ZMQServer('tcp://127.0.0.1:*', handler.handle) as listener:
+            result = await ToolConversation(LLM(llm.url), listener.endpoint, handler, log,
+                                            directory=directory).run()
+            self.assertEqual(len(llm.requests), 1)
+        self.assertEqual(result['status'], 'unresolved_llm')
+        self.assertEqual(result['attempts'], 1)
+        self.assertIn('37751 tokens', result['reason'])
+        events = [call.args[0] for call in log.record.call_args_list]
+        self.assertEqual([event.name for event in events][-1], 'attempt_failed')
+        render_events(events)
+        # A subsequent item can still use MCP and the submission handler normally.
+        await self.check_dialogue(False)
+
     async def test_real_mcp_dialogue_identifies_only_series(self):
         await self.check_dialogue(False)
 
