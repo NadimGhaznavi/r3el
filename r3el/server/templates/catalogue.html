@@ -29,6 +29,7 @@
     <div class="catalogue-recent-heading">
       <h2 id="recent-heading">Recent additions</h2>
       <form method="get" action="/catalogue" aria-label="Browse recent additions" class="catalogue-pagination">
+        {% if not selected_categories %}<input type="hidden" name="type" value="{{ search_type }}">{% endif %}
         {% for category_id in selected_categories %}<input type="hidden" name="category" value="{{ category_id }}">{% endfor %}
         {% if search_title %}<input type="hidden" name="title" value="{{ search_title }}">{% endif %}
         {% if recent_page > 0 %}
@@ -51,6 +52,13 @@
     <label for="catalogue-title">Title:
       <input type="search" id="catalogue-title" name="title" value="{{ search_title }}">
     </label>
+    <label for="catalogue-type">Type:
+      <select id="catalogue-type" name="type">
+        {% for value, label in [('movie', 'Movie'), ('tv', 'TV'), ('both', 'Both')] %}
+        <option value="{{ value }}"{% if search_type == value %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
     <button type="submit">Search</button>
   </form>
 </section>
@@ -70,7 +78,7 @@
 <section class="batch-panel catalogue-results" aria-labelledby="search-results-heading">
   <h2 id="search-results-heading">Search Results ({{ movies | length }})</h2>
   {% if movies %}{{ cards(movies) }}
-  {% else %}<p role="status">{% if selected_categories %}No movies found in the selected categories.{% else %}No movies found for “{{ search_title }}”.{% endif %}</p>{% endif %}
+  {% else %}<p role="status">{% if selected_categories %}No movies or TV shows found in the selected categories.{% else %}No titles found for “{{ search_title }}”.{% endif %}</p>{% endif %}
 </section>
 {% endif %}
 {% endblock %}
