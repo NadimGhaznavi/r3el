@@ -1,3 +1,11 @@
+---
+title: ZeroMQ messages
+author_profile: true
+layout: single
+---
+
+[Documentation index](../index.md)
+
 # ZMQ messages
 
 R3el uses one JSON frame per request/reply at `DR3el.ZMQ_ENDPOINT` (by default
