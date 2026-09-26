@@ -187,6 +187,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                         value = catalogue.get(movie_id)
                     else:
                         recent = catalogue.recent(offset=recent_page * 4, limit=5)
+                        categories = catalogue.categories()
                         value = catalogue.movies(title) if title else []
                 finally:
                     db.close()
@@ -213,7 +214,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             else:
                 self.respond(200, pages.render('catalogue.html', movies=value, recent=recent[:4],
                                                recent_page=recent_page, has_older=len(recent) > 4,
-                                               search_title=title, refresh=0))
+                                               search_title=title, catalogue_categories=categories, refresh=0))
 
         def respond_control(self, status: int = 200, refresh: int = 0, **values):
             try:

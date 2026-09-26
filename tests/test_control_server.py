@@ -76,7 +76,9 @@ class ControlServerTests(unittest.TestCase):
 
     @patch('r3el.server.ControlServer.CatalogueDb.recent')
     @patch('r3el.server.ControlServer.CatalogueDb.movies')
-    def test_catalogue_recent_and_title_search(self, movies, recent):
+    @patch('r3el.server.ControlServer.CatalogueDb.categories',
+           return_value=[{'name': 'Action'}, {'name': 'Comedy'}])
+    def test_catalogue_recent_and_title_search(self, categories, movies, recent):
         recent.return_value = [{'tmdb_id': 42, 'title': '<Movie>', 'release_year': 2020,
                                 'poster_path': '/poster.jpg'}]
         movies.return_value = [{'tmdb_id': 43, 'title': 'Other', 'release_year': None,
@@ -87,6 +89,9 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('&lt;Movie&gt;', body)
         self.assertIn('src="/catalogue/42/poster"', body)
         self.assertIn('Recent additions', body)
+        self.assertIn('>Title Search</h2>', body)
+        self.assertIn('>Category Search</h2>', body)
+        self.assertIn('<p>Action, Comedy</p>', body)
         movies.assert_not_called()
         self.assertNotIn('<Movie>', body)
         status, _, body = self.request('/catalogue?title=Other')
@@ -103,7 +108,8 @@ class ControlServerTests(unittest.TestCase):
 
     @patch('r3el.server.ControlServer.CatalogueDb.recent')
     @patch('r3el.server.ControlServer.CatalogueDb.movies', return_value=[])
-    def test_catalogue_recent_arrows_show_four_and_preserve_search(self, movies, recent):
+    @patch('r3el.server.ControlServer.CatalogueDb.categories', return_value=[])
+    def test_catalogue_recent_arrows_show_four_and_preserve_search(self, categories, movies, recent):
         recent.return_value = [dict(tmdb_id=i, title=f'Movie {i}', release_year=2020,
                                    poster_path=None) for i in range(1, 6)]
         status, _, body = self.request('/catalogue?title=Alien')
