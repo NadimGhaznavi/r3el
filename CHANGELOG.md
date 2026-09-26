@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Move directory videos and associated SRTs using the same filesystem staging as single-file imports, without copying or reading back media contents. Log move events and retain sources until catalogue commit.
+
 ## [1.7.3] - 2026-09-25 @ 23:12
 
 ### Fixed

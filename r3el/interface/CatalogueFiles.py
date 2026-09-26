@@ -1,7 +1,5 @@
 """Prepare local media without overwriting files; remove sources only after commit."""
 
-import filecmp
-import shutil
 import os
 from pathlib import Path
 import re
@@ -46,7 +44,7 @@ class CatalogueFiles:
             self._sync_directory(target.parent)
 
     def prepare(self, movie: CatalogueMovie, source: str, destination: str | None,
-                file_id: str, log: EventWriter, *, part: int | None = None, copy: bool = False, replace_existing: bool = False) -> MovieFiles:
+                file_id: str, log: EventWriter, *, part: int | None = None, replace_existing: bool = False) -> MovieFiles:
         if not destination:
             raise ValueError('The batch needs an output directory before files can be catalogued.')
         if movie.release_date is None:
@@ -81,24 +79,12 @@ class CatalogueFiles:
         backdrop = self._image(movie.backdrop_path, folder, 'backdrop', log)
         if origin != target:
             if stage.exists():
-                if not (filecmp.cmp(origin, stage, shallow=False) if copy else origin.samefile(stage)):
+                if not origin.samefile(stage):
                     raise ValueError('The source video changed after its move was prepared.')
             else:
-                # Publish a complete staged file without overwriting the destination.
-                # Ordinary moves use a hard link; directory items copy their bytes.
-                if copy:
-                    descriptor, temporary = tempfile.mkstemp(prefix='.r3el-copy-', dir=folder)
-                    try:
-                        with os.fdopen(descriptor, 'wb') as output, origin.open('rb') as source_stream:
-                            shutil.copyfileobj(source_stream, output)
-                            output.flush()
-                            os.fsync(output.fileno())
-                        os.chmod(temporary, 0o644)
-                        os.link(temporary, stage)
-                    finally:
-                        Path(temporary).unlink(missing_ok=True)
-                else:
-                    os.link(origin, stage)
+                # A hard link stages the same inode without copying media bytes.
+                # Remove the source name only after the catalogue transaction commits.
+                os.link(origin, stage)
             try:
                 os.link(stage, target)
             except FileExistsError:

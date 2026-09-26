@@ -1,4 +1,4 @@
-"""A clean directory run removes sources only after copying and catalogue commit."""
+"""A clean directory run removes sources only after staging filesystem moves and catalogue commit."""
 
 from dataclasses import replace
 from pathlib import Path
@@ -64,7 +64,7 @@ class SourceCleanupTests(unittest.TestCase):
         self.assertTrue(all(Path(file.path).exists() for file in self.item.attachments))
         self.assertTrue((self.source / 'movie.nfo').exists())
 
-    def test_unresolved_subtitle_and_directory_remain_but_copied_sources_are_removed(self):
+    def test_unresolved_subtitle_and_directory_remain_but_moved_sources_are_removed(self):
         unresolved = self.source / 'unknown.srt'
         unresolved.write_bytes(b'unresolved')
         self.item.attachments.append(MediaAttachment(str(unresolved), 'subtitle'))
@@ -80,13 +80,13 @@ class SourceCleanupTests(unittest.TestCase):
         b = self.source / 'part2.avi'
         good = self.root / 'good.avi'
         bad = self.root / 'bad.avi'
-        good.write_bytes(a.read_bytes())
+        good.hardlink_to(a)
         copies = [{'source': str(a), 'destination': str(good)}, {'source': str(b), 'destination': str(bad)}]
         for exists in (False, True):
             if exists:
                 bad.write_bytes(b'wrong bytes')
             with self.assertRaises(ValueError):
-                SourceDirectoryCleanup().finish(str(self.source), copies, preserve_directory=False, log=self.log)
+                SourceDirectoryCleanup().finish(str(self.source), copies, preserve_directory=False)
             self.assertTrue(a.exists())
             self.assertTrue(b.exists())
 
@@ -96,20 +96,37 @@ class SourceCleanupTests(unittest.TestCase):
         target.write_bytes(origin.read_bytes())
         with self.assertRaises(ValueError):
             SourceDirectoryCleanup().finish(str(self.source),
-                [{'source': str(origin), 'destination': str(target)}], preserve_directory=False, log=self.log)
+                [{'source': str(origin), 'destination': str(target)}], preserve_directory=False)
         self.assertTrue(origin.exists())
         self.assertTrue(target.exists())
 
-    def test_verification_reports_progress_and_completion(self):
-        import json
-        origin = self.source / 'part1.avi'
-        origin.write_bytes(b'x' * (2 * 1024 * 1024 + 1))
-        target = self.root / 'verified.avi'
-        target.write_bytes(origin.read_bytes())
-        with patch('r3el.interface.SourceDirectoryCleanup.time.monotonic', side_effect=[0, 6, 12, 18]):
-            self.assertTrue(SourceDirectoryCleanup._verify(origin, target, self.log))
-        reports = [json.loads(call.args[0].message)['data'] for call in self.log.record.call_args_list]
-        self.assertEqual([report['verified_bytes'] for report in reports],
-                         [0, 1024 * 1024, 2 * 1024 * 1024, 2 * 1024 * 1024 + 1, 2 * 1024 * 1024 + 1])
-        self.assertEqual(reports[-1]['outcome'], 'verified')
-        self.assertTrue(origin.exists())
+    def test_directory_import_preserves_inodes_without_reading_media(self):
+        inodes = [Path(attachment.path).stat().st_ino for attachment in self.item.attachments]
+        original_open = Path.open
+        def open_metadata(path, *args, **kwargs):
+            if path.suffix in ('.avi', '.srt'):
+                raise AssertionError('Media contents must not be read')
+            return original_open(path, *args, **kwargs)
+        with patch.object(Path, 'open', open_metadata):
+            self.run_catalogue()
+        files = self.workspace.save_catalogue.call_args.args[-1].associated
+        self.assertEqual([Path(file['path']).stat().st_ino for file in files], inodes)
+        self.assertFalse(self.source.exists())
+
+    def test_unprocessed_media_in_subdirectory_prevents_directory_deletion(self):
+        nested = self.source / 'extras' / 'nested'
+        nested.mkdir(parents=True)
+        remaining = nested / 'small.avi'
+        remaining.write_bytes(b'extra')
+        self.run_catalogue()
+        self.assertEqual(remaining.read_bytes(), b'extra')
+        self.assertFalse((self.source / 'part1.avi').exists())
+
+    def test_cross_filesystem_failure_preserves_sources(self):
+        import errno
+        with patch('r3el.interface.CatalogueFiles.os.link',
+                   side_effect=OSError(errno.EXDEV, 'Cross-device link')):
+            self.run_catalogue()
+        self.workspace.save_catalogue.assert_not_called()
+        self.assertTrue(all(Path(file.path).exists() for file in self.item.attachments))
+        self.assertIn('Cross-device', self.workspace.save_match.call_args.args[2].catalogue_error)

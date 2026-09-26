@@ -21,7 +21,7 @@ class TMDBMatch:
     duplicate: bool = False
     discard_files: list[dict] = field(default_factory=list)
     year_offset: int = 0
-    copied_files: list[dict] = field(default_factory=list)
+    moved_files: list[dict] = field(default_factory=list)
     replace_local_media: bool = False
     preserve_source_directory: bool = False
     source_directory: str | None = None
