@@ -26,6 +26,10 @@ Results panel. Each card opens a movie page with a poster and summary, Director,
 Producers, Cast, and Files boxes. These pages read saved catalogue data and local
 artwork without querying TMDB.
 
+Movie file lists and individual episodes include local filesystem links. These
+use the stored path with the leading `/exports/` replaced by `/imports/`, for
+example `file:///imports/disk1/Movie.mkv`. Other path prefixes stay unchanged.
+
 Title Search, Search Index, Category Search, and Random Search share a row.
 Random Search has a single Search button that replaces Recent additions with six
 random movies, TV shows, or episodes (or all entries when fewer than six exist).
