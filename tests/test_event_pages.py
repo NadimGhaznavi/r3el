@@ -92,6 +92,16 @@ class EventPagesTests(unittest.TestCase):
             if error:
                 self.assertIn('&lt;connection error&gt;', body)
 
+    def test_tv_search_renders_first_air_year_in_log_and_current_task(self):
+        self.event.update(category='TMDB',subcategory='Search',name='tmdb_search',source_name='TMDB',
+            content=json.dumps(dict(context=dict(filename='<Show>'),data=dict(
+                parameters=dict(query='<Series>',first_air_date_year=2016,page=1)))))
+        for body in (self.render(), self.pages.message_template('tmdb_search').render(
+                event=self.event,message=self.pages.message(self.event['content']))):
+            self.assertIn('First air year: 2016',body)
+            self.assertIn('Title: &lt;Series&gt;',body)
+            self.assertNotIn('Primary release year',body)
+
     def test_catalogue_event_templates_link_to_escaped_details(self):
         cases = [
             ('file_delete', {'outcome': 'deleted', 'paths': ['/in/<movie>.mpg'],

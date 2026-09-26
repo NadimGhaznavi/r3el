@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.2] - 2026-09-26 @ 03:39
+
+### Tests
+- Check actual TV dialogue, search, import, failure and cleanup event payloads against Event Log and Current Task templates to catch producer/display mismatches.
+
+### Fixed
+- Render TV search events using their first-air year instead of requiring a movie release year, fixing Event Log and Current Task rendering.
+
 ## [4.2.1] - 2026-09-26 @ 03:30
 
 ### Fixed
