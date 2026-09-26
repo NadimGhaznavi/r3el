@@ -1,11 +1,15 @@
 """TV discovery, constrained episode mapping and metadata-only imports."""
 
 from dataclasses import asdict
+from datetime import datetime
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import Mock, patch
+
+from r3el.server.EventPages import EventPages
+
 
 from r3el.activity.TVPattern import TVPattern
 from r3el.activity.DirectoryDiscovery import DirectoryDiscovery
@@ -19,6 +23,18 @@ from r3el.app.ToolConversation import ToolConversation
 from r3el.app.SubmissionHandler import SubmissionHandler
 from r3el.constants.DMessage import DMessage
 from r3el.zmq.ZMQMsg import ZMQMsg
+
+
+def render_events(events):
+    """Check real producer payloads in the report and Current Task presentation."""
+    pages = EventPages()
+    rows = [dict(event_id=number,occurred_at=datetime(2026,9,26),log_level=event.level,
+                 category=event.classification.category,subcategory=event.classification.subcategory,
+                 name=event.name,source_name=event.source_name,content=event.message)
+            for number,event in enumerate(events,1)]
+    pages.render('events.html',events=rows,category=None,subcategory=None,name=None,refresh=0)
+    for row in rows:
+        pages.message_template(row['name']).render(event=row,message=pages.message(row['content']))
 
 
 class TVPatternTests(unittest.TestCase):
@@ -122,7 +138,13 @@ class TVImportTests(unittest.TestCase):
         self.addCleanup(self.patch.stop)
 
     def run_import(self):
-        TVImport(self.workspace).run(self.batch,self.item,self.result,self.log)
+        try:
+            TVImport(self.workspace).run(self.batch,self.item,self.result,self.log)
+        finally:
+            events = [call.args[0] for call in self.log.record.call_args_list]
+            events += [call.args[4] for call in self.workspace.save_tv_episode.call_args_list]
+            events += [call.args[3] for call in self.workspace.save_match.call_args_list]
+            render_events(events)
 
     def test_moves_episodes_and_srt_to_tv_tree_with_same_inodes(self):
         inode = Path(self.attachments[0].path).stat().st_ino
@@ -217,6 +239,8 @@ class TVConversationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['episodes'],submission['episodes'])
         messages = llm.complete.call_args.args[0]['messages']
         self.assertIn('first-air year',messages[1]['content'])
+        render_events([call.args[0] for call in log.record.call_args_list]
+                      + [call.args[0] for call in handler._record.call_args_list])
 
 class TVSearchTests(unittest.TestCase):
     @patch('r3el.app.BatchMatching.TMDB.from_environment')
@@ -228,3 +252,4 @@ class TVSearchTests(unittest.TestCase):
         self.assertEqual(result.media_type,'tv')
         factory.return_value.search_tv.assert_called_once_with('Show',2020)
         factory.return_value.search.assert_not_called()
+        render_events([call.args[0] for call in log.record.call_args_list])
