@@ -26,6 +26,7 @@ class TMDBMatch:
     preserve_source_directory: bool = False
     source_directory: str | None = None
     media_type: str = 'movie'
+    episodes_mapped: bool = False
 
     @property
     def entry_exists(self) -> bool:
@@ -55,6 +56,8 @@ class TMDBMatch:
             return 'Match failed'
         if self.entry_exists:
             return 'Entry exists'
+        if self.catalogue_error and self.catalogue_error.startswith('Episode mapping unresolved:'):
+            return 'Unresolved — episodes'
         if self.catalogue_error is not None:
             return 'Catalogue failed'
         if self.selected_number:

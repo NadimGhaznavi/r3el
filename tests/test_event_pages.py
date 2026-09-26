@@ -41,7 +41,7 @@ class EventPagesTests(unittest.TestCase):
         batch = MediaFileBatch('batch',1,'/source')
         cases = [
             ('attempt_started','ToolConversation',{},'Identifying TV series and episodes with the LLM'),
-            ('prompt_sent','DirectoryContextTV',{'content':'{}'},'TV series and episode identification prompt sent'),
+            ('prompt_sent','DirectoryContextTV',{'content':'{}'},'TV series identification prompt sent'),
             ('prompt_sent','Prompt',{'content':'Return the submit_tv tool call.'},'Prompt sent.'),
             ('directory_scan_started','DirectoryDiscovery',{'directory':'/source/<Show>'},'Scanning directory'),
             ('directory_scan_completed','DirectoryDiscovery',dict(directory='/source/<Show>',media_files=['a'],

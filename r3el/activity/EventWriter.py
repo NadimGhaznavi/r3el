@@ -9,6 +9,12 @@ from r3el.entity.LogEvent import LogEvent
 
 
 class EventWriter:
+    @classmethod
+    def for_item(cls, record, batch, item):
+        return cls(record, {'batch_id': batch.id, 'item_id': item.id, 'filename': item.filename,
+                            'media_type': item.media_type,
+                            'phase': 'tv_series' if item.media_type == 'tv' else 'movie'}, batch.started_event_id)
+
     def __init__(self, record: Callable[[LogEvent], int], context: dict,
                  parent_event_id: int | None = None) -> None:
         self.record = record

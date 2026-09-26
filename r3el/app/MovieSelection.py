@@ -27,7 +27,7 @@ class MovieSelection:
 
     def run(self, match: TMDBMatch, log: EventWriter) -> TMDBMatch:
         attempt_id = str(uuid4())
-        log = EventWriter(log.record, {**log.context, 'attempt_id': attempt_id}, log.parent_event_id)
+        log = EventWriter(log.record, {**log.context, 'attempt_id': attempt_id, 'media_type': match.media_type}, log.parent_event_id)
         candidates = [(movie.get('title') or movie.get('name') or movie.get('original_title') or movie.get('original_name') or '',
                        movie.get('overview') or '', movie.get('vote_count')) for movie in match.response['results']]
         messages = []

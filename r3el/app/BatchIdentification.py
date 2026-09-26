@@ -93,8 +93,7 @@ class BatchIdentification:
         return batch
 
     async def _identify(self, batch: MediaFileBatch, item: MediaFile) -> None:
-        context = {'batch_id': batch.id, 'item_id': item.id, 'filename': item.filename}
-        log = EventWriter(self._record, context, batch.started_event_id)
+        log = EventWriter.for_item(self._record, batch, item)
         log.parent_event_id = log.write(Categories.Batch.BATCH_IDENTIFICATION,
                                        Names.ITEM_STARTED, {}, source='BatchIdentification')
         if item.find_ls is None and self._files.is_hidden(item.filename):
@@ -107,9 +106,7 @@ class BatchIdentification:
             item.attempts = result['attempts']
             if item.state == MediaFileState.IDENTIFIED:
                 item.identification = Identification(**result['identification'])
-                if item.media_type == 'tv':
-                    item.assign_episodes(result['episodes'])
-                elif item.find_ls is not None:
+                if item.media_type != 'tv' and item.find_ls is not None:
                     item.assign_parts(**result['parts'])
                 item.issues = [issue for issue in item.issues if issue.code == 'unresolved_srt']
             else:

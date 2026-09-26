@@ -12,7 +12,6 @@ from r3el.constants.DR3el import DR3el
 from r3el.entity.Identification import Identification
 from r3el.entity.MediaFile import MediaFile, MediaFileIssue, MediaFileState
 from r3el.entity.MediaFileAction import MediaFileAction
-from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
 from r3el.interface.LLM import LLM
 from r3el.interface.WorkspaceDb import WorkspaceDb
@@ -24,14 +23,7 @@ class RetryIdentification:
         self._workspace = workspace
         self._llm = llm
 
-    @staticmethod
-    def _record_submission(event) -> int:
-        # The ZeroMQ listener owns a separate connection from the matching worker.
-        db = DbMgr()
-        try:
-            return EventLogDb(db).record(event)
-        finally:
-            db.close()
+    _record_submission = staticmethod(EventLogDb.record_separately)
 
     def run(self, item: MediaFile, log: EventWriter) -> None:
         item.retries += 1
@@ -52,9 +44,7 @@ class RetryIdentification:
         item.state = MediaFileState(result['status'])
         if item.state == MediaFileState.IDENTIFIED:
             item.identification = Identification(**result['identification'])
-            if item.media_type == 'tv':
-                item.assign_episodes(result['episodes'])
-            elif item.find_ls is not None:
+            if item.media_type != 'tv' and item.find_ls is not None:
                 item.assign_parts(**result['parts'])
             item.issues = [issue for issue in item.issues if issue.code == 'unresolved_srt']
             item.tmdb_match = None

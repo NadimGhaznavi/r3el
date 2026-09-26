@@ -5,6 +5,15 @@ from r3el.interface.DbMgr import DbMgr
 
 
 class EventLogDb:
+    @staticmethod
+    def record_separately(event: LogEvent) -> int:
+        """Record from a dialogue listener without sharing the worker's connection."""
+        db = DbMgr()
+        try:
+            return EventLogDb(db).record(event)
+        finally:
+            db.close()
+
     def __init__(self, db: DbMgr) -> None:
         self._db = db
 

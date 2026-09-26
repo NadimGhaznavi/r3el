@@ -22,11 +22,22 @@ prefix and have unique episode mappings. Season zero is allowed for specials.
 Combined-episode filenames and conflicting mappings are left unmatched; this
 initial implementation expects one episode per video.
 
-The TV dialogue supplies series title, first-air year, confidence, and the
-path/season/episode mapping. TMDB TV search, multiple-choice selection, zero-result
-retries and manual TMDB ID correction use TV identities. Each mapped episode is
+TV identification has two phases. First, the LLM receives the captured `find -ls`
+listing and supplies only the series title, first-air year and confidence. TMDB TV
+search, multiple-choice selection, zero-result retries and manual TMDB ID correction
+resolve that identity before episode mapping can start.
+
+Second, a fresh dialogue receives the confirmed TMDB series name, ID, first-air
+date and overview, together with the listing and detected episode files. It supplies
+only file/season/episode mappings; it cannot change the series identity. The mapping
+and its completion marker are saved together. Unresolved mapping leaves the files
+untouched. Each mapped episode is
 checked against TMDB season and episode metadata before importing it. Unknown
 episodes remain at the source while other valid episodes can finish.
+
+The Event Log and Current Task distinguish series identification, candidate selection,
+episode mapping and import. The batch reports “Series identified”, “Episodes mapped”
+and “Imported” as these stages complete.
 
 ## Destination and naming
 
