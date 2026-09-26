@@ -16,6 +16,8 @@ class CategorySearchTests(unittest.TestCase):
             CREATE TABLE movies (
                 tmdb_id INTEGER PRIMARY KEY, title TEXT, release_year INTEGER, poster_path TEXT, added_at TEXT);
             CREATE TABLE tv_series (tmdb_id INTEGER, title TEXT, first_air_date TEXT, added_at TEXT);
+            CREATE TABLE tv_seasons (series_id INTEGER, season_number INTEGER);
+            CREATE TABLE tv_episodes (tmdb_id INTEGER, series_id INTEGER, season_number INTEGER);
             CREATE TABLE tv_artwork (series_id INTEGER, kind TEXT, path TEXT, season_number INTEGER, episode_id INTEGER);
             CREATE TABLE tv_series_genres (series_id INTEGER,genre_id INTEGER);
             CREATE TABLE movie_genres (movie_id INTEGER, genre_id INTEGER,
@@ -35,9 +37,15 @@ class CategorySearchTests(unittest.TestCase):
         return [dict(row) for row in self.connection.execute(sql.replace('%s', '?'), params)]
 
     def test_counts_separate_movies_and_series(self):
-        self.assertEqual(self.catalogue.counts(),dict(movies=4,tv_shows=0))
+        self.assertEqual(self.catalogue.counts(),dict(movies=4,tv_shows=0,tv_seasons=0,tv_episodes=0))
         self.connection.execute("INSERT INTO tv_series VALUES (1,'Show','2020-01-01','2020-01-01')")
-        self.assertEqual(self.catalogue.counts(),dict(movies=4,tv_shows=1))
+        self.assertEqual(self.catalogue.counts(),dict(movies=4,tv_shows=1,tv_seasons=0,tv_episodes=0))
+        self.connection.executescript("""
+            INSERT INTO tv_series VALUES (2,'Second show','2020-01-01','2020-01-01');
+            INSERT INTO tv_seasons VALUES (1,1),(2,1);
+            INSERT INTO tv_episodes VALUES (11,1,1),(12,1,1),(21,2,1);
+        """)
+        self.assertEqual(self.catalogue.counts(),dict(movies=4,tv_shows=2,tv_seasons=2,tv_episodes=3))
 
     def ids(self, categories):
         return {row['tmdb_id'] for row in self.catalogue.movies_in_categories(categories)}

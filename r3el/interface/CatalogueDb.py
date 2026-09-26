@@ -17,7 +17,9 @@ class CatalogueDb:
 
     def counts(self) -> dict:
         return self._db.query('SELECT (SELECT COUNT(*) FROM movies) AS movies, '
-                              '(SELECT COUNT(*) FROM tv_series) AS tv_shows')[0]
+                              '(SELECT COUNT(*) FROM tv_series) AS tv_shows, '
+                              '(SELECT COUNT(*) FROM tv_seasons) AS tv_seasons, '
+                              '(SELECT COUNT(*) FROM tv_episodes) AS tv_episodes')[0]
 
     @staticmethod
     def _titles() -> str:
