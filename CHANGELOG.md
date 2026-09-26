@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-09-25 @ 21:39
+
 ### Fixed
 
 - After successful directory-media copying and catalogue save, delete the copied sources and the source directory. Preserve unresolved SRTs and their directory. Apply subtitle association during new directory scans; do not repair saved batches.
