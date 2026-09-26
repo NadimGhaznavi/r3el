@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0] - 2026-09-26 @ 08:00
+
 ### Added
 - Add a three-line Search Index between Title Search and Category Search, linking to movie and TV show titles by initial letter or Numbers and Symbols.
 
