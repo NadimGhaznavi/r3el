@@ -74,18 +74,58 @@ class ControlServerTests(unittest.TestCase):
         finally:
             connection.close()
 
+    @patch('r3el.server.ControlServer.CatalogueDb.recent')
     @patch('r3el.server.ControlServer.CatalogueDb.movies')
-    def test_catalogue_lists_linked_titles_and_empty_state(self, movies):
-        movies.return_value = [{'tmdb_id': 42, 'title': '<Movie>', 'release_year': 2020},
-                               {'tmdb_id': 43, 'title': 'Other', 'release_year': None}]
+    def test_catalogue_recent_and_title_search(self, movies, recent):
+        recent.return_value = [{'tmdb_id': 42, 'title': '<Movie>', 'release_year': 2020,
+                                'poster_path': '/poster.jpg'}]
+        movies.return_value = [{'tmdb_id': 43, 'title': 'Other', 'release_year': None,
+                                'poster_path': None}]
         status, _, body = self.request('/catalogue')
         self.assertEqual(status, 200)
-        self.assertIn('<a href="/catalogue/42">&lt;Movie&gt; (2020)</a>', body)
-        self.assertIn('<a href="/catalogue/43">Other</a>', body)
+        self.assertIn('href="/catalogue/42"', body)
+        self.assertIn('&lt;Movie&gt;', body)
+        self.assertIn('src="/catalogue/42/poster"', body)
+        self.assertIn('Recent additions', body)
+        movies.assert_not_called()
         self.assertNotIn('<Movie>', body)
-        self.db.close.assert_called_once()
-        movies.return_value = []
+        status, _, body = self.request('/catalogue?title=Other')
+        self.assertEqual(status, 200)
+        movies.assert_called_once_with('Other')
+        self.assertIn('href="/catalogue/43"', body)
+        self.assertIn('No poster available', body)
+        self.assertIn('value="Other"', body)
+        recent.return_value = []
         self.assertIn('No movies in the catalogue yet.', self.request('/catalogue')[2])
+        movies.return_value = []
+        self.assertIn('No movies found', self.request('/catalogue?title=absent')[2])
+        self.assertEqual(self.request('/catalogue?title=a&title=b')[0], 400)
+
+    @patch('r3el.server.ControlServer.CatalogueDb.recent')
+    @patch('r3el.server.ControlServer.CatalogueDb.movies', return_value=[])
+    def test_catalogue_recent_arrows_show_four_and_preserve_search(self, movies, recent):
+        recent.return_value = [dict(tmdb_id=i, title=f'Movie {i}', release_year=2020,
+                                   poster_path=None) for i in range(1, 6)]
+        status, _, body = self.request('/catalogue?title=Alien')
+        self.assertEqual(status, 200)
+        recent.assert_called_with(offset=0, limit=5)
+        self.assertIn('aria-label="Older additions"', body)
+        self.assertNotIn('aria-label="Newer additions"', body)
+        self.assertIn('name="title" value="Alien"', body)
+        self.assertIn('href="/catalogue/4"', body)
+        self.assertNotIn('href="/catalogue/5"', body)
+        self.request('/catalogue?recent_page=1&title=Alien')
+        recent.assert_called_with(offset=4, limit=5)
+        movies.assert_called_with('Alien')
+        recent.return_value = recent.return_value[:2]
+        status, _, body = self.request('/catalogue?recent_page=2')
+        self.assertEqual(status, 200)
+        recent.assert_called_with(offset=8, limit=5)
+        self.assertIn('aria-label="Newer additions"', body)
+        self.assertIn('name="recent_page" value="1"', body)
+        self.assertNotIn('aria-label="Older additions"', body)
+        for value in ('-1', 'abc', '1.5', '9999999999', ''):
+            self.assertEqual(self.request('/catalogue?recent_page=' + value)[0], 400)
 
     @patch('r3el.server.ControlServer.CatalogueDb.get')
     def test_catalogue_entry_renders_saved_metadata(self, get):
@@ -121,7 +161,7 @@ class ControlServerTests(unittest.TestCase):
             self.assertEqual(self.request('/catalogue/42/backdrop')[0], 404)
             self.assertEqual(self.request('/catalogue/42/../../etc/passwd')[0], 404)
 
-    @patch('r3el.server.ControlServer.CatalogueDb.movies', side_effect=pymysql.OperationalError('private details'))
+    @patch('r3el.server.ControlServer.CatalogueDb.recent', side_effect=pymysql.OperationalError('private details'))
     def test_catalogue_database_failure_is_reported_without_details(self, movies):
         with self.assertLogs(level='ERROR'):
             status, _, body = self.request('/catalogue')

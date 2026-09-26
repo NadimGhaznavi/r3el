@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-25 @ 23:57
+
+### Added
+- Show catalogue search results in a separate panel below the Search form.
+- Browse catalogue additions four at a time with older/newer arrow buttons while preserving the title search.
+- Redesign Catalogue with the Control-page logo layout, four recent additions, and title search with five-column poster grids. Preserve the first catalogue-added timestamp when refreshing movie metadata.
+
 ## [1.7.4] - 2026-09-25 @ 23:35
 
 ### Changed

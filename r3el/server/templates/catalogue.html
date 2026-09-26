@@ -1,12 +1,56 @@
 {% extends 'base.html' %}
 {% block title %}Catalogue{% endblock %}
+{% macro cards(movies, recent=false) %}
+<div class="catalogue-grid{% if recent %} catalogue-recent{% endif %}">
+  {% for movie in movies %}
+  <a class="catalogue-card" href="/catalogue/{{ movie.tmdb_id }}">
+    {% if movie.poster_path %}
+    <img src="/catalogue/{{ movie.tmdb_id }}/poster" alt="{{ movie.title }} poster" loading="lazy">
+    {% else %}<span class="catalogue-no-poster">No poster available</span>{% endif %}
+    <span class="catalogue-card-title">{{ movie.title }}</span>
+    <span class="catalogue-card-year">{{ movie.release_year or 'Year unknown' }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endmacro %}
 {% block content %}
-<h1>Catalogue</h1>
-{% if movies %}
-<ul>
-{% for movie in movies %}
-  <li><a href="/catalogue/{{ movie.tmdb_id }}">{{ movie.title }}{% if movie.release_year %} ({{ movie.release_year }}){% endif %}</a></li>
-{% endfor %}
-</ul>
-{% else %}<p>No movies in the catalogue yet.</p>{% endif %}
+<h1 class="sr-only">Catalogue</h1>
+<div class="control-panel">
+  <img class="control-logo" src="{{ settings.CONTROL_LOGO_URL }}" alt="R3el">
+  <section class="control-settings" aria-labelledby="recent-heading">
+    <div class="catalogue-recent-heading">
+      <h2 id="recent-heading">Recent additions</h2>
+      <form method="get" action="/catalogue" aria-label="Browse recent additions" class="catalogue-pagination">
+        {% if search_title %}<input type="hidden" name="title" value="{{ search_title }}">{% endif %}
+        {% if recent_page > 0 %}
+        <button type="submit" name="recent_page" value="{{ recent_page - 1 }}" aria-label="Newer additions" title="Newer additions">←</button>
+        {% endif %}
+        {% if has_older %}
+        <button type="submit" name="recent_page" value="{{ recent_page + 1 }}" aria-label="Older additions" title="Older additions">→</button>
+        {% endif %}
+      </form>
+    </div>
+    {% if recent %}{{ cards(recent, true) }}
+    {% elif recent_page > 0 %}<p>No older additions.</p>
+    {% else %}<p>No movies in the catalogue yet.</p>{% endif %}
+  </section>
+</div>
+<section class="batch-panel" aria-labelledby="search-heading">
+  <h2 id="search-heading">Search</h2>
+  <form method="get" action="/catalogue" class="catalogue-search" role="search">
+    <input type="hidden" name="recent_page" value="{{ recent_page }}">
+    <label for="catalogue-title">Title:
+      <input type="search" id="catalogue-title" name="title" value="{{ search_title }}">
+    </label>
+    <button type="submit">Search</button>
+  </form>
+  {% if not search_title %}<p class="note">Enter a title or part of a title to search the catalogue.</p>{% endif %}
+</section>
+{% if search_title %}
+<section class="batch-panel catalogue-results" aria-labelledby="search-results-heading">
+  <h2 id="search-results-heading">Search Results</h2>
+  {% if movies %}{{ cards(movies) }}
+  {% else %}<p role="status">No movies found for “{{ search_title }}”.</p>{% endif %}
+</section>
+{% endif %}
 {% endblock %}
