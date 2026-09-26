@@ -42,15 +42,10 @@ class DirectoryDiscovery:
             claimed.update(media)
             attachments = [MediaAttachment(path) for path in media]
             issues = []
-            subtitle_names = Counter(Path(path).stem.casefold() for path, _ in files
-                                     if Path(path).suffix.lower() == '.srt')
-            for path, _ in sorted(files):
-                if Path(path).suffix.lower() != '.srt':
-                    continue
-                candidates = [video for video in media
-                              if Path(path).stem.casefold() == Path(video).stem.casefold()]
-                if subtitle_names[Path(path).stem.casefold()] != 1:
-                    candidates = []
+            subtitles = sorted(path for path, _ in files if Path(path).suffix.lower() == '.srt')
+            associations = self.subtitle_associations(media, subtitles)
+            for path in subtitles:
+                candidates = [associations[path]] if associations[path] is not None else []
                 attachments.append(MediaAttachment(path, 'subtitle',
                                                    media_path=candidates[0] if len(candidates) == 1 else None))
                 if len(candidates) != 1:
@@ -66,3 +61,21 @@ class DirectoryDiscovery:
         workspace.append_directories(batch, items, log.prepare(
             Categories.Batch.DISCOVERY, Names.DIRECTORIES_SCANNED,
             {'two_part_movies': len(items)}, source='DirectoryDiscovery'))
+
+    @staticmethod
+    def subtitle_associations(media: list[str], subtitles: list[str]) -> dict[str, str | None]:
+        associations = {}
+        for subtitle in subtitles:
+            path = Path(subtitle)
+            same_folder = [video for video in media if Path(video).parent == path.parent]
+            folder_subtitles = [other for other in subtitles if Path(other).parent == path.parent]
+            basename_matches = [video for video in media if Path(video).stem.casefold() == path.stem.casefold()]
+            local_matches = [video for video in basename_matches if video in same_folder]
+            candidates = local_matches or basename_matches
+            if not candidates and len(same_folder) == 1 and len(folder_subtitles) == 1:
+                candidates = same_folder
+            associations[subtitle] = candidates[0] if len(candidates) == 1 else None
+        # Two subtitles targeting the same video would collide after renaming.
+        counts = Counter(video for video in associations.values() if video is not None)
+        return {subtitle: video if counts[video] == 1 else None
+                for subtitle, video in associations.items()}

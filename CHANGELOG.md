@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-09-25 @ 21:39
+
+### Fixed
+
+- After successful directory-media copying and catalogue save, delete the copied sources and the source directory. Preserve unresolved SRTs and their directory. Apply subtitle association during new directory scans; do not repair saved batches.
+
+- Associate differently named SRTs with the lone video in the same CD folder when that folder contains exactly one subtitle. Preserve unresolved_srt for ambiguous associations and rename resolved subtitles with the video’s assigned part number.
+
 ## [1.4.2] - 2026-09-25 @ 21:25
 
 ### Added
