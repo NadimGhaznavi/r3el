@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add a Movie / TV / Both selector to catalogue Title Search, defaulting to Both; category searches continue to include both types and require every selected category.
+
 ## [4.5.3] - 2026-09-26 @ 05:29
 
 ### Changed

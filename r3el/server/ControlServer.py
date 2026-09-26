@@ -120,10 +120,13 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     return
                 try:
                     query = parse_qs(url.query, keep_blank_values=True, max_num_fields=100)
-                    if set(query) - {'title', 'recent_page', 'category'} or any(
+                    if set(query) - {'title', 'recent_page', 'category', 'type'} or any(
                             len(v) != 1 for k, v in query.items() if k != 'category'):
                         raise ValueError('Supply title and recent_page once each.')
                     title = query.get('title', [''])[0].strip()
+                    search_type = query.get('type', ['both'])[0]
+                    if search_type not in ('movie', 'tv', 'both'):
+                        raise ValueError('Search type must be movie, tv, or both.')
                     category_values = query.get('category', [])
                     if any(not re.fullmatch(r'[0-9]{1,10}', value)
                            or not 1 <= int(value) <= 4294967295 for value in category_values):
@@ -135,7 +138,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 except ValueError as error:
                     self.send_error(400, str(error))
                     return
-                self.respond_catalogue(movie_id, catalogue.group(2), title, int(recent_page), category_ids, 'tv' if url.path.startswith('/catalogue/tv/') else 'movie')
+                self.respond_catalogue(movie_id, catalogue.group(2), title, int(recent_page), category_ids, 'tv' if url.path.startswith('/catalogue/tv/') else 'movie', search_type=search_type)
                 return
             job_path = re.fullmatch(r'/workspace/(match|clear)/status/([A-Za-z0-9-]{1,36})', url.path)
             if job_path:
@@ -192,7 +195,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 return
             self.respond(200, body)
 
-        def respond_catalogue(self, movie_id: int | None, artwork: str | None, title: str, recent_page: int, category_ids: list[int], media_type: str, episode_id: int | None = None):
+        def respond_catalogue(self, movie_id: int | None, artwork: str | None, title: str, recent_page: int, category_ids: list[int], media_type: str, episode_id: int | None = None, *, search_type: str = 'both'):
             try:
                 db = DbMgr()
                 try:
@@ -210,7 +213,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                         categories = catalogue.categories()
                         counts = catalogue.counts()
                         value = (catalogue.movies_in_categories(category_ids) if category_ids
-                                 else catalogue.movies(title) if title else [])
+                                 else catalogue.movies(title, search_type) if title else [])
                 finally:
                     db.close()
             except pymysql.MySQLError:
@@ -236,7 +239,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             else:
                 self.respond(200, pages.render('catalogue.html', movies=value, recent=recent[:4],
                                                recent_page=recent_page, has_older=len(recent) > 4,
-                                               search_title=title, catalogue_categories=categories,
+                                               search_title=title, search_type=search_type, catalogue_categories=categories,
                                                selected_categories=category_ids, catalogue_counts=counts, refresh=0))
 
         def respond_control(self, status: int = 200, refresh: int = 0, **values):
