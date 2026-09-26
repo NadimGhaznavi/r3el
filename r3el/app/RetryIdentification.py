@@ -52,7 +52,9 @@ class RetryIdentification:
         item.state = MediaFileState(result['status'])
         if item.state == MediaFileState.IDENTIFIED:
             item.identification = Identification(**result['identification'])
-            if item.find_ls is not None:
+            if item.media_type == 'tv':
+                item.assign_episodes(result['episodes'])
+            elif item.find_ls is not None:
                 item.assign_parts(**result['parts'])
             item.issues = [issue for issue in item.issues if issue.code == 'unresolved_srt']
             item.tmdb_match = None

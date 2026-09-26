@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Import TV series from numbered episodes, explicit SxxExx filenames and nested season directories, with TV patterns taking priority over movie patterns.
+- Identify series and episode mappings through the existing LLM/MCP workflow; use TMDB TV search, selection and metadata validation.
+- Automatically route TV imports to the tv sibling of the movie destination, with season folders, episode titles and paired SRT naming.
+- Persist series, seasons, episodes, credits, genres and artwork with per-episode catalogue/move checkpoints.
+- Include TV series in catalogue searches and recent additions, with separate series routes and episode outcomes on match pages.
+- Document the TV use cases and deploy the new schema, prompt and application modules through the installer.
+
 ## [3.1.0] - 2026-09-26 @ 02:22
 
 ### Summary

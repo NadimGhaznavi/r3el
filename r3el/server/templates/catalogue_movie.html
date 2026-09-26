@@ -4,16 +4,16 @@
 <article class="movie-card catalogue-detail" aria-labelledby="movie-title">
   <div class="movie-poster">
     {% if movie.artwork | selectattr('kind', 'equalto', 'poster') | list %}
-    <img src="/catalogue/{{ movie.tmdb_id }}/poster" alt="Poster for {{ movie.title }}" width="500" height="750">
+    <img src="/catalogue/{% if media_type == 'tv' %}tv/{% endif %}{{ movie.tmdb_id }}/poster" alt="Poster for {{ movie.title }}" width="500" height="750">
     {% else %}<span>No poster available</span>{% endif %}
   </div>
   <div class="movie-info">
     <h1 id="movie-title">{{ movie.title }}</h1>
-    <p class="movie-subtitle">{{ movie.release_year or 'Year unknown' }} · Movie{% if movie.runtime is not none %} · {{ movie.runtime }} minutes{% endif %}</p>
+    <p class="movie-subtitle">{{ movie.release_year or 'Year unknown' }} · {{ 'TV series' if media_type == 'tv' else 'Movie' }}{% if movie.runtime is not none %} · {{ movie.runtime }} minutes{% endif %}</p>
     <div class="movie-rating-row">
       {% if movie.rating is not none %}<span class="movie-rating"><span aria-hidden="true">★</span> {{ '%.2f' | format(movie.rating) }}<span class="sr-only"> out of 10</span></span>{% endif %}
       {% if movie.vote_count is not none %}<span class="note">{{ '{:,}'.format(movie.vote_count) }} votes</span>{% endif %}
-      <a class="movie-id" href="https://www.themoviedb.org/movie/{{ movie.tmdb_id }}">TMDB #{{ movie.tmdb_id }}</a>
+      <a class="movie-id" href="https://www.themoviedb.org/{{ media_type }}/{{ movie.tmdb_id }}">TMDB #{{ movie.tmdb_id }}</a>
     </div>
     <p class="movie-genres">{{ movie.genres | map(attribute='name') | join(' · ') or 'Genres not available' }}</p>
     {% if movie.overview %}<p class="movie-overview">{{ movie.overview }}</p>{% endif %}
@@ -44,6 +44,14 @@
     {% else %}<li>No cast information available.</li>{% endfor %}</ul>
   </section>
 </div>
+{% if media_type == 'tv' %}
+<section class="batch-panel catalogue-results" aria-labelledby="episodes-heading">
+  <h2 id="episodes-heading">Imported episodes</h2>
+  <ul>{% for episode in movie.episodes %}
+    <li>S{{ '%02d' | format(episode.season_number) }}E{{ '%02d' | format(episode.episode_number) }} — {{ episode.title }}</li>
+  {% endfor %}</ul>
+</section>
+{% endif %}
 <section class="batch-panel" aria-labelledby="files-heading">
   <h2 id="files-heading">Files</h2>
   <ul>{% for file in movie.files %}<li>{{ file.path }}</li>{% else %}<li>No catalogued files.</li>{% endfor %}</ul>

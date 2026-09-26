@@ -3,6 +3,7 @@
 import asyncio
 from dataclasses import asdict
 from uuid import uuid4
+from pathlib import Path
 
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.ToolConversation import ToolConversation
@@ -78,6 +79,7 @@ class BatchIdentification:
         batch = MediaFileBatch(
             id=str(uuid4()), requested_size=batch_size, source_directory=str(self._files.directory),
             destination_directory=destination_directory,
+            tv_destination_directory=str(Path(destination_directory).parent / 'tv') if destination_directory else None,
             files=[MediaFile(str(uuid4()), str(self._files.directory / name)) for name in filenames],
         )
         log = EventWriter(self._record, {'batch_id': batch.id})
@@ -105,7 +107,9 @@ class BatchIdentification:
             item.attempts = result['attempts']
             if item.state == MediaFileState.IDENTIFIED:
                 item.identification = Identification(**result['identification'])
-                if item.find_ls is not None:
+                if item.media_type == 'tv':
+                    item.assign_episodes(result['episodes'])
+                elif item.find_ls is not None:
                     item.assign_parts(**result['parts'])
                 item.issues = [issue for issue in item.issues if issue.code == 'unresolved_srt']
             else:

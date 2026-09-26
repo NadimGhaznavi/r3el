@@ -44,7 +44,8 @@ class CatalogueFiles:
             self._sync_directory(target.parent)
 
     def prepare(self, movie: CatalogueMovie, source: str, destination: str | None,
-                file_id: str, log: EventWriter, *, part: int | None = None, replace_existing: bool = False) -> MovieFiles:
+                file_id: str, log: EventWriter, *, part: int | None = None, replace_existing: bool = False,
+                season: int | None = None, episode: int | None = None, episode_title: str | None = None) -> MovieFiles:
         if not destination:
             raise ValueError('The batch needs an output directory before files can be catalogued.')
         if movie.release_date is None:
@@ -64,6 +65,13 @@ class CatalogueFiles:
         except FileExistsError:
             if marker.read_text() != str(movie.tmdb_id):
                 raise ValueError('The title directory already belongs to a different TMDB movie.')
+        artwork_folder = folder
+        if season is not None:
+            folder = folder / f'Season {season:02}'
+            if folder.is_symlink():
+                raise ValueError('The season directory must not be a symbolic link.')
+            folder.mkdir(exist_ok=True)
+            stem += f' S{season:02}E{episode:02} - {MovieNaming.title(episode_title)}'
         target = folder / (stem + (f' Part {part}' if part is not None else '') + origin.suffix)
         if origin.is_symlink() or not origin.is_file():
             raise ValueError('The source video must be a regular file.')
@@ -75,8 +83,8 @@ class CatalogueFiles:
         if target.exists() and origin != target and not replace_existing:
             if not stage.exists() or not target.samefile(stage):
                 raise FileExistsError(f'The destination video already exists: {target}')
-        poster = self._image(movie.poster_path, folder, 'poster', log)
-        backdrop = self._image(movie.backdrop_path, folder, 'backdrop', log)
+        poster = self._image(movie.poster_path, artwork_folder, 'poster', log)
+        backdrop = self._image(movie.backdrop_path, artwork_folder, 'backdrop', log)
         if origin != target:
             if stage.exists():
                 if not origin.samefile(stage):
@@ -132,6 +140,9 @@ class CatalogueFiles:
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
+
+    def artwork(self, remote: str | None, folder: Path, kind: str, log: EventWriter) -> str | None:
+        return self._image(remote, folder, kind, log)
 
     def _image(self, remote: str | None, folder: Path, kind: str, log: EventWriter) -> str | None:
         if remote is None:

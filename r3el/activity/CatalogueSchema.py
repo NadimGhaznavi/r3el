@@ -1,5 +1,6 @@
 """Create the normalized catalogue during explicit installation or upgrade."""
 
+from r3el.activity.TVSchema import TVSchema
 from r3el.activity.TMDBReferenceSchema import TMDBReferenceSchema
 from r3el.interface.DbMgr import DbMgr
 
@@ -87,6 +88,8 @@ class CatalogueSchema:
                 FOREIGN KEY (movie_id) REFERENCES movies(tmdb_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ''')
+
+        TVSchema(self._db).apply()
 
 
 if __name__ == '__main__':

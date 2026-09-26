@@ -28,10 +28,10 @@ class MovieSelection:
     def run(self, match: TMDBMatch, log: EventWriter) -> TMDBMatch:
         attempt_id = str(uuid4())
         log = EventWriter(log.record, {**log.context, 'attempt_id': attempt_id}, log.parent_event_id)
-        candidates = [(movie.get('title') or movie.get('original_title') or '',
+        candidates = [(movie.get('title') or movie.get('name') or movie.get('original_title') or movie.get('original_name') or '',
                        movie.get('overview') or '', movie.get('vote_count')) for movie in match.response['results']]
         messages = []
-        for prompt in (CurrentDate(), Example(), MultipleChoice(match.title, match.year, candidates)):
+        for prompt in (CurrentDate(), *([] if match.media_type == 'tv' else [Example()]), MultipleChoice(match.title, match.year, candidates, media_type=match.media_type)):
             message = json.loads(prompt.to_json())
             messages.append(message)
             log.write(Categories.Prompt.LLM_PROMPT, Names.PROMPT_SENT,

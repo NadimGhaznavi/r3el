@@ -7,6 +7,7 @@ import httpx
 
 from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.activity.MovieFormats import MovieFormats
+from r3el.app.TVImport import TVImport
 from r3el.activity.DirectoryMediaMove import DirectoryMediaMove
 from r3el.activity.EventWriter import EventWriter
 from r3el.app.MovieSelection import MovieSelection
@@ -23,6 +24,7 @@ from r3el.entity.LogEvent import LogEvent
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.entity.TMDBMatch import TMDBMatch
 from r3el.interface.TMDB import TMDB, TMDBError
+from r3el.interface.TVCatalogue import TVCatalogue
 from r3el.interface.TMDBCatalogue import TMDBCatalogue
 from r3el.interface.CatalogueFiles import CatalogueFiles
 from r3el.interface.DirectoryFiles import DirectoryFiles
@@ -66,8 +68,12 @@ class BatchMatching:
             log = EventWriter(self._record, {'batch_id': batch_id, 'item_id': file_id,
                                             'filename': item.filename}, batch.started_event_id)
             try:
-                data = TMDB.from_environment().details(movie_id)
-                movie = TMDBCatalogue.from_details(data, movie_id)
+                if item.media_type == 'tv':
+                    data = TMDB.from_environment().tv_details(movie_id)
+                    movie = TVCatalogue.series(data)
+                else:
+                    data = TMDB.from_environment().details(movie_id)
+                    movie = TMDBCatalogue.from_details(data, movie_id)
             except TMDBError as error:
                 result = replace(item.tmdb_match, selection_error=str(error))
                 self._workspace.save_match(batch_id, file_id, result, log.prepare(
@@ -75,7 +81,7 @@ class BatchMatching:
                     {'outcome': 'Manual match failed', 'movie_id': movie_id, 'error': str(error)},
                     source='ManualMatch', level='ERROR'))
                 return
-            result = TMDBMatch(item.tmdb_match.title, item.tmdb_match.year,
+            result = TMDBMatch(item.tmdb_match.title, item.tmdb_match.year, media_type=item.media_type,
                                response={'results': [dict(data, genre_ids=[genre.id for genre in movie.genres])],
                                          'total_results': 1, 'total_pages': 1, 'page': 1})
             self._workspace.save_match(batch_id, file_id, result, log.prepare(
@@ -129,7 +135,7 @@ class BatchMatching:
                 elif identification is None:
                     result = TMDBMatch(title, year, error='No identified title and year available.')
                 else:
-                    result = self._search(title, year, log)
+                    result = self._search(title, year, log, **({'media_type': 'tv'} if item.media_type == 'tv' else {}))
                 if result.year_offset != 0:
                     result = self._search_adjacent_years(batch, item, result, log)
                 while (result.response is not None and not result.skipped and result.error is None
@@ -147,7 +153,7 @@ class BatchMatching:
                     self._workspace.check_stop(batch_id)
                     if item.state != MediaFileState.IDENTIFIED:
                         break
-                    result = self._search(item.identification.title, item.identification.year, log)
+                    result = self._search(item.identification.title, item.identification.year, log, **({'media_type': 'tv'} if item.media_type == 'tv' else {}))
                 if not result.skipped and item.retries > 0 and item.state == MediaFileState.UNRESOLVED_LLM:
                     continue
                 needs_selection = (result.response is not None and not result.skipped and result.error is None
@@ -187,7 +193,7 @@ class BatchMatching:
             self._workspace.check_stop(batch.id)
             self._workspace.save_match(batch.id, item.id, replace(result, selection_pending=True), None)
             try:
-                result = replace(self._search(result.title, year + offset, log), year_offset=offset)
+                result = replace(self._search(result.title, year + offset, log, **({'media_type': 'tv'} if item.media_type == 'tv' else {})), year_offset=offset)
             except BaseException:
                 self._workspace.save_match(batch.id, item.id, replace(result, selection_pending=False), None)
                 raise
@@ -204,6 +210,12 @@ class BatchMatching:
 
     def _catalogue(self, batch: MediaFileBatch, item: MediaFile, result: TMDBMatch, log: EventWriter,
                    *, movie: CatalogueMovie | None = None) -> None:
+        if item.media_type == 'tv':
+            response = result.resolved_response
+            if (not result.skipped and not result.error and not result.selection_pending
+                    and not result.selection_error and response is not None and response['total_results'] == 1):
+                TVImport(self._workspace).run(batch, item, result, log)
+            return
         if result.catalogue_saved:
             if not result.file_moved or result.discard_files:
                 self._finish_move(batch.id, item.id, result, log)
@@ -309,12 +321,15 @@ class BatchMatching:
             source='Catalogue', level='ERROR'))
 
     @staticmethod
-    def _search(title: str, year: int, log: EventWriter) -> TMDBMatch:
+    def _search(title: str, year: int, log: EventWriter, *, media_type: str = 'movie') -> TMDBMatch:
         try:
             client = TMDB.from_environment()
             log.parent_event_id = log.write(
                 Categories.TMDB.SEARCH, Names.TMDB_SEARCH,
-                {'url': TMDB.URL, 'parameters': TMDB.search_parameters(title, year)}, source='TMDB')
-            return TMDBMatch(title, year, response=client.search(title, year))
+                {'url': 'https://api.themoviedb.org/3/search/tv' if media_type == 'tv' else TMDB.URL,
+                 'parameters': {'query': title, 'first_air_date_year': year, 'page': 1} if media_type == 'tv'
+                 else TMDB.search_parameters(title, year)}, source='TMDB')
+            return TMDBMatch(title, year, media_type=media_type,
+                             response=(client.search_tv(title, year) if media_type == 'tv' else client.search(title, year)))
         except TMDBError as error:
-            return TMDBMatch(title, year, error=str(error))
+            return TMDBMatch(title, year, error=str(error), media_type=media_type)

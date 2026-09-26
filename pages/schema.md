@@ -77,3 +77,18 @@ the chosen match, displays the failure, and can be retried without a new search.
 installation and upgrade. Schema creation is idempotent and runs explicitly,
 never as a side effect of opening a database connection. Existing catalogue
 records are preserved on upgrade; no automatic historical backfill runs.
+
+## TV hierarchy
+
+TV imports use tv_series, tv_seasons, tv_episodes and tv_episode_files, with
+separate tv_artwork, tv_series_genres, tmdb_tv_genres, tv_series_credits and
+tv_episode_credits tables. They share people and credit_roles with movies.
+
+Season numbers are unique within a series; episode numbers are unique within a
+season. Season zero supports specials. Episode file paths use the same SHA-256
+path keys as movie files. Catalogue and attachment import checkpoints commit in
+one transaction before source names are removed. See [TV show imports](tv-shows.md).
+
+Workspace items carry media_type; attachments carry season_number,
+episode_number and import_result. Batches persist tv_destination_directory,
+derived as the tv sibling of the movie destination.

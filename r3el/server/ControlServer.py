@@ -24,6 +24,7 @@ from r3el.constants.DR3el import DR3el
 from r3el.interface.BatchConfiguration import BatchConfiguration
 from r3el.interface.BatchControl import BatchControl
 from r3el.interface.DbMgr import DbMgr
+from r3el.interface.TVCatalogueDb import TVCatalogueDb
 from r3el.interface.CatalogueDb import CatalogueDb
 from r3el.interface.EventLogDb import EventLogDb
 from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict, WorkspaceBusy
@@ -102,7 +103,8 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
             if url.path == '/health':
                 self.respond(200, b'{"status":"ok","service":"r3el-control"}', 'application/json')
                 return
-            catalogue = re.fullmatch(r'/catalogue(?:/([0-9]{1,10})(?:/(poster|backdrop))?)?', url.path)
+            catalogue_path = url.path.replace('/catalogue/tv/', '/catalogue/', 1)
+            catalogue = re.fullmatch(r'/catalogue(?:/([0-9]{1,10})(?:/(poster|backdrop))?)?', catalogue_path)
             if catalogue:
                 movie_id = int(catalogue.group(1)) if catalogue.group(1) else None
                 if movie_id is not None and not 1 <= movie_id <= 4294967295:
@@ -125,7 +127,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 except ValueError as error:
                     self.send_error(400, str(error))
                     return
-                self.respond_catalogue(movie_id, catalogue.group(2), title, int(recent_page), category_ids)
+                self.respond_catalogue(movie_id, catalogue.group(2), title, int(recent_page), category_ids, 'tv' if url.path.startswith('/catalogue/tv/') else 'movie')
                 return
             job_path = re.fullmatch(r'/workspace/(match|clear)/status/([A-Za-z0-9-]{1,36})', url.path)
             if job_path:
@@ -182,11 +184,13 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 return
             self.respond(200, body)
 
-        def respond_catalogue(self, movie_id: int | None, artwork: str | None, title: str, recent_page: int, category_ids: list[int]):
+        def respond_catalogue(self, movie_id: int | None, artwork: str | None, title: str, recent_page: int, category_ids: list[int], media_type: str):
             try:
                 db = DbMgr()
                 try:
                     catalogue = CatalogueDb(db)
+                    if media_type == 'tv':
+                        catalogue = TVCatalogueDb(db)
                     if artwork:
                         value = catalogue.artwork_path(movie_id, artwork)
                     elif movie_id is not None:
@@ -217,7 +221,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     return
                 self.respond(200, content, content_type)
             elif movie_id is not None:
-                self.respond(200, pages.render('catalogue_movie.html', movie=value, refresh=0))
+                self.respond(200, pages.render('catalogue_movie.html', movie=value, media_type=media_type, refresh=0))
             else:
                 self.respond(200, pages.render('catalogue.html', movies=value, recent=recent[:4],
                                                recent_page=recent_page, has_older=len(recent) > 4,

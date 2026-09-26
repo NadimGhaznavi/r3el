@@ -75,6 +75,14 @@ class TMDB:
             raise TMDBError(f'TMDB returned invalid details for TV series {series_id}.')
         return payload
 
+    def tv_season(self, series_id: int, season: int) -> dict:
+        payload = self._get(f'https://api.themoviedb.org/3/tv/{series_id}/season/{season}', {})
+        return payload
+
+    def tv_episode(self, series_id: int, season: int, episode: int) -> dict:
+        return self._get(f'https://api.themoviedb.org/3/tv/{series_id}/season/{season}/episode/{episode}',
+                         {'append_to_response': 'credits'})
+
     def reference(self) -> TMDBReference:
         genres = self._get('https://api.themoviedb.org/3/genre/movie/list', {'language': 'en'})
         languages = self._get('https://api.themoviedb.org/3/configuration/languages', {})

@@ -12,6 +12,7 @@
       <dl class="control-values">
         <div class="media-directory"><dt>Source</dt><dd>{{ workspace.source_directory }}</dd></div>
         <div class="media-directory"><dt>Destination</dt><dd>{{ workspace.destination_directory or 'Not available' }}</dd></div>
+        <div><dt>TV destination</dt><dd>{{ workspace.tv_destination_directory or 'Not available' }}</dd></div>
         <div><dt>Batch Size</dt><dd>{{ workspace.requested_size }}</dd></div>
       </dl>
       {% else %}
