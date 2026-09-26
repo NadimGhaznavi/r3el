@@ -48,9 +48,11 @@
 </div>
 </details>
 {% if media_type == 'tv' %}
-<section class="batch-panel catalogue-results" aria-labelledby="episodes-heading">
-  <h2 id="episodes-heading">Episodes</h2>
-  {% for episode in movie.episodes %}
+{% set seasons = movie.episodes | groupby('season_number') %}
+{% for season in (seasons | rejectattr('grouper', 'equalto', 0) | list) + (seasons | selectattr('grouper', 'equalto', 0) | list) %}
+<details class="batch-panel catalogue-season">
+  <summary>Season {{ season.grouper }}</summary>
+  {% for episode in season.list | sort(attribute='episode_number') %}
   <article class="movie-card catalogue-detail" aria-labelledby="episode-{{ episode.tmdb_id }}">
     <div class="movie-poster">
       {% if episode.has_still %}
@@ -71,8 +73,9 @@
       {% endif %}
     </div>
   </article>
-  {% else %}<p>No imported episodes.</p>{% endfor %}
-</section>
+  {% endfor %}
+</details>
+{% else %}<section class="batch-panel catalogue-season"><p>No imported episodes.</p></section>{% endfor %}
 {% endif %}
 <section class="batch-panel" aria-labelledby="files-heading">
   <h2 id="files-heading">Files</h2>

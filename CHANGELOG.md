@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.9.0] - 2026-09-26 @ 06:33
+
+### Changed
+- Group catalogue TV episodes into collapsed Season boxes, ordered by season and episode number, with Season 0 specials after the regular seasons.
+
 ## [4.8.1] - 2026-09-26 @ 06:17
 
 ### Fixed
