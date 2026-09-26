@@ -147,7 +147,7 @@ class EventPagesTests(unittest.TestCase):
 
         for prompt, expected in (
             (CurrentDate(), f'Current date: {date.today().isoformat()}.'),
-            (MultipleChoice('<Superman>', 2025, [('Superman', 'A hero.'), ('Other', '')]),
+            (MultipleChoice('<Superman>', 2025, [('Superman', 'A hero.', 100), ('Other', '', 0)]),
              'Title: &lt;Superman&gt;, Year: 2025, Candidates: 2.'),
         ):
             with self.subTest(source=prompt.source_name):

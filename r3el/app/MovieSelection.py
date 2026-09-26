@@ -29,7 +29,7 @@ class MovieSelection:
         attempt_id = str(uuid4())
         log = EventWriter(log.record, {**log.context, 'attempt_id': attempt_id}, log.parent_event_id)
         candidates = [(movie.get('title') or movie.get('original_title') or '',
-                       movie.get('overview') or '') for movie in match.response['results']]
+                       movie.get('overview') or '', movie.get('vote_count')) for movie in match.response['results']]
         messages = []
         for prompt in (CurrentDate(), Example(), MultipleChoice(match.title, match.year, candidates)):
             message = json.loads(prompt.to_json())
