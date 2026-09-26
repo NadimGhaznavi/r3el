@@ -122,7 +122,7 @@ class BatchMatching:
                 elif (item.tmdb_match is not None
                       and (item.tmdb_match.response is not None or item.tmdb_match.year_offset != 0)
                       and item.tmdb_match.title == title
-                      and item.tmdb_match.year - item.tmdb_match.year_offset == year):
+                      and (item.media_type == 'tv' or item.tmdb_match.year - item.tmdb_match.year_offset == year)):
                     # Repeated submissions reuse completed queries; failed searches can be retried.
                     result = item.tmdb_match
                     if ((result.response is not None and result.response['total_results'] == 1)
@@ -144,7 +144,10 @@ class BatchMatching:
                     self._workspace.check_stop(batch_id)
                     retry = RetryIdentification(self._workspace, self._llm)
                     if item.retries >= DR3el.MAX_IDENTIFICATION_RETRIES:
-                        result = self._search_adjacent_years(batch, item, result, log)
+                        if item.media_type == 'tv':
+                            retry.exhausted(item, log)
+                        else:
+                            result = self._search_adjacent_years(batch, item, result, log)
                         break
                     retry.run(item, log)
                     self._workspace.check_stop(batch_id)
@@ -320,15 +323,17 @@ class BatchMatching:
             source='Catalogue', level='ERROR'))
 
     @staticmethod
-    def _search(title: str, year: int, log: EventWriter, *, media_type: str = 'movie') -> TMDBMatch:
+    def _search(title: str, year: int | None, log: EventWriter, *, media_type: str = 'movie') -> TMDBMatch:
+        if media_type == 'tv':
+            year = None
         try:
             client = TMDB.from_environment()
             log.parent_event_id = log.write(
                 Categories.TMDB.SEARCH, Names.TMDB_SEARCH,
                 {'url': 'https://api.themoviedb.org/3/search/tv' if media_type == 'tv' else TMDB.URL,
-                 'parameters': {'query': title, 'first_air_date_year': year, 'page': 1} if media_type == 'tv'
+                 'parameters': {'query': title, 'page': 1} if media_type == 'tv'
                  else TMDB.search_parameters(title, year)}, source='TMDB')
             return TMDBMatch(title, year, media_type=media_type,
-                             response=(client.search_tv(title, year) if media_type == 'tv' else client.search(title, year)))
+                             response=(client.search_tv(title) if media_type == 'tv' else client.search(title, year)))
         except TMDBError as error:
             return TMDBMatch(title, year, error=str(error), media_type=media_type)

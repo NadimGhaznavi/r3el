@@ -23,9 +23,11 @@ Combined-episode filenames and conflicting mappings are left unmatched; this
 initial implementation expects one episode per video.
 
 TV identification has two phases. First, the LLM receives the captured `find -ls`
-listing and supplies only the series title, first-air year and confidence. TMDB TV
-search, multiple-choice selection, zero-result retries and manual TMDB ID correction
-resolve that identity before episode mapping can start.
+listing and calls `submit_tv_series` with only the series title and confidence.
+TMDB is searched by name without a year filter. Multiple matches use the existing
+LLM selection dialogue; zero matches retry series identification without adjacent-year
+searches. Manual TMDB ID correction also resolves the identity before episode mapping
+can start. The displayed year comes from the selected TMDB record, never an LLM guess.
 
 Second, a fresh dialogue receives the confirmed TMDB series name, ID, first-air
 date and overview, together with the listing and detected episode files. It supplies

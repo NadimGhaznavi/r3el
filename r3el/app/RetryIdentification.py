@@ -62,6 +62,7 @@ class RetryIdentification:
         item.action = MediaFileAction.PENDING
         item.issues = ([issue for issue in item.issues if issue.code == 'unresolved_srt']
                        + [MediaFileIssue('unresolved_llm',
+                           'No TMDB series matches after identification retries.' if item.media_type == 'tv' else
                            'No TMDB matches after three identification retries and adjacent-year searches.')])
         item.tmdb_match = replace(item.tmdb_match, selection_pending=False)
         self._save(item, log, Names.ITEM_COMPLETED)

@@ -67,6 +67,38 @@ class ZeroMatchRetryTests(unittest.TestCase):
         self.assertIsNone(self.snapshots[1].tmdb_match)
         self.assertEqual(self.conversation.call_args.args[3].context['filename'], 'Actual.Movie.2025.mkv')
 
+    def test_tv_retries_search_by_name_without_adjacent_years(self):
+        self.item.media_type = 'tv'
+        self.item.find_ls = 'listing'
+        self.item.identification = Identification('Alcatraz',None,9)
+        self.conversation.return_value.run.return_value = dict(status='identified',attempts=1,
+            identification=dict(title='Alcatraz',year=None,confidence=9))
+        self.tmdb.search_tv.return_value = self.zero
+        self.runner.run('batch')
+        self.assertEqual(self.tmdb.search_tv.call_count,4)
+        self.assertTrue(all(call.args == ('Alcatraz',) for call in self.tmdb.search_tv.call_args_list))
+        self.tmdb.search.assert_not_called()
+        self.assertEqual(self.item.state,MediaFileState.UNRESOLVED_LLM)
+        self.assertNotIn('adjacent',self.item.issues[-1].message)
+
+    @patch('r3el.app.BatchMatching.MovieSelection')
+    def test_tv_multiple_hits_use_selection_and_display_selected_metadata_year(self, selection):
+        self.item.media_type = 'tv'
+        self.item.identification = Identification('Alcatraz',None,9)
+        self.tmdb.search_tv.return_value = dict(total_results=2,results=[
+            dict(id=1,name='Alcatraz',first_air_date='2015-01-01'),
+            dict(id=2,name='Alcatraz',first_air_date='2012-01-16')])
+        selection.return_value.run.side_effect = lambda match,log: replace(match,selected_number=2)
+        with patch('r3el.app.BatchMatching.LLM.from_environment'):
+            self.runner.run('batch')
+        self.tmdb.search_tv.assert_called_once_with('Alcatraz')
+        selection.return_value.run.assert_called_once()
+        self.assertIsNone(selection.return_value.run.call_args.args[0].year)
+        self.assertEqual(self.item.display_year,2012)
+        self.runner.run('batch')
+        self.assertEqual(self.tmdb.search_tv.call_count,1)
+        self.assertEqual(selection.return_value.run.call_count,1)
+
     def test_three_retries_exhaust_then_later_submissions_do_not_restart(self):
         self.tmdb.search.return_value = self.zero
         self.runner.run('batch')
