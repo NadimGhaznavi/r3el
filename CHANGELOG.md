@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-09-25 @ 22:12
+
 ### Fixed
 
 - Enforce Batch Size across ordinary files and matched directories combined. Only immediate child directories of the source are batch candidates; scan their nested contents without queuing subdirectories independently.
