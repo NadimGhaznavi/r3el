@@ -265,6 +265,15 @@ class ControlServerTests(unittest.TestCase):
         self.assertNotIn('Back to catalogue', body)
         for heading in ('Director', 'Producers', 'Cast'):
             self.assertIn('>' + heading + '</h2>', body)
+        self.assertIn('href="file:///movies/Movie.mkv"', body)
+        get.return_value['files'] = [
+            {'path': '/exports/disk1/Film & "é" #1%.mkv'},
+            {'path': '/media/exports/Other.mkv'},
+        ]
+        body = self.request('/catalogue/42')[2]
+        self.assertIn('href="file:///imports/disk1/Film%20%26%20%22%C3%A9%22%20%231%25.mkv"', body)
+        self.assertIn('/imports/disk1/Film &amp; &#34;é&#34; #1%.mkv</a>', body)
+        self.assertIn('href="file:///media/exports/Other.mkv"', body)
         get.return_value = None
         self.assertEqual(self.request('/catalogue/42')[0], 404)
         for path in ('/catalogue/0', '/catalogue/4294967296', '/catalogue/abc'):
@@ -277,6 +286,7 @@ class ControlServerTests(unittest.TestCase):
             vote_count=10,imdb_id=None,credits=[],files=[{'path':'/media/tv/episode.mkv'}],
             artwork=[{'kind':'poster'}],episodes=[dict(tmdb_id=123,season_number=1,episode_number=2,
                 title='Episode',overview='<Saved summary>',air_date='2020-01-08',runtime=48,has_still=True,
+                files=[{'path': '/exports/disk1/Show/Episode #2.mkv'}],
                 credits=[dict(name='<Actor>',role='Actor',character_name='Hero')])])
         status, _, body = self.request('/catalogue/tv/42')
         self.assertEqual(status,200)
@@ -285,6 +295,8 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('https://www.themoviedb.org/tv/42',body)
         self.assertIn('S01E02 — Episode',body)
         self.assertIn('TV series',body)
+        self.assertIn('href="file:///imports/disk1/Show/Episode%20%232.mkv"', body)
+        self.assertIn('>/imports/disk1/Show/Episode #2.mkv</a>', body)
         for text in ('&lt;Saved summary&gt;', '2020-01-08', '48 minutes',
                      '/catalogue/tv/42/episodes/123/still', '&lt;Actor&gt; — Actor (Hero)'):
             self.assertIn(text,body)
