@@ -31,7 +31,10 @@ can start. The displayed year comes from the selected TMDB record, never an LLM 
 
 Second, a fresh dialogue receives the confirmed TMDB series name, ID, first-air
 date and overview, together with the listing and detected episode files. It supplies
-only file/season/episode mappings; it cannot change the series identity. The mapping
+only numeric file-ID/season/episode mappings; it cannot change the series identity.
+The backend assigns the IDs and resolves them back to the exact original paths,
+so the LLM never needs to reproduce filenames. Every ID must appear exactly once.
+The mapping
 and its completion marker are saved together. Unresolved mapping leaves the files
 untouched. Each mapped episode is
 checked against TMDB season and episode metadata before importing it. Unknown

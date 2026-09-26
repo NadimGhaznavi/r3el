@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.5.2] - 2026-09-26 @ 05:19
+
+### Fixed
+- Use numeric file IDs for LLM episode mappings and resolve them to untouched source paths in the backend, avoiding filename transcription errors such as altered apostrophes.
+
 ## [4.5.0] - 2026-09-26 @ 04:55
 
 ### Changed

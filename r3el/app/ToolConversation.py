@@ -6,6 +6,7 @@ import math
 from uuid import uuid4
 
 from r3el.activity.EventWriter import EventWriter
+from r3el.activity.TVPattern import TVPattern
 from r3el.app.prompts.CurrentDate import CurrentDate
 from r3el.app.prompts.Focus import Focus
 from r3el.app.prompts.FileContext import FileContext
@@ -94,7 +95,7 @@ class ToolConversation:
         for attempt in range(1, DR3el.MAX_LLM_RETRIES + 2):
             context = {**self._log.context, 'attempt': attempt, 'attempt_id': str(uuid4())}
             if self._tv:
-                context['tv_episodes'] = self._directory['episodes']
+                context['tv_episodes'] = TVPattern.numbered_files(self._directory['episodes'])
             elif self._directory is not None and not self._series:
                 context['media_files'] = [self._directory['media_file_a'], self._directory['media_file_b']]
             attempt_log = EventWriter(self._log.record, context, self._log.parent_event_id)
