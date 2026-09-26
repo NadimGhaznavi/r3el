@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-09-25 @ 22:55
+
 ### Changed
 - Include TMDB vote counts alongside titles and overview excerpts in the LLM movie-selection prompt.
 
