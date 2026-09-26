@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-09-26 @ 04:20
+
 ### Changed
 - Split TV processing into series identification and TMDB confirmation, followed by a separate episode-mapping dialogue using the confirmed series identity.
 - Keep movie and TV event context consistent and distinguish TV series identification, episode mapping and import in logs and batch reporting.
