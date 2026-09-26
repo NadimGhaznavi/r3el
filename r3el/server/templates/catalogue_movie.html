@@ -24,6 +24,8 @@
     </dl>
   </div>
 </article>
+<details class="batch-panel catalogue-people">
+<summary>People</summary>
 <div class="catalogue-credits">
   <section class="batch-panel" aria-labelledby="director-heading">
     <h2 id="director-heading">Director</h2>
@@ -44,9 +46,10 @@
     {% else %}<li>No cast information available.</li>{% endfor %}</ul>
   </section>
 </div>
+</details>
 {% if media_type == 'tv' %}
 <section class="batch-panel catalogue-results" aria-labelledby="episodes-heading">
-  <h2 id="episodes-heading">Imported episodes</h2>
+  <h2 id="episodes-heading">Episodes</h2>
   {% for episode in movie.episodes %}
   <article class="movie-card catalogue-detail" aria-labelledby="episode-{{ episode.tmdb_id }}">
     <div class="movie-poster">
