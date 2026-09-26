@@ -1,22 +1,28 @@
+---
+title: Identification server
+author_profile: true
+layout: single
+---
+
+[Documentation index](../index.md)
+
 # Identification server
 
-The server starts idle and keeps its MCP/ZeroMQ listener available until stopped.
-It does not scan files, resume the workspace, or contact the model on startup.
-The control page's New Batch button sends input/output directories and batch size
-to the server. It identifies the batch, automatically performs TMDB searches and
-LLM candidate selection or zero-result retries, then returns to idle while keeping
-the listener available. It processes groups of up to 10 files: each group finishes
-identification, matching, selection, and retries before the next begins. No second
-button press is required. This path assumes an empty workspace; clearing and replacement remain
-unimplemented. Output directories are saved for later stages, not used to move files.
-An explicit `--run-batch` option retains the one-batch diagnostic workflow described below.
+The normal server keeps its MCP/ZeroMQ listener available until stopped.
+It resumes interrupted work on startup when a model URL is configured, while
+completed or explicitly stopped batches remain idle.
 
-With `--run-batch` and an empty workspace, R3el scans regular files directly inside `DR3el.FILM_DIR`,
-selects up to `DR3el.BATCH_SIZE` names alphabetically, saves the selection,
-identifies each, and exits. Subdirectories and symbolic links are excluded.
-Identification leaves source files untouched. This diagnostic mode only identifies
-filenames; Process Batch can start TMDB matching afterward. The normal New Batch
-flow includes matching automatically. Neither flow moves files into `MEDIA_DIR`.
+**New Batch** sends source, destination and batch size to the server. It runs
+identification, TMDB matching, candidate selection, catalogue saving and media
+moves automatically. Ordinary files are processed in groups of up to 10, followed
+by matched directory items. See the [batch overview](01-high-level-flow.md) and
+[directory patterns](directory-patterns.md).
+
+The explicit --run-batch diagnostic workflow selects regular files directly
+inside the source, excludes subdirectories and symbolic links, identifies
+filenames and exits. It can reload a retained workspace and skip saved outcomes.
+Identification alone leaves source files untouched; this diagnostic path does
+not run the normal automatic import pipeline.
 
 ## Components
 
@@ -45,7 +51,7 @@ attempt identifier to the active server-owned context.
 Prompts that supply data use a JSON object with separate `instructions` and
 `data` fields in the message content. Dates, filenames, and validation reasons
 remain structured values. TMDB selection uses the same format, with a `query`
-object and a `candidates` array containing `number`, `title`, and `overview`.
+object and a `candidates` array containing `number`, `title`, `overview`, and `vote_count`.
 Overview excerpts still extend through the sentence ending after roughly 160
 characters; missing overviews are empty strings. Instruction-only prompts such
 as `focus` retain their wording.
@@ -85,8 +91,8 @@ take precedence over new `--film-dir` and `--batch-size` arguments. Only one
 processor can use the workspace at once. Resuming logs `batch_resumed`.
 
 An `identification_completed` batch stays available for later matching and review.
-Running `--run-batch` again returns its results without calling the model. Workspace
-cleanup belongs to finalization, which is not implemented yet.
+Running `--run-batch` again returns its results without calling the model. **Clear Current Batch** removes working records after processing stops, retaining
+media, catalogue records and event history.
 
 Install and upgrade apply `EventSchema` followed by `WorkspaceSchema`, including
 the matching lifecycle states. The server unit also loads TMDB credentials from
@@ -118,7 +124,7 @@ start the idle listener:
 sudo systemctl start r3el-server.service
 ```
 
-The service stays idle until stopped. Only the explicit `--run-batch` diagnostic
+The service waits for new batches when no interrupted work needs resuming. Only the explicit `--run-batch` diagnostic
 mode exits after identification. The normal service accepts batches from the web interface.
 
 ## Shared Qwen service
