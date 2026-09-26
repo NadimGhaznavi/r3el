@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Continue TV imports when TMDB season or episode metadata returns 404, using placeholder metadata and reserved local episode IDs in the existing schema. Show the missing-description/cast message in the catalogue and log a warning; other TMDB failures remain errors.
+
 ## [4.9.1] - 2026-09-26 @ 07:33
 
 ### Changed

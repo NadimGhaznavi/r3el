@@ -10,6 +10,18 @@ class TVCatalogueDb:
         self.db = db
 
     def save_in_transaction(self, series, season: dict, episode: dict, files: list[dict], artwork: list[dict]):
+        if episode['id'] == 0:
+            # Missing TMDB records still need a unique key for files and credits.
+            # Reuse the natural episode identity on repeated imports.
+            existing = self.db.query('SELECT tmdb_id FROM tv_episodes WHERE series_id=%s '
+                                     'AND season_number=%s AND episode_number=%s FOR UPDATE',
+                                     (series.tmdb_id,episode['season_number'],episode['episode_number']))
+            if existing:
+                placeholder_id = existing[0]['tmdb_id']
+            else:
+                highest = self.db.query('SELECT tmdb_id FROM tv_episodes ORDER BY tmdb_id DESC LIMIT 1 FOR UPDATE')
+                placeholder_id = max(4000000000, highest[0]['tmdb_id'] if highest else 0) + 1
+            episode = dict(episode, id=placeholder_id)
         self.db.execute("""INSERT INTO tv_series
             (tmdb_id,title,original_title,first_air_date,overview,rating,vote_count,added_at,fetched_at)
             VALUES (%s,%s,%s,%s,%s,%s,%s,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
@@ -36,19 +48,22 @@ class TVCatalogueDb:
             air_date=VALUES(air_date),runtime=VALUES(runtime)""",
             (episode['id'],series.tmdb_id,episode['season_number'],episode['episode_number'],
              episode['name'],episode.get('overview'),episode.get('air_date') or None,episode.get('runtime')))
+        episode_id = self.db.query('SELECT tmdb_id FROM tv_episodes WHERE series_id=%s '
+                                  'AND season_number=%s AND episode_number=%s',
+                                  (series.tmdb_id,episode['season_number'],episode['episode_number']))[0]['tmdb_id']
         for file in files:
             self.db.execute("""INSERT INTO tv_episode_files (path_hash,path,episode_id,kind)
                 VALUES (%s,%s,%s,%s) ON DUPLICATE KEY UPDATE episode_id=VALUES(episode_id),kind=VALUES(kind)""",
-                (sha256(file['destination'].encode()).digest(),file['destination'],episode['id'],file['kind']))
+                (sha256(file['destination'].encode()).digest(),file['destination'],episode_id,file['kind']))
         for art in artwork:
             self.db.execute("""INSERT INTO tv_artwork
                 (path_hash,path,series_id,season_number,episode_id,kind) VALUES (%s,%s,%s,%s,%s,%s)
                 ON DUPLICATE KEY UPDATE series_id=VALUES(series_id),season_number=VALUES(season_number),
                 episode_id=VALUES(episode_id),kind=VALUES(kind)""",
                 (sha256(art['path'].encode()).digest(),art['path'],series.tmdb_id,
-                 art.get('season_number'),art.get('episode_id'),art['kind']))
+                 art.get('season_number'),episode_id if art['kind'] == 'still' else None,art['kind']))
         self._credits('tv_series_credits','series_id',series.tmdb_id,series.credits)
-        self._credits('tv_episode_credits','episode_id',episode['id'],TVCatalogue.episode_credits(episode))
+        self._credits('tv_episode_credits','episode_id',episode_id,TVCatalogue.episode_credits(episode))
 
     def _credits(self, table, column, identifier, credits):
         roles={row['name']:row['role_id'] for row in self.db.query('SELECT role_id,name FROM credit_roles')}
