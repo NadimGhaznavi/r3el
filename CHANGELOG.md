@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.5] - 2026-09-26 @ 04:00
+
 ### Fixed
 - Show meaningful LLM identification activity and readable directory discovery, TV prompt and batch continuation messages in the Event Log and Current Task.
 
