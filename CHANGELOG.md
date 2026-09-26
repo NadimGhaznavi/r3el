@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.6.1] - 2026-09-26 @ 05:52
+
 ### Fixed
 - Bound TV series-identification prompts to a sorted JSON sample of filenames instead of the complete raw directory listing, retaining all file paths on the server for episode mapping.
 - Record rejected LLM requests (HTTP 400, including context overflow) as unresolved items with the server's error in the Event Log, without repeatedly submitting the same request or stopping R3el.
