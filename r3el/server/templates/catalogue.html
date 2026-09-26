@@ -45,6 +45,7 @@
     {% else %}<p>No movies in the catalogue yet.</p>{% endif %}
   </section>
 </div>
+<div class="catalogue-search-panels">
 <section class="batch-panel" aria-labelledby="search-heading">
   <h2 id="search-heading">Title Search</h2>
   <form method="get" action="/catalogue" class="catalogue-search" role="search">
@@ -74,6 +75,7 @@
     <button type="submit">Search</button>
   </form>
 </section>
+</div>
 {% if search_title or selected_categories %}
 <section class="batch-panel catalogue-results" aria-labelledby="search-results-heading">
   <h2 id="search-results-heading">Search Results ({{ movies | length }})</h2>

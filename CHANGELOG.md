@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.9.1] - 2026-09-26 @ 07:33
+
+### Changed
+- Fade the robot eyes between purple and dark cyan over a six-minute cycle, 20 times slower than before.
+- Place Catalogue Title Search and Category Search side by side, stacking on narrow screens, with the Title Search button on its own row.
+
 ## [4.9.0] - 2026-09-26 @ 06:33
 
 ### Changed
