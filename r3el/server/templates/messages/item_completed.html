@@ -1,4 +1,4 @@
-{% if message.payload.context.phase | default('') == 'tv_episodes' %}<a href="/events/{{ event.event_id }}">Episode mapping complete. Series: {{ message.payload.context.confirmed_series.name }}. Episodes: {{ message.payload.data.count }}.</a>
+{% if message.payload.context.phase | default('') == 'tv_episodes' %}<a href="/events/{{ event.event_id }}">Episode mapping complete. Series: {{ message.payload.context.confirmed_series.name }}{% if message.payload.context.season_number is defined and message.payload.context.season_number is not none %} (Season {{ message.payload.context.season_number }}){% endif %}. Episodes: {{ message.payload.data.count }}.</a>
 {% elif message.payload.context.media_type | default('movie') == 'tv' %}<a href="/events/{{ event.event_id }}">TV series identification complete. Directory: {{ message.payload.context.filename }}.</a>
 {% else %}<a href="/events/{{ event.event_id }}">Item identification complete. Filename: {{ message.payload.context.filename }}</a>
 {% endif %}
