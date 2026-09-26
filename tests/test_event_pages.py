@@ -36,6 +36,32 @@ class EventPagesTests(unittest.TestCase):
             if outcome == 'failed':
                 self.assertIn('&lt;failure&gt;',body)
 
+    def test_tv_identification_and_discovery_have_readable_status(self):
+        from r3el.entity.MediaFileBatch import MediaFileBatch
+        batch = MediaFileBatch('batch',1,'/source')
+        cases = [
+            ('attempt_started','ToolConversation',{},'Identifying TV series and episodes with the LLM'),
+            ('prompt_sent','DirectoryContextTV',{'content':'{}'},'TV series and episode identification prompt sent'),
+            ('prompt_sent','Prompt',{'content':'Return the submit_tv tool call.'},'Prompt sent.'),
+            ('directory_scan_started','DirectoryDiscovery',{'directory':'/source/<Show>'},'Scanning directory'),
+            ('directory_scan_completed','DirectoryDiscovery',dict(directory='/source/<Show>',media_files=['a'],
+                pattern='tv',matched=True),'TV series pattern matched.'),
+            ('directories_scanned','DirectoryDiscovery',dict(tv_series=1,two_part_movies=0,dated_movie_directories=0),
+                'TV series: 1'),
+            ('batch_resumed','BatchIdentification',dict(pending=1),'Pending items: 1'),
+            ('identification_group_completed','BatchIdentification',dict(count=0,unresolved_llm=0),
+                'Identification group complete.'),
+        ]
+        for name,source,data,expected in cases:
+            with self.subTest(name=name):
+                self.event.update(name=name,source_name=source,content=json.dumps(dict(
+                    context=dict(batch_id='batch',filename='<Show>',attempt=2,tv_episodes={}),data=data)))
+                self.assertIn(expected,self.render())
+                body = self.pages.render('control.html',workspace=batch,refresh=0,latest_event=self.event).decode()
+                task = body.split('<p id="batch-processing"',1)[1].split('</p>',1)[0]
+                self.assertIn(expected,task)
+                self.assertNotIn('"context"',task)
+
     def add_template(self, source):
         self.pages._templates.loader = ChoiceLoader([
             DictLoader({'messages/batch_completed.html': source}),

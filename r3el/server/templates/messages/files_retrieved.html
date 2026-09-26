@@ -1,1 +1,1 @@
-<a href="/events/{{ event.event_id }}">Retrieved filenames ({{ message.payload.data | length }}): {{ message.payload.data[:2] | join(', ') }}, ...</a>
+<a href="/events/{{ event.event_id }}">Retrieved filenames ({{ message.payload.data | length }}){% if message.payload.data %}: {{ message.payload.data[:2] | join(', ') }}{% if message.payload.data | length > 2 %}, …{% endif %}{% else %}: no ordinary files selected{% endif %}.</a>

@@ -2,4 +2,6 @@
 {% include 'messages/multiple_choice_prompt_sent.html' %}
 {% elif event.source_name == 'current_date' %}
 {% include 'messages/current_date_prompt_sent.html' %}
-{% elif event.source_name in ['FileContext', 'SubmitIdentificationPrompt', 'InvalidIdentification'] %}<a href="/events/{{ event.event_id }}">Prompt sent. Filename: {{ message.payload.context.filename }}, Prompt: {{ message.payload.data.content | prompt_preview }}</a>{% else %}{% include 'messages/default.html' %}{% endif %}
+{% elif event.source_name == 'DirectoryContextTV' %}<a href="/events/{{ event.event_id }}">TV series and episode identification prompt sent. Directory: {{ message.payload.context.filename }}.</a>
+{% elif event.source_name == 'DirectoryContextTwoParts' %}<a href="/events/{{ event.event_id }}">Two-part movie identification prompt sent. Directory: {{ message.payload.context.filename }}.</a>
+{% else %}<a href="/events/{{ event.event_id }}">Prompt sent. Filename: {{ message.payload.context.filename }}, Prompt: {{ message.payload.data.content | prompt_preview }}</a>{% endif %}
