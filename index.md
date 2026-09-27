@@ -43,3 +43,4 @@ In short, I used an AI to match my massive collection of media files and folders
     <img src="{{ '/pages/images/tmdb.svg' | relative_url }}" alt="TMDB" width="100" style="vertical-align: middle;">
   </a>
 </footer>
+
