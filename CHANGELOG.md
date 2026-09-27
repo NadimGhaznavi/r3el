@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.0] - 2026-09-27 @ 15:28
+
 ### Fixed
 
 - Discover single movies inside directories and individual collection movies whose filenames lack years, retaining their subtitle associations.
