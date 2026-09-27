@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.3.2] - 2026-09-27 @ 09:50
+
 - Downstream systems change wants a site refresh.
 
 ## [6.3.1] - 2026-09-27 @ 07:52
