@@ -82,10 +82,10 @@
 </details>
 {% else %}<section class="batch-panel catalogue-season"><p>No imported episodes.</p></section>{% endfor %}
 {% endif %}
-<section class="batch-panel" aria-labelledby="files-heading">
-  <h2 id="files-heading">Files</h2>
+<details class="batch-panel catalogue-files">
+  <summary>Files</summary>
   <ul>{% for file in movie.files %}<li>{{ file_link(file.path) }}</li>{% else %}<li>No catalogued files.</li>{% endfor %}</ul>
-</section>
+</details>
 {% if media_type == 'tv' %}
 <script>
   function revealEpisode() {

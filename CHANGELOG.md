@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Make the Files section on movie and TV catalogue pages collapsible and closed by default, matching People and seasons.
+
 ## [6.3.0] - 2026-09-27 @ 02:18
 
 ### Changed
