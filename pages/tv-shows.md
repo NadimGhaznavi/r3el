@@ -15,12 +15,30 @@ Supported videos must be larger than 100 MiB for discovery.
 | 11.22.63/11.22.63-01.mkv through -08.mkv | Consistently numbered episodes; the LLM identifies the series and proposes the missing season. |
 | 12-Monkeys/12-Monkeys-S01E01.mkv | Explicit season and episode, even with only one video. |
 | Slow-Horses/season-2/...S02E05... plus other season directories | One series selection with individual episode mappings across seasons. |
+| Show 1x01, Show S01 E01, Show-S01-E01, Show Season 1 Episode 01 | Alternate explicit season/episode forms. |
+| Show/season-1/show.103.hdtv.mp4 | Compact episode numbers use the season folder as context. An explicit episode number in the immediate release folder can also identify its video. |
+| Black Lagoon 01 The Black Lagoon.mkv | Numbered episodes with titles and a consistent series prefix. |
 
 TV patterns take priority over two-part movies. Explicit season/episode numbers
 cannot be changed by the LLM. Numbered files must share a consistent filename
 prefix and have unique episode mappings. Season zero is allowed for specials.
-Combined-episode filenames and conflicting mappings are left unmatched; this
-initial implementation expects one episode per video.
+Titles beginning with numbers, such as `S01E01 1200 A.M.` or
+`Season 2 Episode 09 - 4 Days Out`, are supported.
+
+Discovery selects recognizable episodes even when other videos in the directory
+cannot be matched. Extras, featurettes, combined-episode videos, duplicate mappings,
+and files whose season conflicts with their folder stay at the source. Their
+subtitles are not reassigned to selected episodes. Skipped videos appear in Match
+Results, and the directory scan event reports the selected and skipped counts.
+Cleanup preserves any remaining media or subtitles.
+
+Filename title prefixes keep visibly misfiled shows out of the parent series.
+Collections containing distinct series without a single matching parent title
+remain unmatched; use each series directory as a separate immediate child of the
+source. Bare unpadded movie sequels in a mixed directory are not selected as TV.
+Discovery still expects one episode per video and does not rewrite conflicting
+season or episode numbers. Start a new batch to apply these discovery rules to
+previously scanned directories.
 
 TV identification has two phases. First, the LLM receives the captured `find -ls`
 listing and calls `submit_tv_series` with only the series title and confidence.

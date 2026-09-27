@@ -52,6 +52,11 @@
 {% elif attachment.import_result and attachment.import_result.error is defined %}{{ attachment.import_result.error }}
 {% else %}Pending{% endif %}</li>
 {% endfor %}</ul>
+{% set skipped = file.issues | selectattr('code', 'equalto', 'unresolved_tv') | list %}
+{% if skipped %}
+<h3>Videos left at source</h3>
+<ul>{% for issue in skipped %}<li>{{ issue.message }}</li>{% endfor %}</ul>
+{% endif %}
 </section>
 {% endif %}
 {% if match.response is not none %}<details class="match-json"><summary>View saved JSON</summary><pre>{{ response_json }}</pre></details>{% endif %}
