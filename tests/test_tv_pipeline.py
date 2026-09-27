@@ -19,6 +19,7 @@ from r3el.entity.MediaAttachment import MediaAttachment
 from r3el.entity.MediaFile import MediaFile
 from r3el.entity.MediaFileBatch import MediaFileBatch
 from r3el.entity.TMDBMatch import TMDBMatch
+from r3el.entity.TMDBReference import TMDBReference
 from r3el.app.ToolConversation import ToolConversation
 from r3el.app.SubmissionHandler import SubmissionHandler
 from r3el.constants.DMessage import DMessage
@@ -106,6 +107,134 @@ class TVPatternTests(unittest.TestCase):
                       ['Alice-2010.avi', 'Alice-2016.avi'],
                       ['Show-S01E01E02.mkv'], ['Show-S01E01-02.mkv']):
             self.assertIsNone(TVPattern.match(paths), paths)
+
+    def test_common_episode_names_and_numeric_titles(self):
+        names = [
+            ('A Perfect Spy 1x01 DVDrip.avi', 1, 1),
+            ('Show [2x03] Title.mkv', 2, 3),
+            ('Show S01 E02.mkv', 1, 2),
+            ('Show-S01-E02.mkv', 1, 2),
+            ('Show Season 1 Episode 02 - Title.avi', 1, 2),
+            ('Better-Call-Saul_Alpine-Shepherd-BoyS01E05.mp4', 1, 5),
+            ('24 S01e01 1200 A.M. - 100 A.M..mkv', 1, 1),
+            ('Happy! S02E05 19 Hours and 13 Minutes.mkv', 2, 5),
+            ('Show S01E01 1080p 10bit.mkv', 1, 1),
+            ('Show Season 2 Episode 09 - 4 Days Out.avi', 2, 9),
+            ('Show S03E06 - 6955 kHz.avi', 3, 6),
+            ('Show S00E01 Special.mkv', 0, 1),
+        ]
+        for name, season, episode in names:
+            with self.subTest(name=name):
+                self.assertEqual(TVPattern.match([name]),
+                                 {name: dict(season_number=season, episode_number=episode)})
+
+    def test_release_folder_and_compact_numbers_supply_context(self):
+        paths = ['/Show/Season-1/Show.S01E03.HDTV/show.103.hdtv.mp4',
+                 '/Show/Season-1/show.104.hdtv.mp4']
+        self.assertEqual(TVPattern.match(paths), {
+            paths[0]: dict(season_number=1, episode_number=3),
+            paths[1]: dict(season_number=1, episode_number=4)})
+        self.assertIsNone(TVPattern.match(['/Movies/Movie.720p.mkv', '/Movies/Movie.1080p.mkv']))
+
+    def test_numbered_titles_require_consistent_prefix(self):
+        paths = ['/Black-Lagoon/Black Lagoon 01 The Black Lagoon.mkv',
+                 "/Black-Lagoon/Black Lagoon 02 'Mangrove'.mkv",
+                 '/Black-Lagoon/Unrelated 3.mkv']
+        self.assertEqual(TVPattern.match(paths), {
+            paths[0]: dict(season_number=None, episode_number=1),
+            paths[1]: dict(season_number=None, episode_number=2)})
+
+    def test_bad_files_do_not_block_valid_episodes(self):
+        good = '/Show/season-1/Show-S01E03.mkv'
+        skipped = ['/Show/season-1/Show-S01E01.mkv',
+                   '/Show/season-1/Show-S01E01.avi',
+                   '/Show/season-2/Show-S01E04.mkv',
+                   '/Show/Extras/Show-S01E05.mkv',
+                   '/Show/Featurettes/Behind the scenes.mkv',
+                   '/Show/Show-S01E06E07.mkv', '/Show/Show-S01E08-09.mkv',
+                   '/Show/Show-1x10-11.mkv', '/Show/Show S01 E12 E13.mkv',
+                   '/Show/Show-S01E00.mkv', '/Show/Movie-2016.mkv']
+        self.assertEqual(TVPattern.match([good, *skipped]),
+                         {good: dict(season_number=1, episode_number=3)})
+
+    def test_misfiled_series_and_spinoffs_are_not_mapped_as_main_show(self):
+        good = '/Billions/season-2/Billions.S02E01.mkv'
+        other = '/Billions/season-2/blindspot.209.hdtv.mkv'
+        self.assertEqual(TVPattern.match([good, other], '/Billions'),
+                         {good: dict(season_number=2, episode_number=1)})
+        main = '/Battlestar-Galactica/tv-series/S01E02.mkv'
+        spinoff = '/Battlestar-Galactica/Caprica-season-1/Caprica 1x03.mkv'
+        self.assertEqual(TVPattern.match([main, spinoff], '/Battlestar-Galactica'),
+                         {main: dict(season_number=1, episode_number=2)})
+        self.assertIsNone(TVPattern.match(['/Collection/Andor/Andor-S02E01.mkv',
+                                          '/Collection/Maul/Maul-S01E01.mkv'], '/Collection'))
+        self.assertIsNone(TVPattern.match(['/Star-Trek/TNG/Star-Trek-TNG-S01E01.mkv',
+                                          '/Star-Trek/DS9/Star-Trek-DS9-S02E01.mkv',
+                                          '/Star-Trek/Lower-Decks/S03E01.mkv'], '/Star-Trek'))
+
+    def test_release_tags_do_not_split_series(self):
+        paths = ['/Westworld/season-1/Westworld.S01E01.mkv',
+                 '/Westworld/season-2/[TorrentCouch.com].Westworld.S02E01.mkv']
+        self.assertEqual(len(TVPattern.match(paths, '/Westworld')), 2)
+
+    def test_partial_numbered_movie_sequels_do_not_become_tv(self):
+        self.assertIsNone(TVPattern.match(['/Spider-Man/Spider-Man 2.mp4',
+                                          '/Spider-Man/Spider-Man 3.mp4',
+                                          '/Spider-Man/Spider-Man-2002.mp4']))
+
+    def test_discovery_keeps_skipped_videos_and_subtitles_out_of_mapping(self):
+        good = '/film/Show/Show S01 E01.mkv'
+        bad = '/film/Show/Show S01 E02-E03.mkv'
+        files = [good, bad, good.replace('.mkv', '.srt'), bad.replace('.mkv', '.srt')]
+        filesystem = Mock()
+        filesystem.directories.return_value = [Path('/film/Show')]
+        filesystem.scan.return_value = ('listing', [(p, 101*1024*1024) for p in files])
+        workspace = Mock()
+        record = Mock(return_value=1)
+        with patch('r3el.activity.DirectoryDiscovery.DirectoryFiles', return_value=filesystem):
+            DirectoryDiscovery().run(MediaFileBatch('batch', 1, '/film'), workspace,
+                                     EventWriter(record, {'batch_id': 'batch'}))
+        item, = workspace.append_directories.call_args.args[1]
+        self.assertEqual([a.path for a in item.attachments], [good, files[2]])
+        self.assertEqual(list(item.directory_context['episodes']), [good])
+        self.assertEqual(item.issues[0].code, 'unresolved_tv')
+        self.assertIn(bad, item.issues[0].message)
+        events = [call.args[0] for call in record.call_args_list]
+        render_events(events)
+        scanned, = [json.loads(event.message)['data'] for event in events
+                    if event.name == 'directory_scan_completed']
+        self.assertEqual(scanned['tv_episodes'], 1)
+        self.assertEqual(scanned['skipped_tv_files'], [bad])
+        match = TMDBMatch('Show', None, media_type='tv', response={'total_results': 0, 'results': []})
+        html = EventPages().render('match.html', file=item, match=match,
+                                   reference=TMDBReference([], []), refresh=0).decode()
+        self.assertIn('Videos left at source', html)
+        self.assertIn(bad, html)
+
+    def test_discovery_handles_more_than_one_hundred_directories(self):
+        filesystem = Mock()
+        filesystem.directories.return_value = [Path(f'/film/Show-{n}') for n in range(108)]
+        filesystem.scan.side_effect = lambda directory, destination: ('listing', [
+            (str(directory / f'{directory.name} S01 E01.mkv'), 101*1024*1024)])
+        workspace = Mock()
+        with patch('r3el.activity.DirectoryDiscovery.DirectoryFiles', return_value=filesystem):
+            DirectoryDiscovery().run(MediaFileBatch('batch', 150, '/film'), workspace,
+                                     EventWriter(Mock(return_value=1), {'batch_id': 'batch'}))
+        items = workspace.append_directories.call_args.args[1]
+        self.assertEqual(len(items), 108)
+        self.assertTrue(all(item.media_type == 'tv' for item in items))
+
+    def test_ambiguous_tv_does_not_fall_back_to_two_part_movie(self):
+        filesystem = Mock()
+        filesystem.directories.return_value = [Path('/film/Show')]
+        filesystem.scan.return_value = ('listing', [
+            ('/film/Show/Show 1x01-02.mkv', 101*1024*1024),
+            ('/film/Show/Show 1x03-04.mkv', 101*1024*1024)])
+        workspace = Mock()
+        with patch('r3el.activity.DirectoryDiscovery.DirectoryFiles', return_value=filesystem):
+            DirectoryDiscovery().run(MediaFileBatch('batch', 1, '/film'), workspace,
+                                     EventWriter(Mock(return_value=1), {'batch_id': 'batch'}))
+        self.assertEqual(workspace.append_directories.call_args.args[1], [])
 
     def test_two_episodes_take_priority_and_directory_counts_once(self):
         paths = ['/film/Show/Show-S01E01.mkv', '/film/Show/Show-S01E02.mkv']
@@ -212,6 +341,17 @@ class TVImportTests(unittest.TestCase):
             ('season','started',None),('season','received',None),
             ('episode','started',1),('episode','received',1),
             ('episode','started',2),('episode','received',2)])
+
+    def test_import_preserves_skipped_video_and_its_subtitle(self):
+        skipped = self.source / 'Show-S01E03E04.mkv'
+        skipped.write_bytes(b'combined episodes')
+        subtitle = skipped.with_suffix('.srt')
+        subtitle.write_text('combined subtitle')
+        self.run_import()
+        self.assertTrue(self.source.exists())
+        self.assertEqual(skipped.read_bytes(), b'combined episodes')
+        self.assertEqual(subtitle.read_text(), 'combined subtitle')
+        self.assertTrue(all(not Path(a.path).exists() for a in self.attachments))
 
     def test_incomplete_season_listing_does_not_block_episode_import(self):
         self.client.tv_season.return_value['episodes'] = [{'episode_number':1}]

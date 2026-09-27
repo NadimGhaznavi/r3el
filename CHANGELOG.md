@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Broaden TV discovery to recognize spaced season/episode markers, `1x01`, spelled-out episode labels, numbered titles, and episode numbers supplied by release or season folders.
+- Import recognizable TV episodes without requiring every video in the directory to match. Leave extras, combined episodes, duplicate or conflicting mappings, and visibly misfiled series at the source, and report skipped videos in Match Results and scan events.
+
+### Fixed
+
+- Recognize TV episode titles that begin with numbers without treating them as combined episodes.
+- Keep subtitles associated with skipped videos out of the selected episodes' imports.
+
 ## [6.2.1] - 2026-09-26 @ 11:05
 
 ### Changed
