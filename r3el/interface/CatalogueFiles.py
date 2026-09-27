@@ -71,7 +71,10 @@ class CatalogueFiles:
             if folder.is_symlink():
                 raise ValueError('The season directory must not be a symbolic link.')
             folder.mkdir(exist_ok=True)
-            stem += f' S{season:02}E{episode:02} - {MovieNaming.title(episode_title)}'
+            stem += f' S{season:02}E{episode:02}'
+            title = MovieNaming.title(episode_title, allow_empty=True)
+            if title:
+                stem += f' - {title}'
         target = folder / (stem + (f' Part {part}' if part is not None else '') + origin.suffix)
         if origin.is_symlink() or not origin.is_file():
             raise ValueError('The source video must be a regular file.')
