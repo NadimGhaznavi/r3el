@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.3.3] - 2026-09-27 @ 14:59
+
 ### Fixed
 
 - Allow TV episodes with punctuation-only titles to import using the series name and season/episode number when filename normalization removes the title; preserve the original title in the catalogue.
