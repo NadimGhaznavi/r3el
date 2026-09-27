@@ -342,6 +342,21 @@ class TVImportTests(unittest.TestCase):
             ('episode','started',1),('episode','received',1),
             ('episode','started',2),('episode','received',2)])
 
+    def test_punctuation_only_episode_title_imports_video_and_subtitle(self):
+        self.client.tv_details.return_value.update(name='Person of Interest', first_air_date='2011-09-22')
+        self.client.tv_episode.side_effect = lambda series, season, episode: dict(
+            id=1000+episode, name='/', season_number=season, episode_number=episode,
+            credits={'cast': [], 'crew': []})
+        self.run_import()
+        folder = self.root / 'media/tv/Person of Interest (2011)/Season 01'
+        self.assertEqual((folder / 'Person of Interest (2011) S01E01.mkv').read_bytes(), b'episode')
+        self.assertEqual((folder / 'Person of Interest (2011) S01E01.srt').read_text(), 'subtitle')
+        self.assertTrue((folder / 'Person of Interest (2011) S01E02.mkv').exists())
+        saves = [call.kwargs for call in self.workspace.save_tv_episode.call_args_list if call.kwargs]
+        self.assertEqual([save['episode']['name'] for save in saves], ['/', '/'])
+        self.assertTrue(self.workspace.save_match.call_args.args[2].file_moved)
+        self.assertFalse(self.source.exists())
+
     def test_import_preserves_skipped_video_and_its_subtitle(self):
         skipped = self.source / 'Show-S01E03E04.mkv'
         skipped.write_bytes(b'combined episodes')

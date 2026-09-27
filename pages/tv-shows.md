@@ -79,7 +79,10 @@ tv/
       Slow Horses (2022) S02E05 - Boardroom Politics.srt
 ```
 
-Series title/year and episode title come from TMDB. SRT association follows the
+Series title/year and episode title come from TMDB. If filename normalization
+removes the entire episode title (for example, `/`), the filename ends at the
+season and episode number. The catalogue keeps the original episode title.
+SRT association follows the
 existing deterministic rules; ambiguous SRTs remain unresolved. Moves use hard
 links followed by source-name removal, without copying or reading back media
 contents. Existing destination files require explicit Replace Local Media.

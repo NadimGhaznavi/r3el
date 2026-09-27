@@ -112,6 +112,13 @@ class CatalogueFilesTests(unittest.TestCase):
                          'Spider - Man - No Way Home (2021)')
         with self.assertRaises(ValueError):
             MovieNaming.stem('???', 2020)
+        for title in ('/', '???', '...'):
+            with self.subTest(title=title):
+                self.assertEqual(MovieNaming.title(title, allow_empty=True), '')
+                with self.assertRaises(ValueError):
+                    MovieNaming.stem(title, 2020)
+        with self.assertRaises(ValueError):
+            MovieNaming.title('\x00', allow_empty=True)
 
     def test_format_preference_and_equal_mpeg_rank(self):
         order = ['mkv', 'mp4', 'm4v', 'avi', 'mov', 'wmv', 'flv', 'mpg']
