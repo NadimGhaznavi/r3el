@@ -6,7 +6,7 @@ import unicodedata
 
 class MovieNaming:
     @staticmethod
-    def title(title: str) -> str:
+    def title(title: str, *, allow_empty: bool = False) -> str:
         title = unicodedata.normalize('NFKC', title)
         for old, new in {':': ' - ', '/': ' - ', '\\': ' - ', '#': '', '%': ' percent ',
                          '"': '', '*': '', '?': '', '<': '', '>': '', '|': '',
@@ -14,7 +14,7 @@ class MovieNaming:
             title = title.replace(old, new)
         title = re.sub(r'\s+', ' ', title)
         title = re.sub(r'\s*-\s*', ' - ', title).strip(' .-')
-        if not title or any(ord(character) < 32 for character in title):
+        if (not title and not allow_empty) or any(ord(character) < 32 for character in title):
             raise ValueError('The movie title cannot form a valid filename.')
         return title
 
