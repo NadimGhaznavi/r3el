@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Discover single movies inside directories and individual collection movies whose filenames lack years, retaining their subtitle associations.
+
+### Added
+
+- For directory movies without a recognized filename year, ask the LLM to infer a release year from the full `find -ls` listing or choose “No year.” Search TMDB next, omitting the year when unknown, and return unconfirmed results to a separate selection conversation. Searches without a year always require LLM selection.
+- Show missing-year discovery decisions in scan events and keep declined single TMDB candidates unresolved.
+
 ## [6.3.3] - 2026-09-27 @ 14:59
 
 ### Fixed

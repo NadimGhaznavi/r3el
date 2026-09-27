@@ -17,14 +17,16 @@ class MatchResults:
             return dict(status='Match failed', tone='failed', explanation=match.error, movies=[], total=0)
         noun = 'series' if match.media_type == 'tv' else 'movie'
         plural = 'series' if match.media_type == 'tv' else 'movies'
-        query = 'title' if match.media_type == 'tv' else 'title and year'
+        query = 'title' if match.year is None else 'title and year'
         response = match.resolved_response
         total = response['total_results']
         selected = bool(match.selected_number)
+        resolved = selected or (total == 1 and match.selected_number != 0
+                                and not match.selection_pending and not match.selection_error)
         movies = [dict(self._movie(movie, match.media_type), selected=selected) for movie in response['results']]
         return dict(
-            status='Resolved' if selected or total == 1 else 'No matches' if total == 0 else 'Ambiguous',
-            tone='resolved' if selected or total == 1 else 'unresolved',
+            status='Resolved' if resolved else 'No matches' if total == 0 else 'Ambiguous',
+            tone='resolved' if resolved else 'unresolved',
             explanation=(f'The LLM selected candidate {match.selected_number}.' if selected else
                          match.selection_error if match.selection_error else
                          'The LLM could not confidently select a title.' if match.selected_number == 0 else

@@ -106,7 +106,7 @@ class BatchIdentification:
             item.attempts = result['attempts']
             if item.state == MediaFileState.IDENTIFIED:
                 item.identification = Identification(**result['identification'])
-                if item.media_type != 'tv' and item.find_ls is not None:
+                if item.is_two_part:
                     item.assign_parts(**result['parts'])
                 item.issues = [issue for issue in item.issues if issue.code == 'unresolved_srt']
             else:

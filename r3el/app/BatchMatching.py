@@ -122,10 +122,13 @@ class BatchMatching:
                 elif (item.tmdb_match is not None
                       and (item.tmdb_match.response is not None or item.tmdb_match.year_offset != 0)
                       and item.tmdb_match.title == title
-                      and (item.media_type == 'tv' or item.tmdb_match.year - item.tmdb_match.year_offset == year)):
+                      and (item.media_type == 'tv' or
+                           (item.tmdb_match.year if item.tmdb_match.year_offset == 0 else
+                            item.tmdb_match.year - item.tmdb_match.year_offset) == year)):
                     # Repeated submissions reuse completed queries; failed searches can be retried.
                     result = item.tmdb_match
-                    if ((result.response is not None and result.response['total_results'] == 1)
+                    if ((result.response is not None and result.response['total_results'] == 1
+                         and not (item.needs_year_inference and result.year is None))
                             or result.selected_number is not None):
                         self._catalogue(batch, item, result, log)
                         continue
@@ -136,7 +139,8 @@ class BatchMatching:
                 if result.year_offset != 0:
                     result = self._search_adjacent_years(batch, item, result, log)
                 while (result.response is not None and not result.skipped and result.error is None
-                       and result.response['total_results'] == 0 and result.year_offset == 0):
+                       and result.response['total_results'] == 0 and result.year_offset == 0
+                       and not item.needs_year_inference):
                     item.tmdb_match = result
                     self._workspace.save_match(batch.id, item.id, result, log.prepare(
                         Categories.TMDB.RESULT, Names.TMDB_RESULT,
@@ -157,7 +161,10 @@ class BatchMatching:
                 if not result.skipped and item.retries > 0 and item.state == MediaFileState.UNRESOLVED_LLM:
                     continue
                 needs_selection = (result.response is not None and not result.skipped and result.error is None
-                                   and result.response['total_results'] > 1 and result.selected_number is None)
+                                   and (result.response['total_results'] > 1 or
+                                        (item.needs_year_inference and
+                                         (result.year is None or result.response['total_results'] == 0)))
+                                   and result.selected_number is None)
                 if needs_selection:
                     result = replace(result, selection_pending=True, selection_error=None)
                 event = None if result.skipped or result.year_offset != 0 else log.prepare(
@@ -167,7 +174,8 @@ class BatchMatching:
                 self._workspace.save_match(batch.id, item.id, result, event)
                 if needs_selection:
                     try:
-                        result = MovieSelection(self._llm or LLM.from_environment()).run(result, log)
+                        result = MovieSelection(self._llm or LLM.from_environment()).run(
+                            result, log, **({'directory': item.directory_context} if item.needs_year_inference else {}))
                     except BaseException:
                         self._workspace.save_match(batch.id, item.id,
                                                    replace(result, selection_pending=False), None)
@@ -223,7 +231,7 @@ class BatchMatching:
                 self._finish_move(batch.id, item.id, result, log)
             return
         response = result.resolved_response
-        if (result.skipped or result.error is not None
+        if (result.skipped or result.error is not None or result.selected_number == 0
                 or result.selection_pending or result.selection_error is not None
                 or response is None or response['total_results'] != 1):
             return

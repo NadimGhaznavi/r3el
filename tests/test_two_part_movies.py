@@ -58,8 +58,8 @@ class DirectoryTests(unittest.TestCase):
             self.file('three/' + name)
         self.file('one/a.mkv')
         DirectoryDiscovery().run(self.batch, self.workspace, self.log)
-        self.assertEqual(len(self.batch.files), 1)
-        item = self.batch.files[0]
+        self.assertEqual(len(self.batch.files), 5)
+        item = next(item for item in self.batch.files if item.is_two_part)
         self.assertEqual(item.path, str(self.root / 'parent'))
         self.assertEqual([a.path for a in item.attachments if a.kind == 'video'], [b, a])
         self.assertIn('a.AVI', item.find_ls)
@@ -103,17 +103,18 @@ class DirectoryTests(unittest.TestCase):
         filesystem.return_value.scan.assert_not_called()
         self.assertEqual(len(self.batch.files), 1)
 
-    def test_nested_movies_are_not_individual_candidates_when_parent_does_not_match(self):
+    def test_nested_media_are_individual_candidates_when_parent_does_not_match(self):
         for movie in ('one', 'two'):
             self.file(f'collection/{movie}/part1.avi')
             self.file(f'collection/{movie}/part2.avi')
         DirectoryDiscovery().run(self.batch, self.workspace, self.log)
-        self.assertEqual(self.batch.files, [])
+        self.assertEqual(len(self.batch.files), 4)
+        self.assertTrue(all(item.needs_year_inference for item in self.batch.files))
         self.assertEqual(DirectoryFiles().directories(str(self.root), None), [self.root / 'collection'])
 
     def test_unmatched_directory_does_not_consume_a_batch_slot(self):
         self.batch.requested_size = 1
-        self.file('a-unmatched/only.avi')
+        self.file('a-unmatched/notes.txt', 10)
         self.file('b-movie/part1.avi')
         self.file('b-movie/part2.avi')
         DirectoryDiscovery().run(self.batch, self.workspace, self.log)

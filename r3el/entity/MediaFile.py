@@ -43,9 +43,19 @@ class MediaFile:
     attachments: list[MediaAttachment] = field(default_factory=list)
 
     @property
+    def needs_year_inference(self) -> bool:
+        return self.media_type == 'movie' and self.source_directory is not None and self.find_ls is not None
+
+    @property
+    def is_two_part(self) -> bool:
+        return self.media_type == 'movie' and self.source_directory is None and self.find_ls is not None
+
+    @property
     def directory_context(self) -> dict | None:
         if self.find_ls is None:
             return None
+        if self.needs_year_inference:
+            return {'find-ls': self.find_ls, 'filename': str(Path(self.path).relative_to(self.source_directory))}
         if self.media_type == 'tv':
             return {'find-ls': self.find_ls, 'episodes': {
                 file.path: {'season_number': file.season_number, 'episode_number': file.episode_number}
