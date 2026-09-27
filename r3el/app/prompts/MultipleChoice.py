@@ -7,7 +7,8 @@ from r3el.app.Prompt import Prompt
 
 class MultipleChoice(Prompt):
     def __init__(
-        self, title: str, year: int | None, candidates: list[tuple[str, str, int | None]], *, media_type: str = 'movie'
+        self, title: str, year: int | None, candidates: list[tuple[str, str, int | None]], *, media_type: str = 'movie',
+        release_dates: list[str | None] | None = None,
     ) -> None:
         choices = [
             dict(
@@ -18,6 +19,9 @@ class MultipleChoice(Prompt):
             )
             for number, (candidate, overview, vote_count) in enumerate(candidates, 1)
         ]
+        if release_dates is not None:
+            for choice, release_date in zip(choices, release_dates):
+                choice['release_date'] = release_date
         super().__init__(
             "We are searching The Movie Database using the supplied query data. "
             f"Search type: {'TV series (name-only search; choose the correct series from the candidates)' if media_type == 'tv' else 'movie'}. "

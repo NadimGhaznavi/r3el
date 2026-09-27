@@ -60,8 +60,10 @@ The displayed **Imported** label replaces Identified; the internal identificatio
 state remains identified. Check match results and Current Task for import errors
 or work still in progress.
 
-Directory rows include find_ls for the two-part dialogue; separate movies from
-a dated directory carry source_directory. Attachments retain video/SRT pairing
+Directory rows include find_ls for the two-part dialogue; individual directory
+movies carry source_directory, plus find_ls when their filename lacks a year.
+That listing preserves the missing-year conversation context across restarts.
+Attachments retain video/SRT pairing
 and part numbers. Ambiguous subtitles carry unresolved_srt issues and remain at
 the source. See [directory patterns](directory-patterns.md) and
 [import and cleanup](import-cleanup.md).

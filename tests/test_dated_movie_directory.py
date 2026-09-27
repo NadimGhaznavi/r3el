@@ -22,9 +22,9 @@ from test_catalogue import movie_payload
 
 
 class DatedDirectoryTests(unittest.TestCase):
-    def test_three_movies_require_all_years_and_same_year_pair_stays_two_parts(self):
+    def test_collection_allows_missing_years_and_same_year_pair_stays_two_parts(self):
         for names, expected in ((('A-2000.avi', 'B-2001.avi', 'C-2002.avi'), 3),
-                                (('A-2000.avi', 'B-2001.avi', 'C.avi'), 0),
+                                (('A-2000.avi', 'B-2001.avi', 'C.avi'), 3),
                                 (('A-2000.avi', 'B-2000.avi'), 1)):
             with self.subTest(names=names), TemporaryDirectory() as root:
                 directory = Path(root, 'movies')
@@ -40,8 +40,10 @@ class DatedDirectoryTests(unittest.TestCase):
                 DirectoryDiscovery().run(batch, workspace, EventWriter(Mock(return_value=1), {'batch_id': 'batch'}))
                 self.assertEqual(len(batch.files), expected)
                 if expected == 3:
-                    self.assertTrue(all(item.source_directory == str(directory) and item.find_ls is None
+                    self.assertTrue(all(item.source_directory == str(directory)
                                         for item in batch.files))
+                    self.assertEqual([item.needs_year_inference for item in batch.files],
+                                     [False, False, names[-1] == 'C.avi'])
                 if expected == 1:
                     self.assertIsNotNone(batch.files[0].find_ls)
 

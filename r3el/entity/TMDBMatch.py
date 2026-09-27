@@ -38,7 +38,8 @@ class TMDBMatch:
     def needs_manual_match(self) -> bool:
         return (not self.skipped and not self.catalogue_saved and not self.selection_pending
                 and not self.selected_number and self.response is not None
-                and self.response['total_results'] != 1)
+                and (self.selected_number == 0 or self.selection_error is not None
+                     or self.response['total_results'] != 1))
 
     @property
     def resolved_response(self) -> dict | None:
@@ -62,6 +63,10 @@ class TMDBMatch:
             return 'Catalogue failed'
         if self.selected_number:
             return '1 match'
+        if self.selected_number == 0 and self.response['total_results'] == 1:
+            return 'No match selected'
+        if self.selection_error and self.response['total_results'] == 1:
+            return 'Selection failed'
         count = self.response['total_results']
         if count == 0:
             return 'No matches'

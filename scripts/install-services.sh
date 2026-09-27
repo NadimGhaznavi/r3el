@@ -86,7 +86,7 @@ modules=(
     app/BatchIdentification.py app/ToolConversation.py app/MovieSelection.py app/MultipleChoiceHandler.py app/MatchingJobs.py
     app/RetryIdentification.py app/ClearWorkspace.py
     activity/TVPattern.py activity/TVSchema.py app/TVImport.py
-    app/prompts/DirectoryContextTV.py entity/CatalogueSeries.py
+    app/prompts/DirectoryContextTV.py app/prompts/DirectoryMovieYear.py entity/CatalogueSeries.py
     interface/TVCatalogue.py interface/TVCatalogueDb.py
     activity/DirectoryDiscovery.py activity/DirectoryMediaMove.py interface/DirectoryFiles.py interface/SourceDirectoryCleanup.py
     entity/MediaAttachment.py app/prompts/DirectoryContextTwoParts.py

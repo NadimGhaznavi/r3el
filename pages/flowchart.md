@@ -58,6 +58,12 @@ retries; zero TMDB results allow three fresh identifications before searches at
 the final year minus one and plus one. Individual unresolved results do not
 prevent the batch finishing. Unexpected processing errors can stop it.
 
+Directory movies without filename years use the focused
+[missing-year flow](directory-patterns.md): infer a year or choose No year from
+the full listing, query TMDB, then select from the results when needed. No-year
+searches always return to the LLM for selection; this route does not use the
+ordinary zero-result retry loop above.
+
 **Stop Batch** finishes the current operation before stopping. **Clear Current
 Batch** requests a stop if necessary, waits for the worker to release the
 workspace, then clears working records. Catalogue entries, imported files, and
