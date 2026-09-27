@@ -12,3 +12,8 @@ class IdentificationTools(MCPTools):
         episodes = self.definition['function']['parameters']['properties']['episodes']
         episodes['items']['properties']['file_id']['enum'] = file_ids
         episodes['minItems'] = episodes['maxItems'] = len(file_ids)
+
+    def allow_no_year(self) -> None:
+        """Offer No year only in the directory movie year-inference dialogue."""
+        year = self.definition['function']['parameters']['properties']['year']
+        year.update(type=['integer', 'null'], description='Guessed release year, or null for No year.')

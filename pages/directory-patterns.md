@@ -21,13 +21,16 @@ flowchart TD
     Two -->|Yes| Years{"Both have filename years, and years differ?"}
     Years -->|No| Parts["Two-part movie"]
     Years -->|Yes| Separate["Separate dated movies"]
-    Two -->|No| Many{"At least two qualifying files, all with filename years?"}
+    Two -->|No| Many{"Any qualifying movie files outside extras?"}
     Many -->|Yes| Separate
     Many -->|No| Leave["Leave directory unchanged"]
     Parts --> PartsLLM["DirectoryContextTwoParts: identify title, year, confidence and part order"]
-    Separate --> SingleLLM["Use the single-file dialogue for each movie"]
+    Separate --> HasYear{"This movie filename has a year?"}
+    HasYear -->|Yes| SingleLLM["Use the single-file dialogue for this movie"]
+    HasYear -->|No| YearLLM["Full find -ls listing: infer year or choose No year"]
     PartsLLM --> Subtitles["Associate SRTs deterministically"]
     SingleLLM --> Subtitles
+    YearLLM --> Subtitles
     Subtitles --> Unique{"Unique subtitle association?"}
     Unique -->|Yes| Keep["Keep subtitle paired with its media file"]
     Unique -->|No| Unresolved["Record unresolved_srt; leave that subtitle untouched"]
@@ -44,10 +47,25 @@ extension, with supported separators or brackets. Two files with the same year
 take the two-part route. Two files also take that route if one or both lack a
 recognized year. Different years rule out the two-part pattern.
 
-The separate-movies pattern needs at least two qualifying files and a year in
-every filename. For example, `Alice-in-Wonderland-2010.avi` and
-`Alice-through-the-Looking-Glass-2016.avi` are identified separately. The whole
-directory still counts as one batch selection.
+Single movies inside directories are selected. Collections that do not match
+the TV or two-part routes are also selected as individual movies, even if some
+or all filenames lack years. Recognized extras, samples, trailers and featurettes
+are excluded from this individual-movie route. The whole directory still counts
+as one batch selection.
+
+Only a selected movie without a recognized filename year enters the missing-year
+conversation. The LLM receives its assigned filename and the full `find -ls`
+listing, including other files that may identify the release year. It supplies
+the movie title, a guessed year or **No year** (`null`), and confidence.
+Filesystem timestamps are not release-year evidence.
+
+R3el then queries TMDB with that title and the guessed year, or omits the year
+when the LLM chooses No year. A guessed-year search with exactly one result
+proceeds to import. Otherwise the results return to the LLM in a separate
+selection step, together with the directory listing and candidate release dates.
+No-year searches always use this selection step, even for one or zero results.
+The LLM can choose no match; unresolved items remain visible. This route does
+not run the ordinary zero-result identification retries or adjacent-year searches.
 
 SRT matching prefers a matching basename in the same folder, then a unique
 basename elsewhere in the scanned directory. If names differ, one video and one
