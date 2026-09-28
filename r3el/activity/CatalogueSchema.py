@@ -90,6 +90,19 @@ class CatalogueSchema:
         ''')
 
         TVSchema(self._db).apply()
+        self._db.execute('''
+            CREATE TABLE IF NOT EXISTS watched (
+                watched_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                movie_id INT UNSIGNED NULL,
+                episode_id INT UNSIGNED NULL,
+                watched_at DATETIME(6) NOT NULL,
+                FOREIGN KEY (movie_id) REFERENCES movies(tmdb_id),
+                FOREIGN KEY (episode_id) REFERENCES tv_episodes(tmdb_id),
+                CHECK ((movie_id IS NOT NULL) + (episode_id IS NOT NULL) = 1),
+                INDEX (movie_id, watched_at),
+                INDEX (episode_id, watched_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ''')
 
 
 if __name__ == '__main__':
