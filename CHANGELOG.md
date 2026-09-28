@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.7.0] - 2026-09-28 @ 11:00
+
 - Rename Watched to Watch and launch VLC while recording each viewing. Show the latest watched date, replace filesystem links with video controls, and arrange episodes with an image/title row above full-width content.
 
 ## [6.6.0] - 2026-09-28 @ 06:31
