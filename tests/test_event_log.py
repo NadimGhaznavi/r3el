@@ -57,6 +57,7 @@ from r3el.interface.WorkspaceDb import WorkspaceActionConflict
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.EventLogDb import EventLogDb
 from r3el.interface.WorkspaceDb import WorkspaceDb
+from r3el.interface.WatchedDb import WatchedDb
 
 
 class ReportFilterTests(unittest.TestCase):
@@ -125,7 +126,7 @@ class EventDatabaseTests(unittest.TestCase):
         self.events = EventLogDb(self.db)
 
     def tearDown(self):
-        for table in ('tv_artwork', 'tv_episode_files', 'tv_episode_credits', 'tv_series_credits',
+        for table in ('watched', 'tv_artwork', 'tv_episode_files', 'tv_episode_credits', 'tv_series_credits',
                       'tv_episodes', 'tv_seasons', 'tv_series_genres', 'tv_series', 'tmdb_tv_genres', 'movie_artwork', 'movie_files', 'movie_credits', 'movie_genres', 'movies', 'people'):
             self.db.execute(f'DELETE FROM {table}')
         self.db.execute('DELETE FROM tmdb_movie_genres WHERE genre_id = 99999')
@@ -138,6 +139,32 @@ class EventDatabaseTests(unittest.TestCase):
     def workspace_batch(self):
         return MediaFileBatch(str(uuid4()), 10, '/tmp/films',
                               files=[MediaFile(str(uuid4()), '/tmp/films/a.mkv')])
+
+    def test_watched_preserves_repeat_viewings_and_catalogue_identity(self):
+        self.db.execute("INSERT INTO movies (tmdb_id,title,fetched_at) VALUES (42,'Movie',UTC_TIMESTAMP(6))")
+        self.db.execute("INSERT INTO tv_series (tmdb_id,title,added_at,fetched_at) "
+                        "VALUES (7,'Show',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))")
+        self.db.execute("INSERT INTO tv_seasons (series_id,season_number,tmdb_id,title) VALUES (7,1,8,'Season')")
+        self.db.execute("INSERT INTO tv_episodes (tmdb_id,series_id,season_number,episode_number,title) "
+                        "VALUES (42,7,1,1,'Episode')")
+        watched = WatchedDb(self.db)
+        before = self.db.query('SELECT UTC_TIMESTAMP(6) AS now')[0]['now']
+        for kind in ('movie', 'episode', 'movie'):
+            self.assertTrue(watched.record(kind, 42))
+        for kind in ('movie', 'episode'):
+            self.assertFalse(watched.record(kind, 999))
+        after = self.db.query('SELECT UTC_TIMESTAMP(6) AS now')[0]['now']
+        CatalogueSchema(self.db).apply()
+        rows = self.db.query('SELECT * FROM watched ORDER BY watched_id')
+        self.assertEqual([(row['movie_id'], row['episode_id']) for row in rows],
+                         [(42, None), (None, 42), (42, None)])
+        self.assertEqual(len({row['watched_id'] for row in rows}), 3)
+        self.assertTrue(all(before <= row['watched_at'] <= after for row in rows))
+        for movie_id, episode_id in ((None, None), (42, 42), (999, None), (None, 999)):
+            with self.assertRaises(pymysql.MySQLError):
+                self.db.execute('INSERT INTO watched (movie_id,episode_id,watched_at) '
+                                'VALUES (%s,%s,UTC_TIMESTAMP(6))', (movie_id, episode_id))
+        self.assertEqual(self.db.query('SELECT COUNT(*) AS count FROM watched')[0]['count'], 3)
 
     def test_tv_episode_catalogue_checkpoint_and_rollback(self):
         from r3el.entity.MediaAttachment import MediaAttachment

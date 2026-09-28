@@ -103,7 +103,7 @@ modules=(
     interface/DbMgr.py interface/EventLogDb.py interface/FileMgr.py
     activity/EventSchema.py activity/EventReport.py activity/ServerLifecycle.py
     activity/WorkspaceSchema.py interface/WorkspaceDb.py
-    activity/CatalogueSchema.py interface/CatalogueDb.py interface/TMDBCatalogue.py entity/CatalogueMovie.py
+    activity/CatalogueSchema.py interface/CatalogueDb.py interface/WatchedDb.py interface/TMDBCatalogue.py entity/CatalogueMovie.py
     activity/MovieFormats.py activity/MovieNaming.py interface/CatalogueFiles.py entity/MovieFiles.py
     entity/BatchStopped.py
     entity/MediaFile.py entity/MediaFileBatch.py

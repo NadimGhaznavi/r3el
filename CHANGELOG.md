@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [6.5.0] - 2026-09-27 @ 15:53
+- Add a Watched button to movie and episode views. Each click records a separate viewing in the new `watched` table with its movie or episode ID and UTC timestamp.
+- Added a reference to the [Ax3l Project](https://ax3l.osoyalce.com/).
 
 ## [6.4.0] - 2026-09-27 @ 15:28
 

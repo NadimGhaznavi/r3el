@@ -32,6 +32,46 @@ from r3el.server.ControlServer import make_server
 
 
 class ControlServerTests(unittest.TestCase):
+    @patch('r3el.server.ControlServer.WatchedDb.record', return_value=True)
+    def test_watched_records_each_post_and_never_get(self, record):
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        for kind in ('movie', 'episode', 'movie'):
+            status, _, body = self.request('/watched', 'POST',
+                urlencode({'media_type': kind, 'media_id': 42}), headers)
+            self.assertEqual(status, 201)
+            self.assertEqual(json.loads(body), {'saved': True})
+            record.assert_called_with(kind, 42)
+        self.assertEqual(record.call_count, 3)
+        self.assertEqual(self.db.close.call_count, 3)
+        self.assertEqual(self.request('/watched')[0], 404)
+        self.assertEqual(record.call_count, 3)
+
+    @patch('r3el.server.ControlServer.WatchedDb.record')
+    def test_watched_rejects_invalid_forms_and_cross_origin(self, record):
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        for body in ('media_type=tv&media_id=42', 'media_type=movie',
+                     'media_type=movie&media_id=0', 'media_type=movie&media_id=4294967296',
+                     'media_type=movie&media_id=abc', 'media_type=movie&media_id=42&media_id=43',
+                     'media_type=movie&media_id=42&extra=yes'):
+            self.assertEqual(self.request('/watched', 'POST', body, headers)[0], 400)
+        self.assertEqual(self.request('/watched', 'POST', 'media_type=movie&media_id=42',
+                         {**headers, 'Origin': 'https://elsewhere.example'})[0], 403)
+        record.assert_not_called()
+        self.factory.assert_not_called()
+
+    @patch('r3el.server.ControlServer.WatchedDb.record', return_value=False)
+    def test_watched_missing_entry_and_database_failure(self, record):
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        status, _, body = self.request('/watched', 'POST', 'media_type=episode&media_id=42', headers)
+        self.assertEqual(status, 404)
+        self.assertEqual(json.loads(body), {'saved': False})
+        record.side_effect = pymysql.OperationalError('private database details')
+        with self.assertLogs(level='ERROR'):
+            status, _, body = self.request('/watched', 'POST', 'media_type=movie&media_id=42', headers)
+        self.assertEqual(status, 503)
+        self.assertEqual(json.loads(body), {'saved': False})
+        self.assertEqual(self.db.close.call_count, 2)
+
     @patch('r3el.server.ControlServer.CatalogueDb.recent', return_value=[])
     @patch('r3el.server.ControlServer.CatalogueDb.categories', return_value=[])
     @patch('r3el.server.ControlServer.CatalogueDb.titles_by_initial', return_value=[])
@@ -259,6 +299,9 @@ class ControlServerTests(unittest.TestCase):
         status, _, body = self.request('/catalogue/42')
         self.assertEqual(status, 200)
         get.assert_called_once_with(42)
+        self.assertIn('name="media_type" value="movie"', body)
+        self.assertIn('name="media_id" value="42"', body)
+        self.assertIn('>Watched</button>', body)
         for text in ('&lt;Movie&gt;</h1>', '2020 · Movie', 'A saved overview.', '120 minutes', 'Drama',
                      '&lt;Actor&gt; — Hero', '/movies/Movie.mkv', '/catalogue/42/poster', 'tt123'):
             self.assertIn(text, body)
@@ -293,6 +336,9 @@ class ControlServerTests(unittest.TestCase):
         self.assertEqual(status,200)
         get.assert_called_once_with(42)
         self.assertIn('/catalogue/tv/42/poster',body)
+        self.assertIn('name="media_type" value="episode"', body)
+        self.assertIn('name="media_id" value="123"', body)
+        self.assertNotIn('name="media_type" value="movie"', body)
         self.assertIn('https://www.themoviedb.org/tv/42',body)
         self.assertIn('S01E02 — Episode',body)
         self.assertIn('TV series',body)
