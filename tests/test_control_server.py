@@ -32,14 +32,15 @@ from r3el.server.ControlServer import make_server
 
 
 class ControlServerTests(unittest.TestCase):
+    @patch('r3el.server.ControlServer.WatchedDb.latest_date', return_value='2026-09-28')
     @patch('r3el.server.ControlServer.WatchedDb.record', return_value=True)
-    def test_watched_records_each_post_and_never_get(self, record):
+    def test_watched_records_each_post_and_never_get(self, record, latest):
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         for kind in ('movie', 'episode', 'movie'):
             status, _, body = self.request('/watched', 'POST',
                 urlencode({'media_type': kind, 'media_id': 42}), headers)
             self.assertEqual(status, 201)
-            self.assertEqual(json.loads(body), {'saved': True})
+            self.assertEqual(json.loads(body), {'saved': True, 'watched_date': '2026-09-28'})
             record.assert_called_with(kind, 42)
         self.assertEqual(record.call_count, 3)
         self.assertEqual(self.db.close.call_count, 3)
@@ -295,13 +296,13 @@ class ControlServerTests(unittest.TestCase):
             original_title='Original', release_date='2020-02-03', runtime=120,
             overview='A saved overview.', genres=[{'name': 'Drama'}], rating=8.25,
             vote_count=100, imdb_id='tt123', credits=[{'name': '<Actor>', 'role': 'Actor',
-                'character_name': 'Hero'}], files=[{'path': '/movies/Movie.mkv'}], artwork=[{'kind': 'poster'}])
+                'character_name': 'Hero'}], watched_date='2026-09-27', files=[{'path': '/movies/Movie.mkv', 'kind': 'video', 'part': None}], artwork=[{'kind': 'poster'}])
         status, _, body = self.request('/catalogue/42')
         self.assertEqual(status, 200)
         get.assert_called_once_with(42)
         self.assertIn('name="media_type" value="movie"', body)
         self.assertIn('name="media_id" value="42"', body)
-        self.assertIn('>Watched</button>', body)
+        self.assertIn('>Watch</button>', body)
         for text in ('&lt;Movie&gt;</h1>', '2020 · Movie', 'A saved overview.', '120 minutes', 'Drama',
                      '&lt;Actor&gt; — Hero', '/movies/Movie.mkv', '/catalogue/42/poster', 'tt123'):
             self.assertIn(text, body)
@@ -309,15 +310,20 @@ class ControlServerTests(unittest.TestCase):
         self.assertNotIn('Back to catalogue', body)
         for heading in ('Director', 'Producers', 'Cast'):
             self.assertIn('>' + heading + '</h2>', body)
-        self.assertIn('href="r3el-vlc:///movies/Movie.mkv"', body)
+        self.assertIn('data-playback="r3el-vlc:///movies/Movie.mkv"', body)
+        self.assertIn('Watched: 2026-09-27', body)
+        self.assertNotIn('catalogue-files', body.split('<main>')[1])
         get.return_value['files'] = [
-            {'path': '/exports/disk1/Film & "é" #1%.mkv'},
-            {'path': '/media/exports/Other.mkv'},
+            {'path': '/exports/disk1/Film & "é" #1%.mkv', 'kind': 'video', 'part': 1},
+            {'path': '/media/exports/Other.mkv', 'kind': 'video', 'part': 2},
+            {'path': '/media/exports/Other.srt', 'kind': 'subtitle', 'part': 2},
         ]
         body = self.request('/catalogue/42')[2]
-        self.assertIn('href="r3el-vlc:///imports/disk1/Film%20%26%20%22%C3%A9%22%20%231%25.mkv"', body)
-        self.assertIn('/imports/disk1/Film &amp; &#34;é&#34; #1%.mkv</a>', body)
-        self.assertIn('href="r3el-vlc:///media/exports/Other.mkv"', body)
+        self.assertIn('value="r3el-vlc:///imports/disk1/Film%20%26%20%22%C3%A9%22%20%231%25.mkv"', body)
+        self.assertIn('>Part 1</option>', body)
+        self.assertNotIn('Other.srt', body)
+        self.assertNotIn('href="r3el-vlc:', body)
+        self.assertIn('value="r3el-vlc:///media/exports/Other.mkv"', body)
         get.return_value = None
         self.assertEqual(self.request('/catalogue/42')[0], 404)
         for path in ('/catalogue/0', '/catalogue/4294967296', '/catalogue/abc'):
@@ -330,7 +336,7 @@ class ControlServerTests(unittest.TestCase):
             vote_count=10,imdb_id=None,credits=[],files=[{'path':'/media/tv/episode.mkv'}],
             artwork=[{'kind':'poster'}],episodes=[dict(tmdb_id=123,season_number=1,episode_number=2,
                 title='Episode',overview='<Saved summary>',air_date='2020-01-08',runtime=48,has_still=True,
-                files=[{'path': '/exports/disk1/Show/Episode #2.mkv'}],
+                watched_date='2026-09-28', files=[{'path': '/exports/disk1/Show/Episode #2.mkv', 'kind': 'video'}],
                 credits=[dict(name='<Actor>',role='Actor',character_name='Hero')])])
         status, _, body = self.request('/catalogue/tv/42')
         self.assertEqual(status,200)
@@ -342,15 +348,19 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('https://www.themoviedb.org/tv/42',body)
         self.assertIn('S01E02 — Episode',body)
         self.assertIn('TV series',body)
-        self.assertIn('href="r3el-vlc:///imports/disk1/Show/Episode%20%232.mkv"', body)
-        self.assertIn('>/imports/disk1/Show/Episode #2.mkv</a>', body)
+        self.assertIn('data-playback="r3el-vlc:///imports/disk1/Show/Episode%20%232.mkv"', body)
+        self.assertNotIn('href="r3el-vlc:', body)
+        self.assertIn('Watched: 2026-09-28', body)
+        self.assertIn('class="movie-info episode-content"', body)
         for text in ('&lt;Saved summary&gt;', '2020-01-08', '48 minutes',
                      '/catalogue/tv/42/episodes/123/still', '&lt;Actor&gt; — Actor (Hero)'):
             self.assertIn(text,body)
         episode = get.return_value['episodes'][0]
-        episode.update(overview=None,air_date=None,runtime=None,has_still=False,credits=[])
+        episode.update(overview=None,air_date=None,runtime=None,has_still=False,credits=[],watched_date=None,files=[])
         body = self.request('/catalogue/tv/42')[2]
         self.assertIn('No episode summary available.',body)
+        self.assertIn('Watched: Never', body)
+        self.assertIn('disabled>Watch</button>', body)
         self.assertIn('Air date unknown',body)
         self.assertNotIn('/episodes/123/still',body)
 

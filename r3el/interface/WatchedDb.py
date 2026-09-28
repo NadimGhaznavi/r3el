@@ -15,3 +15,9 @@ class WatchedDb:
             f'INSERT INTO watched ({column}, watched_at) '
             f'SELECT tmdb_id, UTC_TIMESTAMP(6) FROM {table} WHERE tmdb_id = %s',
             (media_id,)) == 1
+
+    def latest_date(self, media_type: str, media_id: int) -> str | None:
+        column = {'movie': 'movie_id', 'episode': 'episode_id'}[media_type]
+        value = self._db.query(f'SELECT DATE(MAX(watched_at)) AS watched_date FROM watched '
+                               f'WHERE {column} = %s', (media_id,))[0]['watched_date']
+        return value.isoformat() if value else None

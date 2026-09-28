@@ -1,16 +1,25 @@
 {% extends 'base.html' %}
 {% block title %}{{ movie.title }}{% endblock %}
-{% macro file_link(path) -%}
-  {% set local_path = '/imports/' ~ path[9:] if path.startswith('/exports/') else path %}
-  <a href="r3el-vlc://{{ local_path | urlencode }}" title="Play in VLC">{{ local_path }}</a>
+{% macro playback_url(path) -%}
+  {% set local_path = '/imports/' ~ path[9:] if path.startswith('/exports/') else path -%}
+  r3el-vlc://{{ local_path | urlencode }}
 {%- endmacro %}
-{% macro watched_button(media_type, media_id) -%}
-<form class="watched-form" action="/watched" method="post">
+{% macro watched_button(media_type, media_id, files) -%}
+{% set videos = files | selectattr('kind', 'equalto', 'video') | list %}
+<form class="watched-form" action="/watched" method="post" data-playback="{{ playback_url(videos[0].path) if videos else '' }}" data-date-id="watched-{{ media_type }}-{{ media_id }}">
   <input type="hidden" name="media_type" value="{{ media_type }}">
   <input type="hidden" name="media_id" value="{{ media_id }}">
-  <button type="submit">Watched</button>
-  <span role="status" aria-live="polite"></span>
+  {% if videos | length > 1 %}
+  <select aria-label="Video to watch" class="watch-video">
+    {% for file in videos %}<option value="{{ playback_url(file.path) }}">{{ 'Part ' ~ file.part if file.part else 'Video ' ~ loop.index }}</option>{% endfor %}
+  </select>
+  {% endif %}
+  <button type="submit"{% if not videos %} disabled{% endif %}>Watch</button>
+  <span role="status" aria-live="polite">{% if not videos %}No video available.{% endif %}</span>
 </form>
+{%- endmacro %}
+{% macro watched_date(media_type, media_id, value) -%}
+<p class="watched-date" id="watched-{{ media_type }}-{{ media_id }}">Watched: {{ value or 'Never' }}</p>
 {%- endmacro %}
 {% block content %}
 <article class="movie-card catalogue-detail" aria-labelledby="movie-title">
@@ -22,13 +31,14 @@
   <div class="movie-info">
     <h1 id="movie-title">{{ movie.title }}</h1>
     <p class="movie-subtitle">{{ movie.release_year or 'Year unknown' }} · {{ 'TV series' if media_type == 'tv' else 'Movie' }}{% if movie.runtime is not none %} · {{ movie.runtime }} minutes{% endif %}</p>
+    {% if media_type == 'movie' %}{{ watched_date('movie', movie.tmdb_id, movie.watched_date) }}{% endif %}
     <div class="movie-rating-row">
       {% if movie.rating is not none %}<span class="movie-rating"><span aria-hidden="true">★</span> {{ '%.2f' | format(movie.rating) }}<span class="sr-only"> out of 10</span></span>{% endif %}
       {% if movie.vote_count is not none %}<span class="note">{{ '{:,}'.format(movie.vote_count) }} votes</span>{% endif %}
       <a class="movie-id" href="https://www.themoviedb.org/{{ media_type }}/{{ movie.tmdb_id }}">TMDB #{{ movie.tmdb_id }}</a>
     </div>
     <p class="movie-genres">{{ movie.genres | map(attribute='name') | join(' · ') or 'Genres not available' }}</p>
-    {% if media_type == 'movie' %}{{ watched_button('movie', movie.tmdb_id) }}{% endif %}
+    {% if media_type == 'movie' %}{{ watched_button('movie', movie.tmdb_id, movie.files) }}{% endif %}
     {% if movie.overview %}<p class="movie-overview">{{ movie.overview }}</p>{% endif %}
     <dl class="movie-facts">
       <dt>Original title</dt><dd>{{ movie.original_title or '—' }}</dd>
@@ -66,7 +76,7 @@
 <details class="batch-panel catalogue-season">
   <summary>Season {{ season.grouper }}</summary>
   {% for episode in season.list | sort(attribute='episode_number') %}
-  <article class="movie-card catalogue-detail" aria-labelledby="episode-{{ episode.tmdb_id }}">
+  <article class="movie-card catalogue-detail episode-card" aria-labelledby="episode-{{ episode.tmdb_id }}">
     <div class="movie-poster">
       {% if episode.has_still %}
       <img src="/catalogue/tv/{{ movie.tmdb_id }}/episodes/{{ episode.tmdb_id }}/still" alt="Still from {{ episode.title }}" loading="lazy">
@@ -75,9 +85,11 @@
     <div class="movie-info">
       <h3 id="episode-{{ episode.tmdb_id }}">S{{ '%02d' | format(episode.season_number) }}E{{ '%02d' | format(episode.episode_number) }} — {{ episode.title }}</h3>
       <p class="movie-subtitle">{{ episode.air_date or 'Air date unknown' }}{% if episode.runtime is not none %} · {{ episode.runtime }} minutes{% endif %}</p>
+      {{ watched_date('episode', episode.tmdb_id, episode.watched_date) }}
+    </div>
+    <div class="movie-info episode-content">
       <p class="movie-overview">{{ episode.overview or 'No episode summary available.' }}</p>
-      <ul>{% for file in episode.files %}<li>{{ file_link(file.path) }}</li>{% else %}<li>No catalogued files.</li>{% endfor %}</ul>
-      {{ watched_button('episode', episode.tmdb_id) }}
+      {{ watched_button('episode', episode.tmdb_id, episode.files) }}
       {% if episode.credits %}
       <details>
         <summary>Episode credits</summary>
@@ -92,10 +104,6 @@
 </details>
 {% else %}<section class="batch-panel catalogue-season"><p>No imported episodes.</p></section>{% endfor %}
 {% endif %}
-<details class="batch-panel catalogue-files">
-  <summary>Files</summary>
-  <ul>{% for file in movie.files %}<li>{{ file_link(file.path) }}</li>{% else %}<li>No catalogued files.</li>{% endfor %}</ul>
-</details>
 <script>
   document.querySelectorAll('.watched-form').forEach(form => {
     form.addEventListener('submit', async event => {
@@ -106,10 +114,15 @@
       button.disabled = true;
       status.textContent = 'Saving…';
       try {
-        const response = await fetch(form.action, {
+        const request = fetch(form.action, {
           method: 'POST', body: new URLSearchParams(new FormData(form))
         });
+        const video = form.querySelector('.watch-video');
+        window.location.href = video ? video.value : form.dataset.playback;
+        const response = await request;
         if (!response.ok) throw new Error('Viewing was not saved.');
+        const result = await response.json();
+        document.getElementById(form.dataset.dateId).textContent = `Watched: ${result.watched_date}`;
         status.textContent = 'Viewing recorded.';
       } catch (error) {
         status.textContent = 'Unable to confirm viewing. Please try again.';

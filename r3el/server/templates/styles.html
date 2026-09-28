@@ -151,6 +151,9 @@
   .movie-info { padding: 1.7rem 2rem; min-width: 0; overflow-wrap: anywhere; }
   .movie-info h3, .movie-info h1 { font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.2; margin: 0 0 .5rem; }
   .movie-subtitle { margin: 0 0 1.5rem; color: #aabac8; }
+  .movie-subtitle:has(+ .watched-date) { margin-bottom: .5rem; }
+  .watched-date { color: #aabac8; margin: 0 0 1.5rem; }
+  .episode-content { grid-column: 1 / -1; border-top: 1px solid #344351; }
   .movie-rating-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: .5rem 1rem; }
   .movie-rating { font-weight: 700; color: #f4d17b; font-size: 1.15rem; }
   .movie-id { margin-left: auto; font-size: .9rem; }
@@ -168,6 +171,9 @@
     .control-logo { max-width: 12rem; }
     .control-settings label, .control-settings .control-values > div { grid-template-columns: minmax(0, 1fr); }
     .movie-card { grid-template-columns: 1fr; }
+    .episode-card { grid-template-columns: minmax(5rem, 30%) minmax(0, 1fr); }
+    .episode-card > .movie-poster { padding: .75rem; }
+    .episode-card > .movie-info { padding: 1rem; }
     .movie-poster img { max-width: 12rem; }
     .movie-info { padding: 1.5rem; }
     .movie-id { margin-left: 0; }
