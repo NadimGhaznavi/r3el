@@ -4,6 +4,14 @@
   {% set local_path = '/imports/' ~ path[9:] if path.startswith('/exports/') else path %}
   <a href="r3el-vlc://{{ local_path | urlencode }}" title="Play in VLC">{{ local_path }}</a>
 {%- endmacro %}
+{% macro watched_button(media_type, media_id) -%}
+<form class="watched-form" action="/watched" method="post">
+  <input type="hidden" name="media_type" value="{{ media_type }}">
+  <input type="hidden" name="media_id" value="{{ media_id }}">
+  <button type="submit">Watched</button>
+  <span role="status" aria-live="polite"></span>
+</form>
+{%- endmacro %}
 {% block content %}
 <article class="movie-card catalogue-detail" aria-labelledby="movie-title">
   <div class="movie-poster">
@@ -20,6 +28,7 @@
       <a class="movie-id" href="https://www.themoviedb.org/{{ media_type }}/{{ movie.tmdb_id }}">TMDB #{{ movie.tmdb_id }}</a>
     </div>
     <p class="movie-genres">{{ movie.genres | map(attribute='name') | join(' · ') or 'Genres not available' }}</p>
+    {% if media_type == 'movie' %}{{ watched_button('movie', movie.tmdb_id) }}{% endif %}
     {% if movie.overview %}<p class="movie-overview">{{ movie.overview }}</p>{% endif %}
     <dl class="movie-facts">
       <dt>Original title</dt><dd>{{ movie.original_title or '—' }}</dd>
@@ -68,6 +77,7 @@
       <p class="movie-subtitle">{{ episode.air_date or 'Air date unknown' }}{% if episode.runtime is not none %} · {{ episode.runtime }} minutes{% endif %}</p>
       <p class="movie-overview">{{ episode.overview or 'No episode summary available.' }}</p>
       <ul>{% for file in episode.files %}<li>{{ file_link(file.path) }}</li>{% else %}<li>No catalogued files.</li>{% endfor %}</ul>
+      {{ watched_button('episode', episode.tmdb_id) }}
       {% if episode.credits %}
       <details>
         <summary>Episode credits</summary>
@@ -86,8 +96,29 @@
   <summary>Files</summary>
   <ul>{% for file in movie.files %}<li>{{ file_link(file.path) }}</li>{% else %}<li>No catalogued files.</li>{% endfor %}</ul>
 </details>
-{% if media_type == 'tv' %}
 <script>
+  document.querySelectorAll('.watched-form').forEach(form => {
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = form.querySelector('button');
+      const status = form.querySelector('[role="status"]');
+      if (button.disabled) return;
+      button.disabled = true;
+      status.textContent = 'Saving…';
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST', body: new URLSearchParams(new FormData(form))
+        });
+        if (!response.ok) throw new Error('Viewing was not saved.');
+        status.textContent = 'Viewing recorded.';
+      } catch (error) {
+        status.textContent = 'Unable to confirm viewing. Please try again.';
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+  {% if media_type == 'tv' %}
   function revealEpisode() {
     const episode = document.getElementById(window.location.hash.slice(1));
     if (!episode) return;
@@ -99,6 +130,6 @@
   }
   window.addEventListener('hashchange', revealEpisode);
   revealEpisode();
+  {% endif %}
 </script>
-{% endif %}
 {% endblock %}

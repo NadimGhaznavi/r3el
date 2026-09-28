@@ -10,6 +10,8 @@ The **R3el Project uses** a locally hosted [Large Language Model (LLM)](https://
 
 In short, I used an AI to match my massive collection of media files and folders to [The Movie Database](https://tmdb.org) entries, then download the posters, actor data, episode info etc. and put it into my own database. Then I built a front end to view it, search it, and browse it.
 
+The architecture and code for this project was based on my [Ax3l Project](https://ax3l.osoyalce.com/).
+
 ## Batch processing
 
 - [Batch and per-item flowcharts](pages/flowchart.md) — batch processing and individual item identification.

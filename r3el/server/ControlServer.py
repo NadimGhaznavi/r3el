@@ -26,6 +26,7 @@ from r3el.interface.BatchControl import BatchControl
 from r3el.interface.DbMgr import DbMgr
 from r3el.interface.TVCatalogueDb import TVCatalogueDb
 from r3el.interface.CatalogueDb import CatalogueDb
+from r3el.interface.WatchedDb import WatchedDb
 from r3el.interface.EventLogDb import EventLogDb
 from r3el.interface.WorkspaceDb import WorkspaceDb, WorkspaceActionConflict, WorkspaceBusy
 from r3el.interface.TMDBReferenceDb import TMDBReferenceDb
@@ -282,7 +283,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                                              matching_job=active_job, latest_event=latest_event, **values))
 
         def do_POST(self):
-            if self.path not in (DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
+            if self.path not in ('/watched', DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
                 self.send_error(404)
                 return
             # Browser form submissions must originate from this control server.
@@ -301,7 +302,13 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 if any(len(values) != 1 for values in fields.values()):
                     raise ValueError('Repeated form field.')
                 payload = {name: values[0] for name, values in fields.items()}
-                if self.path == DR3el.MATCH_TMDB_ID_URL:
+                if self.path == '/watched':
+                    if (set(payload) != {'media_type', 'media_id'}
+                            or payload['media_type'] not in ('movie', 'episode')
+                            or not re.fullmatch(r'[0-9]{1,10}', payload['media_id'])
+                            or not 1 <= int(payload['media_id']) <= 4294967295):
+                        raise ValueError('Supply a valid movie or episode ID.')
+                elif self.path == DR3el.MATCH_TMDB_ID_URL:
                     if (set(payload) != {'batch_id', 'file_id', 'movie_id'}
                             or any(not re.fullmatch(r'[A-Za-z0-9-]{1,36}', payload[key]) for key in ('batch_id', 'file_id'))
                             or not re.fullmatch(r'[0-9]{1,10}', payload['movie_id'])
@@ -324,10 +331,13 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     payload['batch_size'] = int(payload['batch_size'])
                     parameters = BatchConfiguration.resolve(payload)
             except (KeyError, ValueError):
-                if self.path in (DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
+                if self.path in ('/watched', DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
                     self.respond(400, b'{"saved":false}', 'application/json')
                     return
                 self.respond_control(400, result=DMessage.INVALID_PARAMETERS)
+                return
+            if self.path == '/watched':
+                self.record_watched(payload['media_type'], int(payload['media_id']))
                 return
             if self.path == DR3el.MATCH_TMDB_ID_URL:
                 self.match_batch(payload['batch_id'], file_id=payload['file_id'], movie_id=int(payload['movie_id']))
@@ -372,6 +382,19 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                                  input_directory=parameters.input_directory,
                                  output_directory=parameters.output_directory,
                                  batch_size=parameters.batch_size)
+
+        def record_watched(self, media_type: str, media_id: int) -> None:
+            try:
+                db = DbMgr()
+                try:
+                    saved = WatchedDb(db).record(media_type, media_id)
+                finally:
+                    db.close()
+            except pymysql.MySQLError:
+                logging.exception('Unable to record viewing')
+                self.respond(503, b'{"saved":false}', 'application/json')
+                return
+            self.respond(201 if saved else 404, json.dumps({'saved': saved}).encode(), 'application/json')
 
         def save_file_action(self, payload: dict):
             if set(payload) != {'batch_id', 'file_id', 'action'}:

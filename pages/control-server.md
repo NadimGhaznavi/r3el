@@ -26,6 +26,12 @@ Results panel. Each card opens a movie page with a poster and summary, Director,
 Producers, Cast, and Files boxes. These pages read saved catalogue data and local
 artwork without querying TMDB.
 
+Movie pages and individual episodes have a **Watched** button. Each click saves
+a separate viewing event and confirms it inline, including repeat viewings.
+The `watched` table stores a unique event ID, the movie or episode ID, and the
+UTC timestamp of the click. Watching history is captured only; there is no
+history view yet. Install or upgrade the services to create the table.
+
 Movie file lists and individual episodes include Play in VLC links. These
 use the stored path with the leading `/exports/` replaced by `/imports/`, for
 example `r3el-vlc:///imports/disk1/Movie.mkv`. Other path prefixes stay unchanged.
