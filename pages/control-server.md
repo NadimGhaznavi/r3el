@@ -26,15 +26,19 @@ Results panel. Each card opens a movie page with a poster and summary, Director,
 Producers, Cast, and Files boxes. These pages read saved catalogue data and local
 artwork without querying TMDB.
 
-Movie pages and individual episodes have a **Watched** button. Each click saves
-a separate viewing event and confirms it inline, including repeat viewings.
-The `watched` table stores a unique event ID, the movie or episode ID, and the
-UTC timestamp of the click. Watching history is captured only; there is no
-history view yet. Install or upgrade the services to create the table.
+Movie pages and individual episodes have a **Watch** button. Each click opens
+VLC and records a separate viewing event, including repeat viewings. The latest
+viewing appears as **Watched: YYYY-MM-DD** below the date and runtime, using the
+stored UTC date. Unwatched titles show **Watched: Never**. Episodes show the
+image and title details in one row, with the remaining content below.
 
-Movie file lists and individual episodes include Play in VLC links. These
-use the stored path with the leading `/exports/` replaced by `/imports/`, for
-example `r3el-vlc:///imports/disk1/Movie.mkv`. Other path prefixes stay unchanged.
+The `watched` table stores a unique event ID, the movie or episode ID, and the
+UTC timestamp of the click. Install or upgrade the services to create the table.
+
+Watch uses the saved video path with the leading `/exports/` replaced by
+`/imports/`, for example `r3el-vlc:///imports/disk1/Movie.mkv`. Other path prefixes
+stay unchanged. Paths are hidden from the page; movies with multiple video
+files offer a part/video selector. Subtitles are not offered as playback targets.
 
 On the Linux desktop running Chrome and VLC, run this once as your desktop user
 (without sudo), from a checkout of R3el:
@@ -47,7 +51,7 @@ Alternatively, copy just `scripts/vlc-link.py` to that desktop and run it with
 `--install`. It requires Python 3, VLC (`vlc` on PATH), and `xdg-mime` from
 xdg-utils. The installer registers a per-user `r3el-vlc:` link handler using a
 [desktop entry](https://specifications.freedesktop.org/desktop-entry/latest-single/).
-Click a media path and accept Chrome's external application prompt. The media
+Click Watch and accept Chrome's external application prompt. The media
 must be mounted at `/imports/...` on that desktop. This opens the local file in
 VLC; it does not stream the media from the R3el server.
 
