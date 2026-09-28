@@ -79,7 +79,9 @@ class CatalogueDb:
 
     def get(self, movie_id: int) -> dict | None:
         with self._db.transaction():
-            rows = self._db.query('SELECT * FROM movies WHERE tmdb_id = %s', (movie_id,))
+            rows = self._db.query('SELECT movies.*, (SELECT DATE(MAX(watched_at)) FROM watched '
+                                 'WHERE movie_id = movies.tmdb_id) AS watched_date '
+                                 'FROM movies WHERE tmdb_id = %s', (movie_id,))
             if not rows:
                 return None
             movie = rows[0]
@@ -90,7 +92,7 @@ class CatalogueDb:
                 'SELECT p.name, r.name AS role, c.character_name FROM movie_credits c '
                 'JOIN people p ON p.tmdb_id = c.person_id JOIN credit_roles r ON r.role_id = c.role_id '
                 'WHERE c.movie_id = %s ORDER BY c.position', (movie_id,))
-            movie['files'] = self._db.query('SELECT path FROM movie_files WHERE movie_id = %s ORDER BY path',
+            movie['files'] = self._db.query('SELECT path, kind, part FROM movie_files WHERE movie_id = %s ORDER BY part, path',
                                            (movie_id,))
             movie['artwork'] = self._db.query(
                 'SELECT DISTINCT kind FROM movie_artwork WHERE movie_id = %s ORDER BY kind', (movie_id,))

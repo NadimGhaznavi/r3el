@@ -93,10 +93,11 @@ class TVCatalogueDb:
                 'SELECT DISTINCT kind FROM tv_artwork WHERE series_id=%s AND season_number IS NULL '
                 'AND episode_id IS NULL', (series_id,))
             series['files'] = self.db.query(
-                'SELECT f.path,f.episode_id FROM tv_episode_files f JOIN tv_episodes e ON e.tmdb_id=f.episode_id '
+                'SELECT f.path,f.episode_id,f.kind FROM tv_episode_files f JOIN tv_episodes e ON e.tmdb_id=f.episode_id '
                 'WHERE e.series_id=%s ORDER BY e.season_number,e.episode_number,f.kind', (series_id,))
             series['episodes'] = self.db.query(
-                'SELECT tmdb_id,season_number,episode_number,title,overview,air_date,runtime '
+                'SELECT tmdb_id,season_number,episode_number,title,overview,air_date,runtime, '
+                '(SELECT DATE(MAX(watched_at)) FROM watched WHERE episode_id=tv_episodes.tmdb_id) AS watched_date '
                 'FROM tv_episodes WHERE series_id=%s '
                 'ORDER BY season_number,episode_number', (series_id,))
             credits = self.db.query(

@@ -388,13 +388,17 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 db = DbMgr()
                 try:
                     saved = WatchedDb(db).record(media_type, media_id)
+                    watched_date = WatchedDb(db).latest_date(media_type, media_id) if saved else None
                 finally:
                     db.close()
             except pymysql.MySQLError:
                 logging.exception('Unable to record viewing')
                 self.respond(503, b'{"saved":false}', 'application/json')
                 return
-            self.respond(201 if saved else 404, json.dumps({'saved': saved}).encode(), 'application/json')
+            result = {'saved': saved}
+            if saved:
+                result['watched_date'] = watched_date
+            self.respond(201 if saved else 404, json.dumps(result).encode(), 'application/json')
 
         def save_file_action(self, payload: dict):
             if set(payload) != {'batch_id', 'file_id', 'action'}:
