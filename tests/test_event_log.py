@@ -148,6 +148,10 @@ class EventDatabaseTests(unittest.TestCase):
         self.db.execute("INSERT INTO tv_episodes (tmdb_id,series_id,season_number,episode_number,title) "
                         "VALUES (42,7,1,1,'Episode')")
         watched = WatchedDb(self.db)
+        from r3el.interface.TVCatalogueDb import TVCatalogueDb
+        self.assertIsNone(watched.latest_date('movie', 42))
+        self.assertIsNone(CatalogueDb(self.db).get(42)['watched_date'])
+        self.assertIsNone(TVCatalogueDb(self.db).get(7)['episodes'][0]['watched_date'])
         before = self.db.query('SELECT UTC_TIMESTAMP(6) AS now')[0]['now']
         for kind in ('movie', 'episode', 'movie'):
             self.assertTrue(watched.record(kind, 42))
@@ -165,6 +169,12 @@ class EventDatabaseTests(unittest.TestCase):
                 self.db.execute('INSERT INTO watched (movie_id,episode_id,watched_at) '
                                 'VALUES (%s,%s,UTC_TIMESTAMP(6))', (movie_id, episode_id))
         self.assertEqual(self.db.query('SELECT COUNT(*) AS count FROM watched')[0]['count'], 3)
+        self.db.execute("UPDATE watched SET watched_at='2026-09-27 12:00:00' WHERE movie_id=42")
+        self.db.execute("UPDATE watched SET watched_at='2026-09-28 12:00:00' WHERE episode_id=42")
+        self.assertEqual(watched.latest_date('movie', 42), '2026-09-27')
+        self.assertEqual(watched.latest_date('episode', 42), '2026-09-28')
+        self.assertEqual(CatalogueDb(self.db).get(42)['watched_date'], date(2026, 9, 27))
+        self.assertEqual(TVCatalogueDb(self.db).get(7)['episodes'][0]['watched_date'], date(2026, 9, 28))
 
     def test_tv_episode_catalogue_checkpoint_and_rollback(self):
         from r3el.entity.MediaAttachment import MediaAttachment
@@ -391,7 +401,7 @@ class EventDatabaseTests(unittest.TestCase):
         self.assertEqual(entry['genres'], [{'name': 'Test genre'}])
         self.assertEqual(len(entry['credits']), 6)
         self.assertEqual(entry['credits'][0], {'name': 'Person', 'role': 'Actor', 'character_name': 'Hero'})
-        self.assertEqual(entry['files'], [{'path': '/films/42.mkv'}])
+        self.assertEqual(entry['files'], [{'path': '/films/42.mkv', 'kind': 'video', 'part': None}])
         self.assertEqual(entry['artwork'], [{'kind': 'poster'}])
         self.assertEqual(catalogue.artwork_path(42, 'poster'), '/films/42.jpg')
         self.assertIsNone(catalogue.artwork_path(42, 'backdrop'))
@@ -998,9 +1008,18 @@ class EventDatabaseTests(unittest.TestCase):
                 process.terminate()
                 _, error = process.communicate(timeout=10)
                 self.assertEqual(process.returncode, 0, error)
-                names = [row['name'] for row in self.events.recent()]
+                rows = self.events.recent()
+                names = [row['name'] for row in rows]
                 self.assertEqual(names.count('batch_started'), 1)
-                self.assertEqual(names.count('batch_completed'), 2)
+                self.assertEqual(names.count('identification_group_completed'), 1)
+                self.assertEqual(names.count('batch_completed'), 1)
+                completed = next(row for row in rows if row['name'] == 'batch_completed')
+                identified = next(row for row in rows if row['name'] == 'identification_group_completed')
+                self.assertEqual(completed['process_id'], batch.id)
+                self.assertEqual(identified['process_id'], batch.id)
+                self.assertLess(identified['event_id'], completed['event_id'])
+                self.assertEqual(json.loads(completed['content'])['data'],
+                                 {'stage': 'matching', 'count': len(batch.files), 'unresolved_llm': 0})
                 self.assertEqual(names[0], 'stopped')
             finally:
                 if process.poll() is None:
