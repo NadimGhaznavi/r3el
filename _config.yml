@@ -127,6 +127,14 @@ author:
   location: "Hamilton, ON"
   email: "nghaznavi@gmail.com"
   links:
+    - label: "GitHub"
+      icon: "fab fa-fw fa-github"
+      url: "https://github.com/NadimGhaznavi"
+    - label: "My Website"
+      icon: "fas fa-fw fa-link"
+      url: "https://www.osoyalce.com/"
+footer:
+  since: "2026"
 
 # Site Footer
 footer:
