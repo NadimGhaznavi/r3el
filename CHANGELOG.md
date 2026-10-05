@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.8.1] - 2026-10-05 @ 17:36
+
 - Adapt the release script to R3el's version and CMDB codename constants, with
   interactive confirmation, step status reporting, and atomic release pushes.
 
