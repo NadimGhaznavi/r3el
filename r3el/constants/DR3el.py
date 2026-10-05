@@ -6,6 +6,9 @@ class DR3el:
     HTTP_TIMEOUT_SECONDS: Final[int] = 300
 
     VERSION: Final[str] = "6.7.1"
+    CMDB_SUBTYPE: Final[str] = "Media Manager"
+    CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
+    CMDB_CODENAME: Final[str] = "Insight"
 
     BASE_DIR: Final[str] = "/opt/prod/r3el"
     FILM_DIR: Final[str] = "/exports/disk1/archive/film"
