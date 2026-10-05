@@ -5,7 +5,7 @@ class DR3el:
     RAW_LOGS_ENABLED: Final[bool] = False
     HTTP_TIMEOUT_SECONDS: Final[int] = 300
 
-    VERSION: Final[str] = "6.7.1"
+    VERSION: Final[str] = "6.8.0"
     CMDB_SUBTYPE: Final[str] = "Media Manager"
     CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
     CMDB_CODENAME: Final[str] = "Insight"
