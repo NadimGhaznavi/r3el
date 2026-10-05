@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.8.0] - 2026-10-05 @ 05:40
+
+- Add CMDB scanner metadata: subtype `Media Manager`, supplier `Nadim-Daniel`,
+  and codename `Insight`.
+
 ## [6.7.1] - 2026-10-04 @ 05:55
 
 - Fix stale batch-control and restart integration-test expectations: identification emits `identification_group_completed`, followed by one final `batch_completed` event.
