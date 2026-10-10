@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.8.2] - 2026-10-09 @ 21:30
+
 This release is dedicated to [Florence Nightingale](https://en.wikipedia.org/wiki/Florence_Nightingale).
 
 - Refresh the desktop application cache when installing VLC links so GNOME can find the handler in its Open With dialog.
