@@ -49,7 +49,8 @@ python3 scripts/vlc-link.py --install
 
 Alternatively, copy just `scripts/vlc-link.py` to that desktop and run it with
 `--install`. It requires Python 3, VLC (`vlc` on PATH), and `xdg-mime` from
-xdg-utils. The installer registers a per-user `r3el-vlc:` link handler using a
+xdg-utils, plus `update-desktop-database` from desktop-file-utils. The installer
+refreshes the desktop application cache and registers a per-user `r3el-vlc:` link handler using a
 [desktop entry](https://specifications.freedesktop.org/desktop-entry/latest-single/).
 Click Watch and accept Chrome's external application prompt. The media
 must be mounted at `/imports/...` on that desktop. This opens the local file in

@@ -4,7 +4,7 @@ import importlib.util
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 
 spec = importlib.util.spec_from_file_location('vlc_link', Path(__file__).parents[1] / 'scripts/vlc-link.py')
@@ -46,5 +46,17 @@ class VLCLinkTests(unittest.TestCase):
             entry = (Path(directory) / 'applications/r3el-vlc.desktop').read_text()
             self.assertIn('MimeType=x-scheme-handler/r3el-vlc;', entry)
             self.assertIn(' %u\n', entry)
-            run.assert_called_once_with(['xdg-mime', 'default', 'r3el-vlc.desktop',
-                                         'x-scheme-handler/r3el-vlc'], check=True)
+            self.assertEqual(run.call_args_list, [
+                call(['update-desktop-database', str(Path(directory) / 'applications')], check=True),
+                call(['xdg-mime', 'default', 'r3el-vlc.desktop',
+                      'x-scheme-handler/r3el-vlc'], check=True),
+            ])
+
+    def test_install_checks_cache_tool_before_writing(self):
+        with TemporaryDirectory() as directory:
+            with patch.dict('os.environ', {'XDG_DATA_HOME': directory}), \
+                    patch.object(vlc_link.shutil, 'which', side_effect=lambda command:
+                                 None if command == 'update-desktop-database' else '/usr/bin/tool'):
+                with self.assertRaisesRegex(ValueError, 'Install update-desktop-database'):
+                    vlc_link.install()
+            self.assertEqual(list(Path(directory).iterdir()), [])

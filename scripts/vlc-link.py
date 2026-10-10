@@ -29,7 +29,7 @@ def desktop_argument(value: str) -> str:
 
 
 def install() -> None:
-    for command in ("vlc", "xdg-mime"):
+    for command in ("vlc", "xdg-mime", "update-desktop-database"):
         if shutil.which(command) is None:
             raise ValueError(f"Install {command} on this desktop first.")
     data = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
@@ -46,6 +46,7 @@ def install() -> None:
         "Terminal=false\nNoDisplay=true\nMimeType=x-scheme-handler/r3el-vlc;\n",
         encoding="utf-8",
     )
+    subprocess.run(["update-desktop-database", str(applications)], check=True)
     subprocess.run(
         ["xdg-mime", "default", desktop.name, "x-scheme-handler/r3el-vlc"], check=True
     )
