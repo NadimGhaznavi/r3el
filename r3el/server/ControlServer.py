@@ -10,6 +10,7 @@ import re
 import signal
 from urllib.parse import parse_qs, urlsplit
 
+import httpx
 import pymysql
 import zmq
 
@@ -19,6 +20,12 @@ from r3el.app.BatchMatching import BatchMatching
 from r3el.app.MatchingJobs import MatchingJobs
 from r3el.app.ClearWorkspace import ClearWorkspace
 from r3el.app.DeleteCatalogue import DeleteCatalogue
+from r3el.app.EditCatalogueMovie import EditCatalogueMovie
+from r3el.activity.EventWriter import EventWriter
+from r3el.interface.CatalogueEditDb import CatalogueEditDb
+from r3el.interface.CatalogueEditFiles import CatalogueEditFiles
+from r3el.interface.TMDB import TMDB, TMDBError
+from r3el.interface.TMDBCatalogue import TMDBCatalogue
 from r3el.interface.CatalogueDeletionDb import CatalogueDeletionDb
 from r3el.interface.CatalogueFileDeletion import CatalogueFileDeletion
 from r3el.entity.MediaFileAction import MediaFileAction
@@ -286,7 +293,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                                              matching_job=active_job, latest_event=latest_event, **values))
 
         def do_POST(self):
-            if self.path not in ('/catalogue/delete', '/watched', DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
+            if self.path not in ('/catalogue/edit', '/catalogue/delete', '/watched', DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
                 self.send_error(404)
                 return
             # Browser form submissions must originate from this control server.
@@ -305,7 +312,12 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 if any(len(values) != 1 for values in fields.values()):
                     raise ValueError('Repeated form field.')
                 payload = {name: values[0] for name, values in fields.items()}
-                if self.path == '/catalogue/delete':
+                if self.path == '/catalogue/edit':
+                    if (set(payload) != {'media_id', 'tmdb_id'} or any(
+                            not re.fullmatch(r'[0-9]{1,10}', value)
+                            or not 1 <= int(value) <= 4294967295 for value in payload.values())):
+                        raise ValueError('Supply valid current and replacement TMDB movie IDs.')
+                elif self.path == '/catalogue/delete':
                     expected = {'media_type', 'media_id'}
                     if 'season' in payload:
                         expected.add('season')
@@ -346,10 +358,13 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     payload['batch_size'] = int(payload['batch_size'])
                     parameters = BatchConfiguration.resolve(payload)
             except (KeyError, ValueError):
-                if self.path in ('/catalogue/delete', '/watched', DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
+                if self.path in ('/catalogue/edit', '/catalogue/delete', '/watched', DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
                     self.respond(400, b'{"saved":false}', 'application/json')
                     return
                 self.respond_control(400, result=DMessage.INVALID_PARAMETERS)
+                return
+            if self.path == '/catalogue/edit':
+                self.edit_catalogue_movie(int(payload['media_id']), int(payload['tmdb_id']))
                 return
             if self.path == '/catalogue/delete':
                 self.delete_catalogue(payload['media_type'], int(payload['media_id']),
@@ -401,6 +416,24 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                                  input_directory=parameters.input_directory,
                                  output_directory=parameters.output_directory,
                                  batch_size=parameters.batch_size)
+
+        def edit_catalogue_movie(self, old_id: int, new_id: int) -> None:
+            try:
+                db = DbMgr()
+                try:
+                    log = EventWriter(EventLogDb(db).record_in_transaction,
+                                      {'batch_id': f'catalogue-edit-{old_id}'})
+                    EditCatalogueMovie(CatalogueEditDb(db), CatalogueEditFiles(),
+                                       TMDBCatalogue(TMDB.from_environment()), log).run(old_id, new_id)
+                finally:
+                    db.close()
+            except (ValueError, TMDBError, httpx.HTTPError, OSError, pymysql.MySQLError) as error:
+                logging.exception('Unable to correct catalogue movie')
+                message = str(error) if isinstance(error, (ValueError, TMDBError)) else 'Unable to update the movie. Please try again.'
+                self.respond(409, json.dumps({'saved': False, 'error': message}).encode(), 'application/json')
+                return
+            self.respond(200, json.dumps({'saved': True, 'location': f'/catalogue/{new_id}'}).encode(),
+                         'application/json')
 
         def delete_catalogue(self, media_type: str, media_id: int, season: int | None) -> None:
             try:

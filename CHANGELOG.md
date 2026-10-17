@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release celebrates the Cree language. This is the **nēwosāp** (14) release.
+
+- Add Edit beside a movie’s TMDB link to correct its ID, refresh metadata and artwork, rename media and subtitles, and delete obsolete files while preserving viewing history.
+
 ## [6.9.0] - 2026-10-16 @ 21:38
 
 This release celebrates the Cree language. This is the **nistosāp** (13) release.

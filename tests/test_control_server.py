@@ -32,6 +32,38 @@ from r3el.server.ControlServer import make_server
 
 
 class ControlServerTests(unittest.TestCase):
+    @patch('r3el.server.ControlServer.TMDB.from_environment')
+    @patch('r3el.server.ControlServer.EditCatalogueMovie.run')
+    def test_edit_movie_saves_and_returns_new_location(self, edit, tmdb):
+        status, _, body = self.request('/catalogue/edit', 'POST', 'media_id=42&tmdb_id=43',
+                                       {'Content-Type': 'application/x-www-form-urlencoded'})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), {'saved': True, 'location': '/catalogue/43'})
+        edit.assert_called_once_with(42, 43)
+        self.db.close.assert_called_once()
+        self.assertEqual(self.request('/catalogue/edit')[0], 404)
+
+    @patch('r3el.server.ControlServer.TMDB.from_environment')
+    @patch('r3el.server.ControlServer.EditCatalogueMovie.run', side_effect=ValueError('Already imported'))
+    def test_edit_movie_reports_failure_and_closes_connection(self, edit, tmdb):
+        status, _, body = self.request('/catalogue/edit', 'POST', 'media_id=42&tmdb_id=43',
+                                       {'Content-Type': 'application/x-www-form-urlencoded'})
+        self.assertEqual(status, 409)
+        self.assertEqual(json.loads(body), {'saved': False, 'error': 'Already imported'})
+        self.db.close.assert_called_once()
+
+    @patch('r3el.server.ControlServer.EditCatalogueMovie.run')
+    def test_edit_movie_rejects_invalid_ids_tv_fields_and_cross_origin(self, edit):
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        for body in ('media_id=42', 'media_id=0&tmdb_id=43', 'media_id=42&tmdb_id=-1',
+                     'media_id=42&tmdb_id=4294967296', 'media_id=42&tmdb_id=abc',
+                     'media_id=42&tmdb_id=43&media_type=tv', 'media_id=42&tmdb_id=43&tmdb_id=44'):
+            self.assertEqual(self.request('/catalogue/edit', 'POST', body, headers)[0], 400)
+        self.assertEqual(self.request('/catalogue/edit', 'POST', 'media_id=42&tmdb_id=43',
+                         {**headers, 'Origin': 'https://elsewhere.example'})[0], 403)
+        edit.assert_not_called()
+        self.factory.assert_not_called()
+
     @patch('r3el.server.ControlServer.DeleteCatalogue.run', return_value=True)
     def test_delete_scopes_and_redirects(self, delete):
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -349,6 +381,10 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('name="media_id" value="42"', body)
         self.assertIn('>Watch</button>', body)
         self.assertIn('data-media-type="movie" data-media-id="42" data-title="&lt;Movie&gt;"', body)
+        self.assertIn('id="edit-movie">Edit</button>', body)
+        self.assertIn('<dialog id="edit-dialog"', body)
+        self.assertIn('action="/catalogue/edit"', body)
+        self.assertIn('name="tmdb_id"', body)
         self.assertIn('<dialog id="delete-dialog"', body)
         self.assertIn('id="delete-cancel" autofocus>Cancel</button>', body)
         self.assertIn('type="submit" class="delete-button">Delete</button>', body)
@@ -397,6 +433,8 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('name="media_id" value="123"', body)
         self.assertNotIn('name="media_type" value="movie"', body)
         self.assertIn('https://www.themoviedb.org/tv/42',body)
+        self.assertNotIn('id="edit-movie"', body)
+        self.assertNotIn('id="edit-dialog"', body)
         self.assertIn('S01E02 — Episode',body)
         self.assertIn('TV series',body)
         self.assertIn('data-media-type="tv" data-media-id="42" data-title="Show">Delete</button>', body)
