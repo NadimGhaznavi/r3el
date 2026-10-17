@@ -22,6 +22,9 @@
 <p class="watched-date" id="watched-{{ media_type }}-{{ media_id }}">Watched: {{ value or 'Never' }}</p>
 {%- endmacro %}
 {% block content %}
+{% macro delete_button(label, season=none) -%}
+<button type="button" class="delete-button" data-media-type="{{ media_type }}" data-media-id="{{ movie.tmdb_id }}" data-title="{{ movie.title }}"{% if season is not none %} data-season="{{ season }}"{% endif %}>{{ label }}</button>
+{%- endmacro %}
 <article class="movie-card catalogue-detail" aria-labelledby="movie-title">
   <div class="movie-poster">
     {% if movie.artwork | selectattr('kind', 'equalto', 'poster') | list %}
@@ -39,6 +42,7 @@
     </div>
     <p class="movie-genres">{{ movie.genres | map(attribute='name') | join(' · ') or 'Genres not available' }}</p>
     {% if media_type == 'movie' %}{{ watched_button('movie', movie.tmdb_id, movie.files) }}{% endif %}
+    {{ delete_button('Delete') }}
     {% if movie.overview %}<p class="movie-overview">{{ movie.overview }}</p>{% endif %}
     <dl class="movie-facts">
       <dt>Original title</dt><dd>{{ movie.original_title or '—' }}</dd>
@@ -75,6 +79,7 @@
 {% for season in (seasons | rejectattr('grouper', 'equalto', 0) | list) + (seasons | selectattr('grouper', 'equalto', 0) | list) %}
 <details class="batch-panel catalogue-season">
   <summary>Season {{ season.grouper }}</summary>
+  {{ delete_button('Delete season', season.grouper) }}
   {% for episode in season.list | sort(attribute='episode_number') %}
   <article class="movie-card catalogue-detail episode-card" aria-labelledby="episode-{{ episode.tmdb_id }}">
     <div class="movie-poster">
@@ -104,7 +109,61 @@
 </details>
 {% else %}<section class="batch-panel catalogue-season"><p>No imported episodes.</p></section>{% endfor %}
 {% endif %}
+<dialog id="delete-dialog" aria-labelledby="delete-heading" aria-describedby="delete-description">
+  <h2 id="delete-heading">Delete from library?</h2>
+  <p id="delete-description"></p>
+  <p>This permanently removes the library entry, media files, subtitles, artwork, and viewing history.</p>
+  <p id="delete-status" role="status" aria-live="polite"></p>
+  <form id="delete-form" action="/catalogue/delete" method="post">
+    <input type="hidden" name="media_type">
+    <input type="hidden" name="media_id">
+    <input type="hidden" name="season" disabled>
+    <button type="button" id="delete-cancel" autofocus>Cancel</button>
+    <button type="submit" class="delete-button">Delete</button>
+  </form>
+</dialog>
 <script>
+  const deleteDialog = document.getElementById('delete-dialog');
+  const deleteForm = document.getElementById('delete-form');
+  const deleteStatus = document.getElementById('delete-status');
+  let deleting = false;
+  document.querySelectorAll('[data-media-type].delete-button').forEach(button => {
+    button.addEventListener('click', () => {
+      deleteForm.elements.media_type.value = button.dataset.mediaType;
+      deleteForm.elements.media_id.value = button.dataset.mediaId;
+      deleteForm.elements.season.disabled = button.dataset.season === undefined;
+      deleteForm.elements.season.value = button.dataset.season ?? '';
+      const scope = button.dataset.season !== undefined ? `season ${button.dataset.season}`
+        : button.dataset.mediaType === 'tv' ? 'all seasons' : 'movie';
+      document.getElementById('delete-description').textContent = `${button.dataset.title} (${scope})`;
+      deleteStatus.textContent = '';
+      deleteDialog.showModal();
+    });
+  });
+  document.getElementById('delete-cancel').addEventListener('click', () => deleteDialog.close());
+  deleteDialog.addEventListener('cancel', event => {
+    if (deleting) event.preventDefault();
+  });
+  deleteForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (deleting) return;
+    deleting = true;
+    deleteForm.querySelectorAll('button').forEach(button => button.disabled = true);
+    deleteStatus.textContent = 'Deleting…';
+    try {
+      const response = await fetch(deleteForm.action, {
+        method: 'POST', body: new URLSearchParams(new FormData(deleteForm))
+      });
+      if (!response.ok) throw new Error('Delete failed.');
+      const result = await response.json();
+      window.location.href = result.location;
+    } catch (error) {
+      deleteStatus.textContent = 'Unable to confirm deletion. Some files may already have been removed. Please retry or reload the page.';
+    } finally {
+      deleting = false;
+      deleteForm.querySelectorAll('button').forEach(button => button.disabled = false);
+    }
+  });
   document.querySelectorAll('.watched-form').forEach(form => {
     form.addEventListener('submit', async event => {
       event.preventDefault();

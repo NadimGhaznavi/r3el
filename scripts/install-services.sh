@@ -84,7 +84,8 @@ modules=(
     app/BatchControlHandler.py app/BatchProcessor.py app/BatchRunner.py app/MessageHandler.py
     interface/BatchConfiguration.py interface/BatchControl.py entity/BatchRequest.py constants/DMessage.py
     app/BatchIdentification.py app/ToolConversation.py app/MovieSelection.py app/MultipleChoiceHandler.py app/MatchingJobs.py
-    app/RetryIdentification.py app/ClearWorkspace.py
+    app/RetryIdentification.py app/ClearWorkspace.py app/DeleteCatalogue.py
+    interface/CatalogueDeletionDb.py interface/CatalogueFileDeletion.py
     activity/TVPattern.py activity/TVSchema.py app/TVImport.py
     app/prompts/DirectoryContextTV.py app/prompts/DirectoryMovieYear.py entity/CatalogueSeries.py
     interface/TVCatalogue.py interface/TVCatalogueDb.py
