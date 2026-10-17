@@ -32,6 +32,51 @@ from r3el.server.ControlServer import make_server
 
 
 class ControlServerTests(unittest.TestCase):
+    @patch('r3el.server.ControlServer.DeleteCatalogue.run', return_value=True)
+    def test_delete_scopes_and_redirects(self, delete):
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        for fields, args, location in (
+                ({'media_type': 'movie', 'media_id': 42}, ('movie', 42, None), '/catalogue'),
+                ({'media_type': 'tv', 'media_id': 42}, ('tv', 42, None), '/catalogue'),
+                ({'media_type': 'tv', 'media_id': 42, 'season': 0}, ('tv', 42, 0), '/catalogue/tv/42')):
+            status, _, body = self.request('/catalogue/delete', 'POST', urlencode(fields), headers)
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(body), {'deleted': True, 'location': location})
+            delete.assert_called_with(*args)
+        self.assertEqual(self.db.close.call_count, 3)
+        self.assertEqual(self.request('/catalogue/delete')[0], 404)
+        self.assertEqual(delete.call_count, 3)
+
+    @patch('r3el.server.ControlServer.DeleteCatalogue.run')
+    def test_delete_rejects_episode_invalid_scope_and_cross_origin(self, delete):
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        for body in ('media_type=episode&media_id=42', 'media_type=movie',
+                     'media_type=movie&media_id=0', 'media_type=tv&media_id=4294967296',
+                     'media_type=tv&media_id=abc', 'media_type=movie&media_id=42&season=1',
+                     'media_type=tv&media_id=42&season=-1', 'media_type=tv&media_id=42&season=65536',
+                     'media_type=tv&media_id=42&season=', 'media_type=tv&media_id=42&episode=1',
+                     'media_type=tv&media_id=42&media_id=43'):
+            self.assertEqual(self.request('/catalogue/delete', 'POST', body, headers)[0], 400)
+        self.assertEqual(self.request('/catalogue/delete', 'POST', 'media_type=movie&media_id=42',
+                         {**headers, 'Origin': 'https://elsewhere.example'})[0], 403)
+        delete.assert_not_called()
+        self.factory.assert_not_called()
+
+    @patch('r3el.server.ControlServer.DeleteCatalogue.run', return_value=False)
+    def test_delete_missing_entry_and_failures(self, delete):
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        self.assertEqual(self.request('/catalogue/delete', 'POST',
+                         'media_type=tv&media_id=42&season=1', headers)[0], 404)
+        for error in (pymysql.OperationalError('private details'), PermissionError('private path'),
+                      ValueError('unsafe path')):
+            delete.side_effect = error
+            with self.assertLogs(level='ERROR'):
+                status, _, body = self.request('/catalogue/delete', 'POST',
+                                              'media_type=movie&media_id=42', headers)
+            self.assertEqual(status, 503)
+            self.assertEqual(json.loads(body), {'deleted': False})
+        self.assertEqual(self.db.close.call_count, 4)
+
     @patch('r3el.server.ControlServer.WatchedDb.latest_date', return_value='2026-09-28')
     @patch('r3el.server.ControlServer.WatchedDb.record', return_value=True)
     def test_watched_records_each_post_and_never_get(self, record, latest):
@@ -303,6 +348,12 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('name="media_type" value="movie"', body)
         self.assertIn('name="media_id" value="42"', body)
         self.assertIn('>Watch</button>', body)
+        self.assertIn('data-media-type="movie" data-media-id="42" data-title="&lt;Movie&gt;"', body)
+        self.assertIn('<dialog id="delete-dialog"', body)
+        self.assertIn('id="delete-cancel" autofocus>Cancel</button>', body)
+        self.assertIn('type="submit" class="delete-button">Delete</button>', body)
+        self.assertNotIn('data-season="', body)
+        self.assertIn('deleteDialog.showModal()', body)
         for text in ('&lt;Movie&gt;</h1>', '2020 · Movie', 'A saved overview.', '120 minutes', 'Drama',
                      '&lt;Actor&gt; — Hero', '/movies/Movie.mkv', '/catalogue/42/poster', 'tt123'):
             self.assertIn(text, body)
@@ -348,6 +399,10 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('https://www.themoviedb.org/tv/42',body)
         self.assertIn('S01E02 — Episode',body)
         self.assertIn('TV series',body)
+        self.assertIn('data-media-type="tv" data-media-id="42" data-title="Show">Delete</button>', body)
+        self.assertIn('data-season="1">Delete season</button>', body)
+        self.assertEqual(body.count('data-media-type="tv"'), 2)
+        self.assertNotIn('data-media-type="episode"', body)
         self.assertIn('data-playback="r3el-vlc:///imports/disk1/Show/Episode%20%232.mkv"', body)
         self.assertNotIn('href="r3el-vlc:', body)
         self.assertIn('Watched: 2026-09-28', body)
