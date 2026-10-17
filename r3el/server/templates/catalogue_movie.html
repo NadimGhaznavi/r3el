@@ -39,6 +39,7 @@
       {% if movie.rating is not none %}<span class="movie-rating"><span aria-hidden="true">★</span> {{ '%.2f' | format(movie.rating) }}<span class="sr-only"> out of 10</span></span>{% endif %}
       {% if movie.vote_count is not none %}<span class="note">{{ '{:,}'.format(movie.vote_count) }} votes</span>{% endif %}
       <a class="movie-id" href="https://www.themoviedb.org/{{ media_type }}/{{ movie.tmdb_id }}">TMDB #{{ movie.tmdb_id }}</a>
+      {% if media_type == 'movie' %}<button type="button" id="edit-movie">Edit</button>{% endif %}
     </div>
     <p class="movie-genres">{{ movie.genres | map(attribute='name') | join(' · ') or 'Genres not available' }}</p>
     {% if media_type == 'movie' %}{{ watched_button('movie', movie.tmdb_id, movie.files) }}{% endif %}
@@ -108,6 +109,57 @@
   {% endfor %}
 </details>
 {% else %}<section class="batch-panel catalogue-season"><p>No imported episodes.</p></section>{% endfor %}
+{% endif %}
+{% if media_type == 'movie' %}
+<dialog id="edit-dialog" aria-labelledby="edit-heading" aria-describedby="edit-description">
+  <h2 id="edit-heading">Correct TMDB match</h2>
+  <p id="edit-description">Enter the correct TMDB movie ID. This updates the title, metadata, filenames, and artwork, and removes the old files. Viewing history is preserved.</p>
+  <form id="edit-form" action="/catalogue/edit" method="post">
+    <input type="hidden" name="media_id" value="{{ movie.tmdb_id }}">
+    <label for="edit-tmdb-id">TMDB movie ID</label>
+    <input id="edit-tmdb-id" name="tmdb_id" type="number" min="1" max="4294967295" step="1" required value="{{ movie.tmdb_id }}">
+    <p id="edit-status" role="status" aria-live="polite"></p>
+    <button type="button" id="edit-cancel">Cancel</button>
+    <button type="submit">Save</button>
+  </form>
+</dialog>
+<script>
+  const editDialog = document.getElementById('edit-dialog');
+  const editForm = document.getElementById('edit-form');
+  const editStatus = document.getElementById('edit-status');
+  let editing = false;
+  document.getElementById('edit-movie').addEventListener('click', () => {
+    editStatus.textContent = '';
+    editDialog.showModal();
+    document.getElementById('edit-tmdb-id').select();
+  });
+  document.getElementById('edit-cancel').addEventListener('click', () => editDialog.close());
+  editDialog.addEventListener('cancel', event => {
+    if (editing) event.preventDefault();
+  });
+  editForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (editing) return;
+    editing = true;
+    const body = new URLSearchParams(new FormData(editForm));
+    editForm.querySelectorAll('button, input').forEach(input => input.disabled = true);
+    editStatus.textContent = 'Updating movie and artwork…';
+    try {
+      const response = await fetch(editForm.action, {method: 'POST', body});
+      const result = await response.json();
+      if (!response.ok) {
+        editStatus.textContent = result.error || 'Unable to update the movie. Please try again.';
+        return;
+      }
+      window.location.href = result.location;
+    } catch (error) {
+      editStatus.textContent = 'Unable to confirm the update. Reload the catalogue before trying again.';
+    } finally {
+      editing = false;
+      editForm.querySelectorAll('button, input').forEach(input => input.disabled = false);
+    }
+  });
+</script>
 {% endif %}
 <dialog id="delete-dialog" aria-labelledby="delete-heading" aria-describedby="delete-description">
   <h2 id="delete-heading">Delete from library?</h2>
