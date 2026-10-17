@@ -18,6 +18,9 @@ from r3el.activity.BatchPreparation import BatchPreparation
 from r3el.app.BatchMatching import BatchMatching
 from r3el.app.MatchingJobs import MatchingJobs
 from r3el.app.ClearWorkspace import ClearWorkspace
+from r3el.app.DeleteCatalogue import DeleteCatalogue
+from r3el.interface.CatalogueDeletionDb import CatalogueDeletionDb
+from r3el.interface.CatalogueFileDeletion import CatalogueFileDeletion
 from r3el.entity.MediaFileAction import MediaFileAction
 from r3el.constants.DMessage import DMessage
 from r3el.constants.DR3el import DR3el
@@ -283,7 +286,7 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                                              matching_job=active_job, latest_event=latest_event, **values))
 
         def do_POST(self):
-            if self.path not in ('/watched', DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
+            if self.path not in ('/catalogue/delete', '/watched', DR3el.NEW_BATCH_URL, DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
                 self.send_error(404)
                 return
             # Browser form submissions must originate from this control server.
@@ -302,7 +305,19 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                 if any(len(values) != 1 for values in fields.values()):
                     raise ValueError('Repeated form field.')
                 payload = {name: values[0] for name, values in fields.items()}
-                if self.path == '/watched':
+                if self.path == '/catalogue/delete':
+                    expected = {'media_type', 'media_id'}
+                    if 'season' in payload:
+                        expected.add('season')
+                    if (set(payload) != expected or payload['media_type'] not in ('movie', 'tv')
+                            or not re.fullmatch(r'[0-9]{1,10}', payload['media_id'])
+                            or not 1 <= int(payload['media_id']) <= 4294967295):
+                        raise ValueError('Supply a valid movie or TV show ID.')
+                    if 'season' in payload and (payload['media_type'] != 'tv'
+                            or not re.fullmatch(r'[0-9]{1,5}', payload['season'])
+                            or int(payload['season']) > 65535):
+                        raise ValueError('Supply a valid TV season number.')
+                elif self.path == '/watched':
                     if (set(payload) != {'media_type', 'media_id'}
                             or payload['media_type'] not in ('movie', 'episode')
                             or not re.fullmatch(r'[0-9]{1,10}', payload['media_id'])
@@ -331,10 +346,14 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                     payload['batch_size'] = int(payload['batch_size'])
                     parameters = BatchConfiguration.resolve(payload)
             except (KeyError, ValueError):
-                if self.path in ('/watched', DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
+                if self.path in ('/catalogue/delete', '/watched', DR3el.FILE_ACTION_URL, DR3el.MATCH_TMDB_URL, DR3el.STOP_BATCH_URL, DR3el.MATCH_TMDB_ID_URL, DR3el.REPLACE_MEDIA_URL, DR3el.CLEAR_BATCH_URL):
                     self.respond(400, b'{"saved":false}', 'application/json')
                     return
                 self.respond_control(400, result=DMessage.INVALID_PARAMETERS)
+                return
+            if self.path == '/catalogue/delete':
+                self.delete_catalogue(payload['media_type'], int(payload['media_id']),
+                                      int(payload['season']) if 'season' in payload else None)
                 return
             if self.path == '/watched':
                 self.record_watched(payload['media_type'], int(payload['media_id']))
@@ -382,6 +401,22 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
                                  input_directory=parameters.input_directory,
                                  output_directory=parameters.output_directory,
                                  batch_size=parameters.batch_size)
+
+        def delete_catalogue(self, media_type: str, media_id: int, season: int | None) -> None:
+            try:
+                db = DbMgr()
+                try:
+                    deleted = DeleteCatalogue(CatalogueDeletionDb(db), CatalogueFileDeletion()).run(
+                        media_type, media_id, season)
+                finally:
+                    db.close()
+            except (pymysql.MySQLError, OSError, ValueError):
+                logging.exception('Unable to delete catalogue entry and files')
+                self.respond(503, b'{"deleted":false}', 'application/json')
+                return
+            location = f'/catalogue/tv/{media_id}' if season is not None else '/catalogue'
+            self.respond(200 if deleted else 404,
+                         json.dumps({'deleted': deleted, 'location': location}).encode(), 'application/json')
 
         def record_watched(self, media_type: str, media_id: int) -> None:
             try:
