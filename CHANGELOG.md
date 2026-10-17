@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release celebrates the Cree language. This is the **nistosāp** (13) release.
+
 - Add Delete buttons for movies, complete TV shows, and individual seasons, with a Cancel/Delete confirmation dialog. Delete removes catalogued media, subtitles, artwork, and viewing records; season deletion preserves other seasons.
 
 ## [6.8.2] - 2026-10-09 @ 21:30
