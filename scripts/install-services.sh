@@ -33,6 +33,10 @@ PY
 getent passwd r3el >/dev/null || fail "Run install.sh first to create the r3el account."
 getent group r3el >/dev/null || fail "Missing r3el group; run install.sh first."
 
+# Validate/create production listener settings before stopping any services.
+(cd -- "$checkout_dir" && python3 -B -m r3el.interface.Configuration --prepare)
+chmod 644 -- "$install_dir/conf/r3el.json"
+
 python3 -B "$checkout_dir/scripts/install-tmdb.py"
 python3 -B "$checkout_dir/scripts/install-qwen.py"
 
@@ -82,7 +86,7 @@ modules=(
     app/TVEpisodeMapping.py app/prompts/DirectoryEpisodesTV.py
     app/Prompt.py
     app/BatchControlHandler.py app/BatchProcessor.py app/BatchRunner.py app/MessageHandler.py
-    interface/BatchConfiguration.py interface/BatchControl.py entity/BatchRequest.py constants/DMessage.py
+    interface/Configuration.py interface/Network.py interface/BatchConfiguration.py interface/BatchControl.py entity/BatchRequest.py constants/DMessage.py
     app/BatchIdentification.py app/ToolConversation.py app/MovieSelection.py app/MultipleChoiceHandler.py app/MatchingJobs.py
     app/EditCatalogueMovie.py interface/CatalogueEditDb.py interface/CatalogueEditFiles.py
     app/RetryIdentification.py app/ClearWorkspace.py app/DeleteCatalogue.py
@@ -175,7 +179,7 @@ done
 systemctl daemon-reload
 systemctl disable r3el-server.service
 systemctl enable --now r3el-control.service
-control_port=$(cd -- "$checkout_dir" && python3 -B -c 'from r3el.constants.DR3el import DR3el; print(DR3el.PORT)')
+control_port=$(cd -- "$checkout_dir" && python3 -B -c 'from r3el.interface.Network import Network; print(Network.binding("http")[1])')
 printf 'R3el Control started: http://<server>:%s/\n' "$control_port"
 printf 'Installed idle r3el-server.service at %s.\n' "$install_dir"
 printf 'Start qwen-server.service and wait for its /health endpoint to return HTTP 200 before starting r3el-server.service.\n'

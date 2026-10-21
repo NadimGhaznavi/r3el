@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release is named for the element **Beryllium (Be)**. Beryllium is unusually transparent to X-rays, making it useful for windows in X-ray equipment.
+
+- Declare R3el's MariaDB catalog and HTTP/ZeroMQ listeners with literal
+  `CMDB_DATABASES` and `CMDB_NETWORK` metadata. Use these declarations for
+  database provisioning and listener defaults, replacing the old port and endpoint constants.
+- Support validated production listener overrides in `conf/r3el.json`, preserve
+  them during upgrades, and validate settings before service installation or restart.
+
 ## [6.10.0] - 2026-10-16 @ 21:48
 
 This release celebrates the Cree language. This is the **nēwosāp** (14) release.

@@ -34,6 +34,7 @@ from r3el.constants.DR3el import DR3el
 from r3el.interface.BatchConfiguration import BatchConfiguration
 from r3el.interface.BatchControl import BatchControl
 from r3el.interface.DbMgr import DbMgr
+from r3el.interface.Network import Network
 from r3el.interface.TVCatalogueDb import TVCatalogueDb
 from r3el.interface.CatalogueDb import CatalogueDb
 from r3el.interface.WatchedDb import WatchedDb
@@ -53,9 +54,9 @@ def event_log():
         db.close()
 
 
-def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> ThreadingHTTPServer:
+def make_server(host: str, port: int, endpoint: str | None = None) -> ThreadingHTTPServer:
     pages = EventPages()
-    batches = BatchControl(endpoint)
+    batches = BatchControl(endpoint if endpoint is not None else Network.endpoint('backend', destination=True))
 
     def execute_match(batch_id: str, *, file_id: str | None = None, movie_id: int | None = None,
                       replace_media: bool = False) -> None:
@@ -551,9 +552,10 @@ def make_server(host: str, port: int, endpoint: str = DR3el.ZMQ_ENDPOINT) -> Thr
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--host', default='0.0.0.0')
-    parser.add_argument('--port', type=int, default=DR3el.PORT)
-    parser.add_argument('--zmq-endpoint', default=DR3el.ZMQ_ENDPOINT)
+    host, port = Network.binding('http')
+    parser.add_argument('--host', default=host)
+    parser.add_argument('--port', type=int, default=port)
+    parser.add_argument('--zmq-endpoint', default=Network.endpoint('backend', destination=True))
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error('--port must be between 1 and 65535.')
