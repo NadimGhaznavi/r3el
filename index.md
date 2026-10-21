@@ -24,6 +24,7 @@ The architecture and code for this project was based on my [Ax3l Project](https:
 
 - [Control, Catalogue, and Event Log](pages/control-server.md)
 - [Identification server and installation](pages/one-batch-identification.md)
+- [CMDB declarations and runtime configuration](pages/configuration.md)
 - [File naming and format preference](pages/file-naming.md)
 
 ## Technical reference

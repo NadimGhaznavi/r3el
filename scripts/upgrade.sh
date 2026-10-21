@@ -33,7 +33,8 @@ service_installer="$checkout_dir/scripts/install-services.sh"
 [[ -x $service_installer ]] || fail "Missing executable $service_installer; add the r3el service installer first."
 install_dir=$(cd -- "$checkout_dir" && python3 -B -c 'from r3el.constants.DR3el import DR3el; print(DR3el.BASE_DIR)')
 [[ -d $install_dir && -f /etc/r3el/database.env ]] || fail "Run install.sh first."
-grep -Fxq 'DB_NAME=r3el' /etc/r3el/database.env || fail "Credentials do not belong to r3el."
+database=$(cd -- "$checkout_dir" && python3 -B -c 'from r3el.interface.Configuration import Configuration; print(Configuration.database("R3el"))')
+grep -Fxq "DB_NAME=$database" /etc/r3el/database.env || fail "Credentials do not belong to r3el."
 getent passwd r3el >/dev/null || fail "Missing r3el service account; run install.sh first."
 "$service_installer"
 printf 'Upgraded %s from %s.\n' "$install_dir" "$checkout_dir"

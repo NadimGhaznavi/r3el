@@ -10,6 +10,12 @@ class DR3el:
     CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
     CMDB_CODENAME: Final[str] = "newosap"
 
+    CMDB_DATABASES: Final[tuple[tuple[str, str], ...]] = (("R3el", "r3el"),)
+    CMDB_NETWORK: Final[tuple[tuple[str, str, int], ...]] = (
+        ("http", "0.0.0.0", 42220),
+        ("backend", "127.0.0.1", 42221),
+    )
+
     BASE_DIR: Final[str] = "/opt/prod/r3el"
     FILM_DIR: Final[str] = "/exports/disk1/archive/film"
     MEDIA_DIR: Final[str] = "/exports/disk1/archive/media/movies"
@@ -28,7 +34,3 @@ class DR3el:
     CONTROL_LOGO_URL: Final[str] = "/static/r3el.png"
     MAX_LLM_RETRIES: Final[int] = 2
     MAX_IDENTIFICATION_RETRIES: Final[int] = 3
-
-    PORT: Final[int] = 42220
-
-    ZMQ_ENDPOINT: Final[str] = "tcp://127.0.0.1:42221"
