@@ -15,6 +15,7 @@ from r3el.app.MessageHandler import MessageHandler
 from r3el.app.SubmissionHandler import SubmissionHandler
 from r3el.constants.DR3el import DR3el
 from r3el.interface.DbMgr import DbMgr
+from r3el.interface.Network import Network
 from r3el.interface.EventLogDb import EventLogDb
 from r3el.interface.FileMgr import FileMgr
 from r3el.interface.LLM import LLM
@@ -75,7 +76,7 @@ def main() -> None:
     parser.add_argument('--llm-url', default=os.environ.get('R3EL_LLM_URL'))
     parser.add_argument('--film-dir', default=DR3el.FILM_DIR)
     parser.add_argument('--batch-size', type=int, default=DR3el.BATCH_SIZE)
-    parser.add_argument('--zmq-endpoint', default=DR3el.ZMQ_ENDPOINT)
+    parser.add_argument('--zmq-endpoint', default=Network.endpoint('backend'))
     args = parser.parse_args()
     if args.run_batch and not args.llm_url:
         parser.error('Supply --llm-url or R3EL_LLM_URL.')

@@ -40,7 +40,7 @@ print(resolved)
 PYBASE
 )
 config_dir=/etc/r3el
-database=r3el
+database=$(cd -- "$checkout_dir" && python3 -B -c 'from r3el.interface.Configuration import Configuration; print(Configuration.database("R3el"))')
 service_account=r3el
 admin=(mariadb --protocol=socket --user=root)
 command -v mariadb >/dev/null || fail "Install the MariaDB client first."

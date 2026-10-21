@@ -57,7 +57,7 @@ admin=(mariadb --protocol=socket --user=root)
 DB_HOST=localhost
 DB_PORT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." &&
     python3 -B -c 'from r3el.constants.DDbMgr import DDbMgr; print(DDbMgr.PORT)')
-DB_NAME=r3el
+DB_NAME=$(cd -- "$checkout_dir" && python3 -B -c 'from r3el.interface.Configuration import Configuration; print(Configuration.database("R3el"))')
 DB_USER=$DB_NAME
 # Underscores are wildcards in MariaDB database-level grants.
 grant_database=${DB_NAME//_/\\_}

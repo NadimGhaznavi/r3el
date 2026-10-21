@@ -226,7 +226,8 @@ when using a nondefault endpoint. See [ZMQ messages](zmq-messages.md).
 Install and upgrade copy the Python modules and templates, initialize the
 event and workspace schemas, then enable and start the control service. Open
 `http://<server>:42220/`. It listens on all interfaces by default, using
-`DR3el.PORT`. The separate batch service remains stopped and disabled until
+the `http` entry in `DR3el.CMDB_NETWORK` and any production JSON override
+([configuration](configuration.md)). The separate batch service remains stopped and disabled until
 explicitly started. Uninstall removes both R3el units and preserves Qwen.
 
 The page shows up to 500 matching events, newest first. Category, subcategory,

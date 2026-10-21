@@ -8,7 +8,7 @@ layout: single
 
 # ZMQ messages
 
-R3el uses one JSON frame per request/reply at `DR3el.ZMQ_ENDPOINT` (by default
+R3el uses one JSON frame per request/reply at the resolved `backend` listener from `DR3el.CMDB_NETWORK` (by default
 `tcp://127.0.0.1:42221`). `ZMQMsg` defines the envelope, `DZMQ` defines protocol
 version/timing, and `DMessage` defines application sender, target, method, and
 control response constants. `MessageHandler` routes requests to separate handlers.
