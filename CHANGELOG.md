@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add the pinned BMForge RCA skill for read-only production evidence collection
+  and local root-cause analysis, with its project-local manager and lock file.
+
 ## [6.11.0] - 2026-10-21 @ 02:48
 
 This release is named for the element **Beryllium (Be)**. Beryllium is unusually transparent to X-rays, making it useful for windows in X-ray equipment.
