@@ -16,11 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+This release is named for the element **Cerium (Ce)**. Cerium oxide is a common 
+polishing compound for glass and precision optics.
+
 ### Summary
 
-Development tooling now supports read-only production investigations and keeps
-release notes current as work is completed, while preserving R3el's established
-engineering workflow.
+TV catalogue pages now load when episodes have multiple video versions.
+Development tooling supports read-only production investigations and keeps
+release notes current while preserving R3el's established engineering workflow.
+
+### Fixed
+
+- Fix TV detail pages failing to render when an episode has multiple video
+  files, such as AVI and MKV copies. Keep movie part labels specific to movies
+  and cover multiple seasons and video versions with an HTTP regression test.
 
 ### Added
 

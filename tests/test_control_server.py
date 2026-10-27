@@ -457,6 +457,30 @@ class ControlServerTests(unittest.TestCase):
         self.assertIn('Air date unknown',body)
         self.assertNotIn('/episodes/123/still',body)
 
+    @patch('r3el.server.ControlServer.TVCatalogueDb.get')
+    def test_tv_multiple_video_versions_render_all_seasons(self, get):
+        episode = dict(tmdb_id=123, season_number=1, episode_number=1, title='First episode',
+            overview=None, air_date=None, runtime=None, has_still=False, watched_date=None,
+            files=[{'path': '/exports/tv/Show/Season 01/First.mkv', 'kind': 'video'}], credits=[])
+        get.return_value = dict(tmdb_id=42, title='Show', release_year=2020, original_title='Show',
+            release_date='2020-01-01', runtime=None, overview=None, genres=[], rating=None,
+            vote_count=None, imdb_id=None, credits=[], files=[], artwork=[], episodes=[episode,
+                dict(episode, tmdb_id=124, season_number=7, title='Later episode', files=[
+                    {'path': '/exports/tv/Show/Season 07/Later.avi', 'kind': 'video'},
+                    {'path': '/exports/tv/Show/Season 07/Later.mkv', 'kind': 'video'},
+                    {'path': '/exports/tv/Show/Season 07/Later.srt', 'kind': 'subtitle'}])])
+
+        status, _, body = self.request('/catalogue/tv/42')
+
+        self.assertEqual(status, 200)
+        for text in ('<summary>Season 1</summary>', '<summary>Season 7</summary>',
+                     'S01E01 — First episode', 'S07E01 — Later episode',
+                     'value="r3el-vlc:///imports/tv/Show/Season%2007/Later.avi">Video 1</option>',
+                     'value="r3el-vlc:///imports/tv/Show/Season%2007/Later.mkv">Video 2</option>'):
+            self.assertIn(text, body)
+        self.assertNotIn('Later.srt', body)
+        self.assertNotIn('>Part ', body)
+
     @patch('r3el.server.ControlServer.TVCatalogueDb.episode_still_path')
     def test_tv_episode_still_uses_registered_series_and_episode(self, artwork):
         with TemporaryDirectory() as directory:

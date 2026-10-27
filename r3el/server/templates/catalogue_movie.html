@@ -11,7 +11,7 @@
   <input type="hidden" name="media_id" value="{{ media_id }}">
   {% if videos | length > 1 %}
   <select aria-label="Video to watch" class="watch-video">
-    {% for file in videos %}<option value="{{ playback_url(file.path) }}">{{ 'Part ' ~ file.part if file.part else 'Video ' ~ loop.index }}</option>{% endfor %}
+    {% for file in videos %}<option value="{{ playback_url(file.path) }}">{{ 'Part ' ~ file.part if media_type == 'movie' and file.part else 'Video ' ~ loop.index }}</option>{% endfor %}
   </select>
   {% endif %}
   <button type="submit"{% if not videos %} disabled{% endif %}>Watch</button>
