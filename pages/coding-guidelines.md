@@ -172,7 +172,68 @@ loading when converting a module into a package.
 Distinguish new failures from existing failures. Report verification limits
 clearly, including when live database integration has not been tested.
 
+## Use BMForge processes selectively
+
+Use [BMForge's engineering and process guidance](https://github.com/NadimGhaznavi/bmforge/blob/87ba468ffb8377e3013045414b4fb25f789a5519/index.md)
+where it helps the requested work. R3el retains its existing architecture,
+coding guidelines, dependencies, branches, installation tooling and release
+workflow. Do not bootstrap R3el as a new project, install the greenfield
+baseline, or rewrite existing code to conform to BMForge. Reading its
+specifications does not establish application compliance or authorize a migration.
+
+Apply these processes when relevant:
+
+- Establish the requested outcome and observable acceptance checks before
+  implementation. A direct implementation or fix request authorizes that scope;
+  complete it without repeated per-file approval. Seek approval for material
+  scope changes, new dependencies or architectural changes.
+- Verify the affected behavior with proportionate checks. Report what was
+  verified, existing failures and any verification limits. Keep related
+  documentation and installation file lists current when the task affects them.
+- For production investigations, follow the installed
+  [BMForge RCA skill](../.agents/skills/bmforge-rca/SKILL.md): collect evidence
+  read-only from authorized hosts, then reproduce, investigate and fix locally.
+- For authorized deployment work, review affected services, files, configuration
+  and data before acting. Preserve operator settings and persistent data, and
+  verify the installed behavior before reporting success. Use R3el's existing
+  tooling; release publication and host deployment remain separate operations.
+- Use the existing `scripts/new-release.sh` and branch workflow for releases.
+  Commits, pushes, releases and deployments require their own explicit
+  authorization; permission to implement a change does not include them.
+
+Before the first BMForge-related edit in a session, run the read-only local
+check from the repository root:
+
+```sh
+python3 .agents/bmforge/manage.py check --project .
+```
+
+Report available updates or an unavailable check. The check uses a local source
+snapshot; it does not fetch upstream. Continue with the pinned skills, and apply
+updates or install additional skills only when explicitly requested or approved.
+
 ## Update the CHANGELOG.md
 
-Update the CHANGELOG. If there are many low level changes, then include a `### Summary` 
-section below `## [Unreleased]` that includes a short summary of the changes.
+Follow [BMForge's changelog maintenance process](https://github.com/NadimGhaznavi/bmforge/blob/87ba468ffb8377e3013045414b4fb25f789a5519/pages/changelog-maintenance.md)
+for every completed logical change:
+
+- Update `CHANGELOG.md` immediately as part of the same task, before reporting
+  completion or committing. Include small fixes, tests, documentation,
+  configuration, dependencies and maintenance as well as application code.
+  Do not defer entries until release time or the end of a session.
+- Record completed outcomes under the single `## [Unreleased]` heading. Explain
+  what changed and why it matters. Group related file edits into one concise
+  entry per logical change; omit abandoned attempts and unfinished plans.
+- Add or refresh one `### Summary` directly below `## [Unreleased]` for every
+  meaningful improvement, even when it is the only change. Keep it to one or two
+  plain-English sentences describing the benefit. A trivial typo-only change
+  may use a bullet alone when a summary adds no information.
+- Keep at most one summary in each unreleased or versioned section. Refresh
+  the existing summary as work accumulates. Use `### Added`,
+  `### Changed`, `### Fixed` or `### Removed` where useful, without empty headings.
+- Before handoff, verify that every completed logical change is represented,
+  the summary is current, and previous unreleased entries and published release
+  history remain intact.
+- Leave version numbers, timestamps and codenames to R3el's existing release
+  process. The release script moves accumulated entries and their summary under
+  the new version heading, leaving `Unreleased` ready for subsequent work.
