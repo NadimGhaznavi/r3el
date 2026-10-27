@@ -16,6 +16,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.11.1] - 2026-10-27 @ 04:56
+
+This release is named for the element **Cerium (Ce)**. Cerium oxide is a common 
+polishing compound for glass and precision optics.
+
+### Summary
+
+TV catalogue pages now load when episodes have multiple video versions.
+Development tooling supports read-only production investigations and keeps
+release notes current while preserving R3el's established engineering workflow.
+
+### Fixed
+
+- Fix TV detail pages failing to render when an episode has multiple video
+  files, such as AVI and MKV copies. Keep movie part labels specific to movies
+  and cover multiple seasons and video versions with an HTTP regression test.
+
+### Added
+
+- Add the pinned BMForge RCA skill for read-only production evidence collection
+  and local root-cause analysis, with its project-local manager and lock file.
+
+### Changed
+
+- Adopt selected BMForge task, verification and release processes in the coding
+  guidelines, preserving R3el's existing architecture and tooling.
+- Require immediate changelog entries for every completed logical change and
+  one current plain-English summary for meaningful improvements, including
+  small fixes, tests, documentation and maintenance.
+
 ## [6.11.0] - 2026-10-21 @ 02:48
 
 This release is named for the element **Beryllium (Be)**. Beryllium is unusually transparent to X-rays, making it useful for windows in X-ray equipment.
