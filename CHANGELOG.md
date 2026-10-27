@@ -16,8 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Summary
+
+Development tooling now supports read-only production investigations and keeps
+release notes current as work is completed, while preserving R3el's established
+engineering workflow.
+
+### Added
+
 - Add the pinned BMForge RCA skill for read-only production evidence collection
   and local root-cause analysis, with its project-local manager and lock file.
+
+### Changed
+
+- Adopt selected BMForge task, verification and release processes in the coding
+  guidelines, preserving R3el's existing architecture and tooling.
+- Require immediate changelog entries for every completed logical change and
+  one current plain-English summary for meaningful improvements, including
+  small fixes, tests, documentation and maintenance.
 
 ## [6.11.0] - 2026-10-21 @ 02:48
 
