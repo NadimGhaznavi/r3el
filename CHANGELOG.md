@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.11.1] - 2026-10-27 @ 04:56
+
 This release is named for the element **Cerium (Ce)**. Cerium oxide is a common 
 polishing compound for glass and precision optics.
 
