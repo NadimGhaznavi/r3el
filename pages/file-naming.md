@@ -2,6 +2,10 @@
 title: File naming
 author_profile: true
 layout: single
+lang: en
+locale: en-US
+language_name: English
+translation_key: r3el-file-naming
 ---
 
 [Documentation index](../index.md)

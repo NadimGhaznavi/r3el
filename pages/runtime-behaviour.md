@@ -2,6 +2,10 @@
 title: Runtime behaviour
 author_profile: true
 layout: single
+lang: en
+locale: en-US
+language_name: English
+translation_key: r3el-runtime-behaviour
 ---
 
 [Documentation index](../index.md)

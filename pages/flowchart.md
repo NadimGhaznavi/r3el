@@ -2,6 +2,10 @@
 title: Batch and per-item flowcharts
 author_profile: true
 layout: single
+lang: en
+locale: en-US
+language_name: English
+translation_key: r3el-flowchart
 ---
 
 [Documentation index](../index.md) · [Directory patterns](directory-patterns.md) · [Import and cleanup](import-cleanup.md)
