@@ -16,6 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.12.0] - 2026-10-29 @ 18:08
+
+This release is named for the element **Platinum (Pt)**. Platinum's resistance to corrosion and excellent catalytic properties make it useful in jewelry and industrial chemistry.
+
+### Summary
+
+Add Ukrainian and Simplified Chinese versions of the R3el documentation with the shared blog locale conventions and pretranslated static illustrations. The changelog remains English-only.
+
+### Added
+
+- Add `uk` and `zh-CN` static documentation pages, localized diagrams and a language selector through the existing Minimal Mistakes theme.
+
+### Changed
+
+- Identify English documentation pages as translation counterparts while retaining their existing URLs.
+
 ## [0.11.2] - 2026-10-28 @ 05:17
 
 - Updated README.

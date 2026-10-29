@@ -2,6 +2,10 @@
 title: CMDB declarations and runtime configuration
 author_profile: true
 layout: single
+lang: en
+locale: en-US
+language_name: English
+translation_key: r3el-configuration
 ---
 
 [Documentation index](../index.md)
