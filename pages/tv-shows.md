@@ -2,6 +2,10 @@
 title: TV show imports
 author_profile: true
 layout: single
+lang: en
+locale: en-US
+language_name: English
+translation_key: r3el-tv-shows
 ---
 
 [Documentation index](../index.md) · [Directory patterns](directory-patterns.md) · [Catalogue schema](schema.md)

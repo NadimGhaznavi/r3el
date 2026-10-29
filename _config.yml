@@ -24,6 +24,9 @@ minimal_mistakes_skin: "dark"
 mycount:
    endpoint: "https://count.osoyalce.com/count"
    site: "r3el"
+multilingual:
+  enabled: true
+  default_lang: en
 locale: "en-US"
 rtl: # true, false (default) # turns direction of the page into right to left for RTL languages
 title: "R3el"
@@ -126,6 +129,31 @@ author:
   bio: "Creator"
   location: "Hamilton, ON"
   email: "nghaznavi@gmail.com"
+  translations:
+    uk:
+      name: "Nadim-Daniel Ghaznavi"
+      bio: "Автор"
+      location: "Гамільтон, Онтаріо, Канада"
+      home: /uk/
+      links:
+        - label: "GitHub"
+          icon: "fab fa-fw fa-github"
+          url: "https://github.com/NadimGhaznavi"
+        - label: "Мій вебсайт"
+          icon: "fas fa-fw fa-link"
+          url: "https://www.osoyalce.com/"
+    zh-CN:
+      name: "Nadim-Daniel Ghaznavi"
+      bio: "创作者"
+      location: "加拿大安大略省汉密尔顿"
+      home: /zh-CN/
+      links:
+        - label: "GitHub"
+          icon: "fab fa-fw fa-github"
+          url: "https://github.com/NadimGhaznavi"
+        - label: "我的个人网站"
+          icon: "fas fa-fw fa-link"
+          url: "https://www.osoyalce.com/"
   links:
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
