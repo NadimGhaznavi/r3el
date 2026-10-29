@@ -16,9 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Summary
+
+Development tooling now uses the current BMForge manager and shared engineering
+guidance for the installed RCA skill.
+
+### Changed
+
+- Update the pinned BMForge manager and RCA reference bundle to upstream
+  `v0.15.0` (`7817daa5bdec`), including guidance for sequential service start/stop
+  commands in multi-service applications.
+
 ## [0.11.2] - 2026-10-28 @ 05:17
 
-- Updated README.
+### Changed
+
+- Updated [README.md](/README.md) to the `osoyalce.com` standard.
 
 ## [6.11.1] - 2026-10-27 @ 04:56
 
