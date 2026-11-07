@@ -16,8 +16,9 @@ with root-only permissions for the control service's movie searches.
 MariaDB must already be running and root must have administrative socket
 access. The r3el install-services.sh helper must be present to install and
 prepare the one-batch r3el-server service. No release is published.
-Reuses an installed qwen-server.service, or provisions it using the existing
-llama.cpp and Qwen GGUF assets. Batch and model services are not started.
+Uses LlamaSrv's independently installed inference service on port 51001 by default.
+See https://llamasrv.osoyalce.com/ for model setup. /etc/r3el/server.env can
+override R3EL_LLM_URL. Batch and model services are not started.
 Installs, enables, and starts r3el-control.service to display the event log.
 HELP
 }

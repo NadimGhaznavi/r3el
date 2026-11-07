@@ -16,6 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.13.0] - 2026-11-07 @ 06:46
+
+### Summary
+
+Use LlamaSrv as R3el's independently managed model service, with its documented
+inference port 51001 and MCP tools managed by R3el.
+
+### Changed
+
+- Default model connections to LlamaSrv's inference port 51001, preserving
+  explicit `R3EL_LLM_URL` overrides. Remove R3el's Qwen service provisioning
+  and model installation settings so model management belongs to LlamaSrv.
+- Link LlamaSrv's website and repository in the English, Ukrainian, and
+  Simplified Chinese documentation, with setup, tool-calling requirements,
+  endpoint overrides, and migration guidance for existing installations.
+
 ## [6.12.0] - 2026-10-29 @ 18:08
 
 This release is named for the element **Platinum (Pt)**. Platinum's resistance to corrosion and excellent catalytic properties make it useful in jewelry and industrial chemistry.

@@ -16,6 +16,12 @@ In short, I used an AI to match my massive collection of media files and folders
 
 The architecture and code for this project was based on my [Ax3l Project](https://ax3l.osoyalce.com/).
 
+The local Qwen model runs through [LlamaSrv](https://llamasrv.osoyalce.com/)
+([GitHub repository](https://github.com/NadimGhaznavi/llamasrv)), an independently
+managed model service shared by R3el and other applications. R3el uses LlamaSrv's
+default inference port `51001`; its control panel uses port `51000`. See
+[model setup](pages/one-batch-identification.md#llamasrv-model-service).
+
 ![R3el architecture](/pages/images/architecture.png)
 
 ## Batch processing

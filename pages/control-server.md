@@ -152,7 +152,8 @@ discarded from the workspace result. Plain-text numbers are not accepted as subm
 Invalid replies and connection failures leave the result Ambiguous and can be retried
 without repeating the TMDB search. Selection uses the downloaded first page.
 The control service uses `R3EL_LLM_URL` from `/etc/r3el/server.env`, defaulting to
-the local Qwen service. Missing metadata has
+LlamaSrv's local inference endpoint at `http://127.0.0.1:51001`
+([model connection](configuration.md#model-connection)). Missing metadata has
 explicit placeholders. The layout stacks on small screens. Saved JSON remains
 available in a collapsed details section. When only the first page of a larger
 result set is downloaded, the page states how many results are shown. Opening or refreshing
@@ -232,7 +233,8 @@ event and workspace schemas, then enable and start the control service. Open
 `http://<server>:42220/`. It listens on all interfaces by default, using
 the `http` entry in `DR3el.CMDB_NETWORK` and any production JSON override
 ([configuration](configuration.md)). The separate batch service remains stopped and disabled until
-explicitly started. Uninstall removes both R3el units and preserves Qwen.
+explicitly started. Uninstall removes both R3el units and preserves the
+independently managed [LlamaSrv](https://llamasrv.osoyalce.com/) model service.
 
 The page shows up to 500 matching events, newest first. Category, subcategory,
 and event-name dropdowns sit in the table's second header row and apply to
@@ -333,7 +335,7 @@ custom presentation; `reply_received` adds formatted reasoning above that payloa
 To start or stop the installed R3el services, use `scripts/services.sh start`
 or `scripts/services.sh stop` from the checkout or installation directory.
 The helper uses sudo when needed. Startup runs control, then the R3el batch
-server. Shutdown reverses that order. Qwen is managed separately; this script
+server. Shutdown reverses that order. LlamaSrv is managed separately; this script
 does not start or stop it. A failed command stops the script and returns an error.
 The server starts idle with its MCP/ZeroMQ listener; see [Running identification](one-batch-identification.md).
 

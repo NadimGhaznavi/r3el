@@ -10,7 +10,7 @@ Deletes DR3el.BASE_DIR, /etc/r3el/database.env, /etc/r3el/tmdb.env, the local Ma
 and account r3el, and the Linux service user/group r3el.
 All data in that database and installation directory is deleted.
 Stops, disables, and removes r3el-server.service and r3el-control.service.
-Preserves the shared qwen-server.service, its account/configuration, and model assets.
+Preserves independently managed LlamaSrv services, configuration, and model assets.
 Run as root with MariaDB administrative socket access.
 HELP
 }

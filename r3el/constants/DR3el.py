@@ -5,10 +5,10 @@ class DR3el:
     RAW_LOGS_ENABLED: Final[bool] = False
     HTTP_TIMEOUT_SECONDS: Final[int] = 300
 
-    VERSION: Final[str] = "6.12.0"
+    VERSION: Final[str] = "6.13.0"
     CMDB_SUBTYPE: Final[str] = "Media Manager"
     CMDB_SUPPLIER: Final[str] = "Nadim-Daniel"
-    CMDB_CODENAME: Final[str] = "Platinum"
+    CMDB_CODENAME: Final[str] = "Heka"
 
     CMDB_DATABASES: Final[tuple[tuple[str, str], ...]] = (("R3el", "r3el"),)
     CMDB_NETWORK: Final[tuple[tuple[str, str, int], ...]] = (
