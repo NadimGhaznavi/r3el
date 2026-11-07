@@ -51,7 +51,7 @@ Title Search、Search Index、Category Search 和 Random Search 排在同一行�
 
 匹配完成后，Match Results 链接根据 TMDB 总数显示 **1 match**、**No matches** 或 **N matches**。**Match failed** 链接指向错误，**Skipped** 不提供链接。详情页展示查询的标题/年份及每个下载候选的卡片：海报、标题/年份、语言、评分/票数、类型、简介、上映日期、原名和 TMDB 链接。只有一个总结果时视为 Resolved；多个结果启动 `multiple_choice` LLM 提示，提供候选编号、片名及约 160 字符且延伸到句末的简介片段。模型经 MCP 调用 `submit_multiple_choice(number)`。临时回环 ZeroMQ 监听器对照服务器持有的尝试和候选数验证整数，拒绝过期或重复的提交。工具参数**只有编号**。有效选择被保存为 Resolved；0 表示无法自信选择。成功后，**1 match** 链接和保存的 JSON 仅包含被选中的电影，其他候选从工作区结果中清除。纯文本数字不能算作工具提交。
 
-无效的模型回复与连接故障让结果保持 Ambiguous，可重新选择而无需再次搜索 TMDB。选择仅使用已下载的第一页。Control 从 `/etc/r3el/server.env` 读取 `R3EL_LLM_URL`，默认使用本地 Qwen。缺少元数据时显示明确的占位值；小屏幕采用上下堆叠布局。保存的 JSON 可在折叠的详情块中查看。如果实际结果超过已下载的第一页，页面会注明显示数量。打开或刷新详情只读保存的结果，不再查询 TMDB。再次匹配会复用成功的查询，并重试失败的查询。更改文件动作会清除该文件结果。没有识别结果的 Pending/Approve 显示 Match failed。识别缺失或单项查询失败不会阻止其他文件继续处理。
+无效的模型回复与连接故障让结果保持 Ambiguous，可重新选择而无需再次搜索 TMDB。选择仅使用已下载的第一页。Control 从 `/etc/r3el/server.env` 读取 `R3EL_LLM_URL`，默认使用 LlamaSrv 的本地推理地址 `http://127.0.0.1:51001`（[模型连接配置](/zh-CN/pages/configuration/)）。缺少元数据时显示明确的占位值；小屏幕采用上下堆叠布局。保存的 JSON 可在折叠的详情块中查看。如果实际结果超过已下载的第一页，页面会注明显示数量。打开或刷新详情只读保存的结果，不再查询 TMDB。再次匹配会复用成功的查询，并重试失败的查询。更改文件动作会清除该文件结果。没有识别结果的 Pending/Approve 显示 Match failed。识别缺失或单项查询失败不会阻止其他文件继续处理。
 
 TMDB 零结果会自动开启新的文件名识别对话，使用正常的当前日期、focus、文件名和提交提示。过去的识别与搜索失败不会放入新 LLM 消息。新片名与年份会再次搜索，即使与先前完全相同。**Retries** 列最多记录初次识别后的三次额外识别。如果第三次仍没有匹配，则按最终片名依次搜索前一年和后一年。相邻年份搜索第一次返回**恰好一部电影**时直接接受；多个结果走正常 LLM 选择，无法选择则留给手工 TMDB ID。只有零结果才继续搜索下一个年份。若前后年份均无结果，使用手工 TMDB ID 字段。文件进入 `unresolved_llm`，之后的匹配请求不会再执行已耗尽的重试；批次继续其他文件。API 故障不算作零结果；失败的相邻年份可单独重试，无需重新搜索已完成的年份。进行识别重试、相邻年份搜索或 LLM 多候选选择时，Status 列显示 Pending。重试次数和结果与事件一起保存，可跨重启恢复；安装/升级新增 `media_files.retries`。同一次识别对话内部的表单纠错次数是另一个计数器。
 
@@ -63,7 +63,7 @@ New Batch 替换完成的工作区；服务启动恢复中断的批次。批次�
 
 `POST /batches` 处理表单，成功时重定向到 GET 页面，使刷新不会重交任务。两项服务都支持 `--zmq-endpoint` 非默认端点；参见 [ZMQ 消息](/zh-CN/pages/zmq-messages/)。
 
-安装/升级会复制 Python 模块与模板、初始化事件和工作区结构，然后启用并启动控制服务。访问 `http://<server>:42220/`。默认根据 `DR3el.CMDB_NETWORK` 的 `http` 声明监听全部网络接口，并应用生产 JSON 覆盖设置（[配置](/zh-CN/pages/configuration/)）。独立批处理服务保持停止且不启用自启，直到手工启动。卸载会删除两个 R3el 服务，但保留 Qwen。
+安装/升级会复制 Python 模块与模板、初始化事件和工作区结构，然后启用并启动控制服务。访问 `http://<server>:42220/`。默认根据 `DR3el.CMDB_NETWORK` 的 `http` 声明监听全部网络接口，并应用生产 JSON 覆盖设置（[配置](/zh-CN/pages/configuration/)）。独立批处理服务保持停止且不启用自启，直到手工启动。卸载会删除两个 R3el 服务，但保留独立管理的 [LlamaSrv](https://llamasrv.osoyalce.com/) 模型服务。
 
 Event Log 按时间倒序展示最多 500 条匹配事件。Category、subcategory、event-name 下拉框位于表格第二层标题行，先对数据库**全部历史**过滤，再限制条数。Event / source 下拉框可筛选 `tool_received`、`tool_started` 等事件。行内首先单独展示源，例如 `FileMgr - files_retrieved`。可选择手工或 5、30、60 秒自动刷新。单击事件进入完整消息、来源、进程 ID、应用版本和父事件。详情页缩进显示 JSON，原始文本保持不变。`reply_received` 的 Message 区域将解码后的 LLM reasoning 以 Markdown 格式展示，支持标题、列表、强调、代码、表格与换行。完整日志负载仍位于 JSON 标题下。内嵌 HTML 被转义，不安全链接协议被阻止；无 reasoning 时显示专门的空状态信息。显示时间按浏览器本地时区和夏令时转换；数据库始终保存 UTC，时间戳元素包含明确的 UTC 偏移。
 
@@ -116,7 +116,7 @@ Message 列使用 `r3el/server/templates/messages/` 下的 Jinja 模板。`Event
 
 ## 独立启动
 
-从代码目录或安装目录执行 `scripts/services.sh start` / `scripts/services.sh stop`，可启动或停止已安装的 R3el 服务。脚本按需使用 sudo。启动顺序为 Control、R3el 批处理服务器；停止顺序相反。Qwen 单独管理，此脚本不会启动或停止它。命令失败会使脚本停止并返回错误。服务器以空闲 MCP/ZeroMQ 监听状态启动；参见[识别服务器](/zh-CN/pages/one-batch-identification/)。
+从代码目录或安装目录执行 `scripts/services.sh start` / `scripts/services.sh stop`，可启动或停止已安装的 R3el 服务。脚本按需使用 sudo。启动顺序为 Control、R3el 批处理服务器；停止顺序相反。LlamaSrv 单独管理，此脚本不会启动或停止它。命令失败会使脚本停止并返回错误。服务器以空闲 MCP/ZeroMQ 监听状态启动；参见[识别服务器](/zh-CN/pages/one-batch-identification/)。
 
 在安装依赖、初始化事件数据库结构，并设置环境变量 `DB_HOST`、`DB_USER`、`DB_PASSWORD`、`DB_NAME` 后：
 

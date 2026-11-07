@@ -106,12 +106,12 @@ the matching lifecycle states. The server unit also loads TMDB credentials from
 
 For a source checkout, install dependencies and set `DB_HOST`, `DB_USER`,
 `DB_PASSWORD`, and `DB_NAME` (`DB_PORT` defaults to 3306). Initialize both
-schemas, then run against an available model:
+schemas, then run against LlamaSrv on its default inference port:
 
 ```bash
 .venv/bin/python -B -m r3el.activity.EventSchema
 .venv/bin/python -B -m r3el.activity.WorkspaceSchema
-.venv/bin/python -B -m r3el.server.R3elServer --run-batch --llm-url http://MODEL_HOST:PORT
+.venv/bin/python -B -m r3el.server.R3elServer --run-batch --llm-url http://127.0.0.1:51001
 ```
 
 Optional `--film-dir`, `--batch-size`, and `--zmq-endpoint` arguments override
@@ -120,8 +120,9 @@ for an isolated workspace. For `--run-batch`, supply `--llm-url` or `R3EL_LLM_UR
 
 Installation/upgrade prepares the systemd unit but leaves it stopped and
 disabled for automatic startup. The installed unit defaults `R3EL_LLM_URL` to
-`http://127.0.0.1:27770`; `/etc/r3el/server.env` can override it. Start the shared
-model and wait until `http://127.0.0.1:27770/health` returns HTTP 200, then
+`http://127.0.0.1:51001`, LlamaSrv's default inference endpoint;
+`/etc/r3el/server.env` can override it. Start LlamaSrv separately and wait until
+`http://127.0.0.1:51001/health` returns HTTP 200 (or check the configured model URL), then
 start the idle listener:
 
 ```bash
@@ -131,26 +132,47 @@ sudo systemctl start r3el-server.service
 The service waits for new batches when no interrupted work needs resuming. Only the explicit `--run-batch` diagnostic
 mode exits after identification. The normal service accepts batches from the web interface.
 
-## Shared Qwen service
+## LlamaSrv model service
 
-Install and upgrade check systemd for Ax3l's production `qwen-server.service`.
-An installed service is reused without rewriting its unit, MCP configuration,
-account, enabled state, or running state. A masked or broken unit must be
-repaired explicitly. Ax3l and R3el are intended to run one at a time.
+[LlamaSrv](https://llamasrv.osoyalce.com/)
+([GitHub repository](https://github.com/NadimGhaznavi/llamasrv)) runs and manages
+the local Qwen model independently of R3el. Follow LlamaSrv's installation and
+model setup instructions first. Its default model is Qwen3.5-4B. Applications
+send OpenAI-compatible requests to inference port `51001`; port `51000` is
+LlamaSrv's control panel. R3el records that documented inference default in
+`r3el/constants/DLlama.py`; LlamaSrv owns the model listener.
 
-If absent, R3el installs that same service name using Ax3l's model defaults:
-`/opt/prod/llama.cpp/bin/llama-server`,
-`/opt/prod/models/Qwen3.5-4B-Q4_K_M.gguf`, context size 12288,
-host `0.0.0.0`, port 27770, metrics, Jinja, and the same systemd hardening.
-The assets must already exist and be accessible to the service account;
-the installer does not download or rebuild them.
+R3el install, upgrade, uninstall, and `scripts/services.sh` manage R3el's
+services only. They do not provision, start, stop, or remove LlamaSrv, its
+accounts/configuration, llama.cpp, or model files. The model may be stopped
+while installing R3el or using its catalogue; it must be ready before starting
+identification or LLM candidate selection. For a default LlamaSrv installation:
 
-The new service uses an independent `qwen` account and
-`/etc/qwen-server/mcp.json` with no server-side tools, since R3el manages its
-own MCP conversations. It is left stopped and disabled. Start it with
-`sudo systemctl start qwen-server.service` before checking readiness.
-R3el uninstall preserves the shared model service, its account/configuration,
-llama.cpp, and GGUF. An existing Ax3l service retains its Ax3l dependencies.
+```bash
+sudo systemctl start llamasrv-llm.service
+curl -fsS http://127.0.0.1:51001/health
+```
+
+Wait for HTTP 200 before starting R3el's batch server. For another model host
+or inference port, set `R3EL_LLM_URL` in `/etc/r3el/server.env` as described in
+[model connection configuration](configuration.md#model-connection).
+
+Keep LlamaSrv's `llama.jinja` setting enabled (the default), which passes
+`--jinja` to llama-server. The Qwen model needs a tool-capable chat template;
+see llama.cpp's [function-calling documentation](https://github.com/ggml-org/llama.cpp/blob/master/docs/function-calling.md).
+R3el starts its own stdio MCP subprocess, supplies tool schemas with each
+request, executes returned tool calls, and sends tool results back when a
+correction is needed. It requests `tool_choice: "required"` with
+`parallel_tool_calls: false` and expects one structured `message.tool_calls`
+entry containing an ID, function name, and JSON-encoded arguments.
+No R3el tool registration or `--mcp-servers-config` option is needed in LlamaSrv.
+Other applications can supply and execute their own tools using the same model service.
+
+When upgrading an older R3el installation, the new unit uses port `51001` unless
+`/etc/r3el/server.env` overrides `R3EL_LLM_URL`. Existing overrides are preserved;
+update an old endpoint or remove the override to use LlamaSrv's default. A
+previously installed `qwen-server.service` and its files/accounts are left
+untouched. Retire that service separately after checking its other consumers.
 
 ## Verification
 

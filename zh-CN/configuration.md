@@ -19,7 +19,26 @@ R3el 在 `r3el/constants/DR3el.py` 中以字面量声明资产清单元数据。
 | `CMDB_NETWORK`，`http` | 控制 HTTP 监听器，默认 `0.0.0.0:42220`。 |
 | `CMDB_NETWORK`，`backend` | 批处理服务器的 ZeroMQ 监听器，默认 `127.0.0.1:42221`，也是 Control 批处理客户端的目标。 |
 
-数据库声明不保存密码或远程连接设置。运行时数据库凭据与连接选项仍由 `/etc/r3el/database.env` 提供。MariaDB 的出站端口和独立管理的共享 Qwen 服务使用各自的配置。匹配操作内部创建的临时 ZeroMQ 监听器继续使用动态端口。
+数据库声明不保存密码或远程连接设置。运行时数据库凭据与连接选项仍由 `/etc/r3el/database.env` 提供。MariaDB 的出站端口和独立管理的 [LlamaSrv](https://llamasrv.osoyalce.com/) 模型服务使用各自的配置。匹配操作内部创建的临时 ZeroMQ 监听器继续使用动态端口。
+
+## 模型连接
+
+R3el 默认使用 `http://127.0.0.1:51001`，即
+[LlamaSrv](https://llamasrv.osoyalce.com/)（[GitHub 仓库](https://github.com/NadimGhaznavi/llamasrv)）
+提供的推理地址。LlamaSrv 控制面板使用端口 `51000`。这两个端口属于 LlamaSrv，
+因此不在 R3el 的 `CMDB_NETWORK` 或 `conf/r3el.json` 监听器设置中。
+
+已安装的 R3el 服务无需额外配置即可使用该默认地址。
+若要连接其他主机或自定义 LlamaSrv 推理端口，在 `/etc/r3el/server.env` 中设置基础 URL，例如：
+
+```ini
+R3EL_LLM_URL=http://MODEL_HOST:51001
+```
+
+R3el 会追加 `/v1/chat/completions`，基础 URL 中不要包含该路径或 `/v1`。
+安装和升级会保留此文件，包括旧的地址覆盖值。编辑后，请在可以停止批处理时重启相关 R3el 服务。
+从源代码运行时，导出 `R3EL_LLM_URL` 或向批处理服务器传入 `--llm-url`。
+有关 LlamaSrv 就绪状态和工具调用要求，参见[模型设置与迁移](/zh-CN/pages/one-batch-identification/)。
 
 ## 生产环境监听器覆盖设置
 
@@ -48,6 +67,6 @@ Control 的 `--host`、`--port`、`--zmq-endpoint` 以及批处理服务器的 `
 /opt/prod/r3el/scripts/services.sh restart
 ```
 
-脚本会先验证配置，再停止任一服务，然后以新设置启动 Control 和批处理服务器。重启会中断正在处理的批次，所以只应在可以停止工作时执行。开始批处理前，共享 Qwen 服务必须已就绪。`services.sh start` 同样先验证配置。安装和升级操作也会在停止服务前验证设置，之后启动 Control，但保持批处理服务停止。
+脚本会先验证配置，再停止任一服务，然后以新设置启动 Control 和批处理服务器。重启会中断正在处理的批次，所以只应在可以停止工作时执行。开始批处理前，LlamaSrv 推理服务必须已就绪。`services.sh start` 同样先验证配置。安装和升级操作也会在停止服务前验证设置，之后启动 Control，但保持批处理服务停止。
 
 更改运行时覆盖设置不会修改 CMDB 中声明的默认资产清单。
