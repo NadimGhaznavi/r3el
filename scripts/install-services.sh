@@ -38,7 +38,6 @@ getent group r3el >/dev/null || fail "Missing r3el group; run install.sh first."
 chmod 644 -- "$install_dir/conf/r3el.json"
 
 python3 -B "$checkout_dir/scripts/install-tmdb.py"
-python3 -B "$checkout_dir/scripts/install-qwen.py"
 
 if [[ ! -x $install_dir/.venv/bin/python ]]; then
     python3 -m venv "$install_dir/.venv"
@@ -182,5 +181,7 @@ systemctl enable --now r3el-control.service
 control_port=$(cd -- "$checkout_dir" && python3 -B -c 'from r3el.interface.Network import Network; print(Network.binding("http")[1])')
 printf 'R3el Control started: http://<server>:%s/\n' "$control_port"
 printf 'Installed idle r3el-server.service at %s.\n' "$install_dir"
-printf 'Start qwen-server.service and wait for its /health endpoint to return HTTP 200 before starting r3el-server.service.\n'
-printf 'The local Qwen URL is configured by default; /etc/r3el/server.env can override R3EL_LLM_URL.\n'
+llm_port=$(cd -- "$checkout_dir" && python3 -B -c 'from r3el.constants.DLlama import DLlama; print(DLlama.PORT)')
+printf 'Model inference is managed separately by LlamaSrv: https://llamasrv.osoyalce.com/\n'
+printf 'The default R3EL_LLM_URL uses LlamaSrv inference at http://127.0.0.1:%s; /etc/r3el/server.env can override it.\n' "$llm_port"
+printf 'Start LlamaSrv separately and wait for the configured model URL /health to return HTTP 200 before starting r3el-server.service.\n'

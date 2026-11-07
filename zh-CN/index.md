@@ -17,6 +17,11 @@ permalink: /zh-CN/
 
 这个项目的架构和代码基于我的 [Ax3l 项目](https://ax3l.osoyalce.com/)。
 
+本地 Qwen 模型由 [LlamaSrv](https://llamasrv.osoyalce.com/)
+（[GitHub 仓库](https://github.com/NadimGhaznavi/llamasrv)）运行。
+该模型服务独立管理，供 R3el 和其他应用使用。R3el 使用 LlamaSrv 的默认推理端口
+`51001`；控制面板使用端口 `51000`。参见[模型设置](/zh-CN/pages/one-batch-identification/)。
+
 ![R3el 架构图](/pages/images/architecture.zh-CN.svg)
 
 ## 批量处理

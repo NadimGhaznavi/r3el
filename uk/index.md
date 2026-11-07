@@ -17,6 +17,12 @@ permalink: /uk/
 
 Архітектура та код проєкту спираються на мій [проєкт Ax3l](https://ax3l.osoyalce.com/).
 
+Локальна модель Qwen працює через [LlamaSrv](https://llamasrv.osoyalce.com/)
+([репозиторій GitHub](https://github.com/NadimGhaznavi/llamasrv)) — незалежно
+керований сервіс моделі для R3el та інших застосунків. R3el використовує
+стандартний порт інференсу LlamaSrv `51001`; панель керування працює на порту
+`51000`. Див. [налаштування моделі](/uk/pages/one-batch-identification/).
+
 ![Архітектура R3el](/pages/images/architecture.uk.svg)
 
 ## Пакетна обробка

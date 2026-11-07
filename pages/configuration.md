@@ -25,8 +25,32 @@ default listeners and already drive R3el's runtime defaults.
 Database references contain no credentials or remote connection settings.
 `/etc/r3el/database.env` continues to supply runtime database credentials and
 connection settings. MariaDB's outbound connection port and the independently
-managed shared Qwen service retain their own configuration. Temporary ZeroMQ
-listeners used within a matching operation continue to request an ephemeral port.
+managed [LlamaSrv](https://llamasrv.osoyalce.com/) model service retain their own
+configuration. Temporary ZeroMQ listeners used within a matching operation
+continue to request an ephemeral port.
+
+## Model connection
+
+R3el defaults to `http://127.0.0.1:51001`, the inference endpoint provided by
+[LlamaSrv](https://llamasrv.osoyalce.com/)
+([GitHub repository](https://github.com/NadimGhaznavi/llamasrv)). LlamaSrv's
+control panel uses port `51000`. These belong to LlamaSrv, so neither port is
+part of R3el's `CMDB_NETWORK` or `conf/r3el.json` listener settings.
+
+The installed R3el services use this default without additional configuration.
+To connect to another host or a custom LlamaSrv inference port, set the base
+URL in `/etc/r3el/server.env`, for example:
+
+```ini
+R3EL_LLM_URL=http://MODEL_HOST:51001
+```
+
+R3el appends `/v1/chat/completions`; omit that path and `/v1` from the base URL.
+Install and upgrade preserve this file, including any old endpoint override.
+After editing it, restart the affected R3el services when batch work can stop.
+For a source checkout, export `R3EL_LLM_URL` or pass `--llm-url` to the batch
+server. See [model setup and migration](one-batch-identification.md#llamasrv-model-service)
+for LlamaSrv readiness and tool-calling requirements.
 
 ## Production listener overrides
 
@@ -68,7 +92,7 @@ Edit the production JSON file, then run:
 
 This validates the settings before stopping either R3el service, then starts
 Control and the batch server with the new settings. Restart stops active batch
-work; use it when the batch server can be stopped. The shared Qwen service must
+work; use it when the batch server can be stopped. LlamaSrv's inference service must
 already be ready before batch work starts. `services.sh start` also validates
 configuration before service actions. Installation and upgrade validate before
 stopping services; they start Control and leave the batch service stopped.

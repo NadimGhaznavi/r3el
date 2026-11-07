@@ -59,17 +59,17 @@ HTTP、MCP、数据库和传输故障会终止批次，不会悄悄当成识别�
 
 ## 运行
 
-从源代码运行时，安装依赖并设置 `DB_HOST`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`（`DB_PORT` 默认为 3306）。初始化两套数据库结构，然后连接可用模型：
+从源代码运行时，安装依赖并设置 `DB_HOST`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`（`DB_PORT` 默认为 3306）。初始化两套数据库结构，然后连接 LlamaSrv 的默认推理端口：
 
 ```bash
 .venv/bin/python -B -m r3el.activity.EventSchema
 .venv/bin/python -B -m r3el.activity.WorkspaceSchema
-.venv/bin/python -B -m r3el.server.R3elServer --run-batch --llm-url http://MODEL_HOST:PORT
+.venv/bin/python -B -m r3el.server.R3elServer --run-batch --llm-url http://127.0.0.1:51001
 ```
 
 可选的 `--film-dir`、`--batch-size` 和 `--zmq-endpoint` 覆盖 `DR3el` 默认值，默认批次大小为 10。隔离工作区应使用独立数据库。诊断 `--run-batch` 必须提供 `--llm-url` 或 `R3EL_LLM_URL`；仅启动空闲服务则不需要。
 
-安装/升级准备 systemd 服务，但不会启动或启用开机自启。已安装的服务默认 `R3EL_LLM_URL` 为 `http://127.0.0.1:27770`，可由 `/etc/r3el/server.env` 覆盖。先启动共享模型，等待 `http://127.0.0.1:27770/health` 返回 HTTP 200，再启动空闲监听器：
+安装/升级准备 systemd 服务，但不会启动或启用开机自启。已安装的服务默认 `R3EL_LLM_URL` 为 `http://127.0.0.1:51001`，即 LlamaSrv 的默认推理地址，可由 `/etc/r3el/server.env` 覆盖。单独启动 LlamaSrv，等待 `http://127.0.0.1:51001/health`（或配置的模型地址）返回 HTTP 200，再启动空闲监听器：
 
 ```bash
 sudo systemctl start r3el-server.service
@@ -77,13 +77,22 @@ sudo systemctl start r3el-server.service
 
 若没有待恢复任务，服务等待新批次。只有明确使用 `--run-batch` 的诊断模式会在识别后退出；正常服务通过网页接收批次。
 
-## 共享 Qwen 服务
+## LlamaSrv 模型服务
 
-安装及升级检查 systemd 中是否已有 Ax3l 的生产 `qwen-server.service`。若存在，则复用，不改写 unit、MCP 配置、账户、启用状态或运行状态。被屏蔽或损坏的服务必须显式修复。Ax3l 与 R3el 设计为交替使用。
+[LlamaSrv](https://llamasrv.osoyalce.com/)（[GitHub 仓库](https://github.com/NadimGhaznavi/llamasrv)）独立于 R3el 运行和管理本地 Qwen 模型。请先按照 LlamaSrv 的说明完成安装和模型准备。默认模型为 Qwen3.5-4B。应用向推理端口 `51001` 发送 OpenAI 兼容请求；端口 `51000` 用于 LlamaSrv 控制面板。R3el 在 `r3el/constants/DLlama.py` 中采用该公开默认值，不声明自己的模型监听器。
 
-如果不存在该服务，R3el 按 Ax3l 默认参数以相同名称安装：`/opt/prod/llama.cpp/bin/llama-server`、`/opt/prod/models/Qwen3.5-4B-Q4_K_M.gguf`、上下文 12288、监听 `0.0.0.0`、端口 27770、metrics、Jinja 及相同的 systemd 加固。文件必须事先存在且服务账户可访问，安装程序不会下载或重新编译。
+R3el 的安装、升级、卸载和 `scripts/services.sh` 只管理 R3el 服务，不会配置、启动、停止或删除 LlamaSrv、其账户/配置、llama.cpp 或模型文件。安装 R3el 或浏览媒体目录时可以停止模型；开始识别或通过 LLM 选择候选项之前，模型必须就绪。默认 LlamaSrv 安装使用：
 
-新服务使用独立 `qwen` 账户，`/etc/qwen-server/mcp.json` 不包含服务端工具，因为 R3el 自己管理 MCP 对话。它默认停止且不自启。先执行 `sudo systemctl start qwen-server.service` 再检查就绪状态。卸载 R3el 会保留共享模型服务、账户/配置、llama.cpp 和 GGUF。已存在的 Ax3l 服务保留 Ax3l 依赖。
+```bash
+sudo systemctl start llamasrv-llm.service
+curl -fsS http://127.0.0.1:51001/health
+```
+
+等待 HTTP 200 后再启动 R3el 批处理服务器。若使用其他主机或推理端口，在 `/etc/r3el/server.env` 中设置 `R3EL_LLM_URL`；参见[模型连接配置](/zh-CN/pages/configuration/)。
+
+保持 LlamaSrv 的 `llama.jinja` 启用（默认值），以向 llama-server 传递 `--jinja`。Qwen 模型需要支持工具的聊天模板；参见 [llama.cpp 函数调用文档](https://github.com/ggml-org/llama.cpp/blob/master/docs/function-calling.md)。R3el 启动自己的 stdio MCP 子进程，在每次请求中发送工具定义，执行返回的工具调用，并在需要纠正时回传工具结果。请求使用 `tool_choice: "required"` 和 `parallel_tool_calls: false`，期望获得一个带有 ID、函数名和 JSON 编码参数的结构化 `message.tool_calls` 条目。无需在 LlamaSrv 中注册 R3el 工具或设置 `--mcp-servers-config`。其他应用也可以通过同一模型服务提交并执行自己的工具。
+
+升级旧版 R3el 后，新服务使用端口 `51001`，但 `/etc/r3el/server.env` 中的 `R3EL_LLM_URL` 覆盖值仍会保留。更新旧地址，或删除覆盖值以采用 LlamaSrv 默认地址。原先安装的 `qwen-server.service`、文件和账户保持不变。确认其他使用方后，再单独停用该旧服务。
 
 ## 验证
 
