@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.13.0] - 2026-11-07 @ 06:46
+
 ### Summary
 
 Use LlamaSrv as R3el's independently managed model service, with its documented
